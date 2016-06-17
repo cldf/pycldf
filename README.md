@@ -9,6 +9,19 @@ A python package to read and write [CLDF](http://cldf.clld.org) datasets
 [![PyPI](https://img.shields.io/pypi/v/pycldf.svg)](https://pypi.python.org/pypi/pycldf)
 
 
+Reading CLDF
+------------
+
+```python
+>>> from pycldf.dataset import Dataset
+>>> dataset = Dataset.from_file('mydb.csv')
+>>> len(dataset)
+1
+>>> dataset.rows[0]
+OrderedDict([(u'ID', u'1'), (u'Language_ID', u'http://glottolog.org/resource/languoid/id/stan1295'), (u'Parameter_ID', u'http://concepticon.clld.org/parameters/1277'), (u'Value', u'hand'), (u'Source', u'Meier2005[3-7]'), (u'Comment', u'')])
+```
+
+
 Writing CLDF
 ------------
 
