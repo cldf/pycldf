@@ -14,17 +14,21 @@ class Tests(WithTempDir):
 
         ds = Dataset.from_file(FIXTURES.joinpath('ds1.csv'))
         self.assertEqual(len(ds), 2)
-        self.assertEqual(ds.source_count()['meier2015'], 1)
-        self.assertEqual(ds.source_count()['80086'], 2)
         self.assertEqual(ds.metadata['dc:creator'], 'The Author')
 
         row = ['3', 'abcd1234', 'fid2', 'maybe', '', 'new[4]']
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(KeyError):
             ds.add_row(row)
 
         ds.sources.add('@book{new,\nauthor={new author}}')
-        ds.add_row(row)
-
+        res = ds.add_row(row)
+        self.assertEqual(res.url, 'http://example.org/valuesets/3')
+        self.assertEqual(len(res.expand('Source')), 1)
+        self.assertEqual(
+            res.expand('Language_ID'),
+            'http://glottolog.org/resource/languoid/id/abcd1234')
+        self.assertEqual(res.expand('Value'), 'maybe')
+        self.assertIsNone(ds.metadata.get_column('values', 'unknown'))
         out = self.tmp_path()
         ds.write(out, '.tsv')
         self.assertTrue(out.joinpath('ds1.bib').exists())

@@ -1,46 +1,41 @@
 
-Releasing pycdstar
-==================
-
-Clone cdstar-community/pycdstar and switch to the master branch. Then:
+Releasing pycldf
+================
 
 - Do platform test via tox:
+```
+tox -r
+```
 
-  $ tox -r
-
-  Make sure statement coverage is at 100%
-
-- Make sure flake8 passes::
-
-  $ flake8 --ignore=E711,E712,D100,D101,D103,D102,D301 --max-line-length=100 pycdstar
-
-- Make sure docs render OK::
-
-  $ cd docs
-  $ make clean html
+- Make sure statement coverage is at 100%
+- Make sure flake8 passes:
+```
+flake8 --ignore=E711,E712,D100,D101,D103,D102,D301 --max-line-length=100 pycldf
+```
 
 - Change version to the new version number in
 
-  - setup.py
-  - pycdstar/__init__.py
-  - docs/conf.py
+  - `setup.py`
+  - `pycldf/__init__.py`
 
 - Bump version number:
-
-  $ git commit -a -m"bumbed version number"
+```
+git commit -a -m"bumbed version number"
+```
 
 - Create a release tag:
-
-  $ git tag -a v<version> -m"first version to be released on pypi"
+```
+git tag -a v<version> -m"first version to be released on pypi"
+```
 
 - Push to github:
+```
+git push origin
+git push --tags
+```
 
-  $ git push origin
-  $ git push --tags
-
-- Make sure your system Python has ``setuptools-git`` installed and release to
-  PyPI::
-
-  $ git checkout tags/v$1
-  $ python setup.py sdist register upload
-
+- Make sure your system Python has ``setuptools-git`` installed and release to PyPI:
+```
+git checkout tags/v$1
+python setup.py sdist register upload
+```

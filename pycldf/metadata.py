@@ -3,42 +3,55 @@ from __future__ import unicode_literals, print_function, division
 
 from clldutils import jsonlib
 
-from pycldf.util import OptionalFile
+from pycldf.util import OptionalFile, CLDF_VERSION, TABLE_TYPES
 
 
-class Metadata(OptionalFile):
-    def __init__(self):
-        self._md = {
+class Metadata(dict, OptionalFile):
+    def __init__(self, *args, **kw):
+        dict.__init__(self, *args, **kw)
+        for k, v in {
             "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
-            "dc:format": "cldf-1.0",
-            "dialect": {
-                "delimiter": ",",
-                "encoding": "utf-8",
-                "header": True
-            },
-            "tableSchema": {}
-        }
+            "dc:format": CLDF_VERSION,
+            "dialect": {"delimiter": ",", "encoding": "utf-8", "header": True},
+            "tables": []
+        }.items():
+            self.setdefault(k, v)
 
-    def __getitem__(self, item):
-        return self._md[item]
+    @property
+    def values_table(self):
+        return self.get_table('values')
 
-    def __setitem__(self, key, value):
-        self._md[key] = value
+    @property
+    def dialect(self):
+        return self['dialect']
 
-    def __contains__(self, item):
-        return item in self._md
+    def get_table(self, type_):
+        type_ = TABLE_TYPES[type_]
+        for t in self['tables']:
+            if t.get('dc:type') == type_:
+                return t
+        if type_ == TABLE_TYPES['values'] and len(self['tables']) == 1:
+            return self['tables'][0]
 
-    def get(self, item, default=None):
-        if item in self:
-            return self[item]
+    def get_column(self, type_, field, default=None):
+        table = self.get_table(type_)
+        if table:
+            for col in table['tableSchema']['columns']:
+                if col['name'] == field:
+                    return col
         return default
 
-    def setdefault(self, item, value):
-        if item not in self:
-            self[item] = value
+    def add_table(self, type_, url, columns):
+        assert self.get_table(type_) is None
+        self['tables'].append({
+            "url": url,
+            "dc:type": TABLE_TYPES[type_],
+            "tableSchema": {"columns": columns},
+        })
+        return self.get_table(type_)
 
     def read(self, fname):
-        self._md = jsonlib.load(fname)
+        self.update(jsonlib.load(fname))
 
-    def write(self, fname):
-        jsonlib.dump(self._md, fname, indent=4)
+    def write(self, fname, **kw):
+        jsonlib.dump(self, fname, indent=4)

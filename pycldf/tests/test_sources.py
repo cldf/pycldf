@@ -19,13 +19,21 @@ BIB = """@BOOK{Obrazy,
 
 
 class Tests(WithTempDir):
-    def test_sources(self):
+    def test_Sources(self):
         from pycldf.sources import Sources, Source
 
         src = Sources()
-        src.add(BIB, Source('huber2005', author='Herrmann Huber', year='2005', title='y'))
+        src.add(BIB, Source(
+            'book', 'huber2005', author='Herrmann Huber', year='2005', title='y'))
+        self.assertEqual(len(list(src.items())), 3)
+        self.assertEqual(len(list(src.keys())), 3)
+        refs = 'huber2005[1-6];Obrazy;Elegie[34]'
+        self.assertEqual(src.format_refs(*list(src.expand_refs(refs))), refs)
+        self.assertEqual('%s' % src['huber2005'], 'Huber, Herrmann. 2005. y.')
         with self.assertRaises(ValueError):
             src.add(5)
+        with self.assertRaises(ValueError):
+            src.add('@misc{a.b,\n  author="a.b"\n}')
 
         bib = self.tmp_path('test.bib')
         src.write(bib)
@@ -33,15 +41,23 @@ class Tests(WithTempDir):
         src2 = Sources()
         src2.read(bib)
 
+        bib = self.tmp_path('test.bib')
+        src2.write(bib, ids=['huber2005'])
+        src = Sources()
+        src.read(bib)
+        self.assertEqual(len(src), 1)
+
+    def test_Reference(self):
+        from pycldf.sources import Reference, Source
+
+        ref = Reference(Source('book', 'huber2005', author='Herrmann Huber'), '2-5')
+        self.assertEqual('%s' % ref, 'huber2005[2-5]')
+        with self.assertRaises(ValueError):
+            Reference(Source('book', 'huber2005', author='Herrmann Huber'), '[2-5]')
+
     def test_Source_persons(self):
         from pycldf.sources import Source
 
         self.assertEqual(len(list(Source.persons('A. Meier'))), 1)
         self.assertEqual(len(list(Source.persons('Meier, A.B.'))), 1)
         self.assertEqual(len(list(Source.persons('A. Meier, B. Meier, C.Meier'))), 3)
-
-    def test_itersources(self):
-        from pycldf.sources import itersources
-
-        res = list(itersources('1234[1-4] ; maier2005'))
-        self.assertEqual(res, [('1234', '1-4'), ('maier2005', None)])

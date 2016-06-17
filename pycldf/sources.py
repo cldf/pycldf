@@ -1,14 +1,18 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
-from itertools import chain
 import re
-from collections import Counter
 
-from six import text_type, string_types
+from six import string_types
 from pybtex import database
 from pybtex.database.output.bibtex import Writer as BaseWriter
+from clldutils.misc import UnicodeMixin
+from clldutils.source import Source as BaseSource
+from clldutils.source import ID_PATTERN
 
 from pycldf.util import OptionalFile
+
+
+GLOTTOLOG_ID_PATTERN = re.compile('^[1-9][0-9]*$')
 
 
 class Writer(BaseWriter):
@@ -17,31 +21,23 @@ class Writer(BaseWriter):
         return '{%s}' % s
 
 
-class GlottologRef(text_type):
-    @staticmethod
-    def is_valid(s):
-        return re.match('[1-9][0-9]*$', s)
-
-
-def itersources(s):
-    for spec in s.split(';'):
-        spec = spec.strip()
-        if spec:
-            sid, pages = spec, None
-            if '[' in spec:
-                sid, pages = [ss.strip() for ss in spec.split('[', 1)]
-                assert sid and pages.endswith(']')
-                pages = pages[:-1].strip()
-            yield GlottologRef(sid) if GlottologRef.is_valid(sid) else sid, pages
-
-
-class Source(database.Entry):
-    def __init__(self, key, bibtex_type='misc', **kw):
+class Source(BaseSource, UnicodeMixin):
+    def __init__(self, genre, id_, **kw):
+        BaseSource.__init__(self, genre, id_, **kw)
         persons = dict(
             author=list(self.persons(kw.pop('author', ''))),
             editor=list(self.persons(kw.pop('editor', ''))))
-        database.Entry.__init__(self, bibtex_type, fields=kw, persons=persons)
-        self.key = key
+        self.entry = database.Entry(genre, fields=kw, persons=persons)
+
+    def __unicode__(self):
+        return self.text()
+
+    @classmethod
+    def from_entry(cls, key, entry):
+        kw = entry.fields
+        for role in entry.persons:
+            kw[role] = ' and '.join('%s' % p for p in entry.persons[role])
+        return cls(entry.type, key, **kw)
 
     @staticmethod
     def persons(s):
@@ -55,46 +51,87 @@ class Source(database.Entry):
                     yield database.Person(name)
 
 
+class Reference(UnicodeMixin):
+    def __init__(self, source, desc):
+        if desc and ('[' in desc or ']' in desc or ';' in desc):
+            raise ValueError('invalid ref description: %s' % desc)
+        self.source = source
+        self.description = desc
+
+    def __unicode__(self):
+        res = self.source.id
+        if self.description:
+            res += '[%s]' % self.description
+        return res
+
+
 class Sources(OptionalFile):
     def __init__(self):
-        self.bibdata = database.BibliographyData()
-        self.glottolog_refs = set()
+        self._bibdata = database.BibliographyData()
 
     def keys(self):
-        return list(chain(self.glottolog_refs, self.bibdata.entries))
+        return self._bibdata.entries.keys()
 
-    def check(self, *rowdicts):
-        keys = self.keys()
-        c = Counter()
-        for d in rowdicts:
-            for rid, _ in itersources(d.get('Source', '')):
-                if isinstance(rid, GlottologRef):
-                    self.glottolog_refs.add(rid)
-                else:
-                    assert rid in keys
-                c.update([rid])
-        return c
+    def items(self):
+        for key, entry in self._bibdata.entries.items():
+            yield Source.from_entry(key, entry)
+
+    def __len__(self):
+        return len(self._bibdata.entries)
+
+    def __getitem__(self, item):
+        return Source.from_entry(item, self._bibdata.entries[item])
+
+    def __contains__(self, item):
+        return item in self._bibdata.entries
+
+    @staticmethod
+    def format_refs(*refs):
+        return ';'.join('%s' % ref for ref in refs)
+
+    def expand_refs(self, refs):
+        for spec in refs.split(';'):
+            spec = spec.strip()
+            if spec:
+                sid, pages = spec, None
+                if '[' in spec:
+                    sid, pages = [ss.strip() for ss in spec.split('[', 1)]
+                    assert sid and pages.endswith(']')
+                    pages = pages[:-1].strip()
+                if sid not in self and GLOTTOLOG_ID_PATTERN.match(sid):
+                    self._add_entries(Source('misc', sid, glottolog_id=sid))
+                yield Reference(self[sid], pages)
 
     def _add_entries(self, data):
         if isinstance(data, Source):
-            entries = [(data.key, data)]
+            entries = [(data.id, data.entry)]
         elif isinstance(data, database.BibliographyData):
             entries = data.entries.items()
         else:
             raise ValueError(data)
 
         for key, entry in entries:
-            if key not in self.bibdata.entries:
+            if not ID_PATTERN.match(key):
+                raise ValueError('invalid source ID: %s' % key)
+            if key not in self._bibdata.entries:
                 try:
-                    self.bibdata.add_entry(key, entry)
+                    self._bibdata.add_entry(key, entry)
                 except database.BibliographyDataError as e:  # pragma: no cover
                     raise ValueError('%s' % e)
 
     def read(self, fname):
         self._add_entries(database.parse_file(fname.as_posix(), bib_format='bibtex'))
 
-    def write(self, fname):
-        Writer().write_file(self.bibdata, fname.as_posix())
+    def write(self, fname, ids=None, **kw):
+        if ids:
+            bibdata = database.BibliographyData()
+            for key, entry in self._bibdata.entries.items():
+                if key in ids:
+                    bibdata.add_entry(key, entry)
+        else:
+            bibdata = self._bibdata
+        if bibdata.entries:
+            Writer().write_file(bibdata, fname.as_posix())
 
     def add(self, *entries):
         """

@@ -2,13 +2,6 @@
 from setuptools import setup, find_packages
 
 
-requires = [
-    'six',
-    'pybtex',
-    'clldutils',
-]
-
-
 def read(fname):
     with open(fname) as fp:
         content = fp.read()
@@ -23,7 +16,12 @@ setup(
     author='Robert Forkel',
     author_email='forkel@shh.mpg.de',
     url='https://github.com/glottobank/pycldf',
-    install_requires=requires,
+    install_requires=[
+        'six',
+        'pybtex',
+        'clldutils>=0.8',
+        'uritemplate',
+    ],
     license="Apache 2",
     zip_safe=False,
     keywords='',

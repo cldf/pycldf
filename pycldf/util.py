@@ -2,13 +2,22 @@
 from __future__ import unicode_literals, print_function, division
 
 
+CLDF_VERSION = 'cldf-1.0'
+TABLE_TYPES = {
+    'values': 'cldf-values',
+}
+
+
 class OptionalFile(object):
-    def read_if_exists(self, fname):
+    @classmethod
+    def from_file(cls, fname):
+        res = cls()
         if fname.exists():
-            self.read(fname)
+            res.read(fname)
+        return res
 
     def read(self, fname):  # pragma: no cover
         raise NotImplemented
 
-    def write(self, fname):  # pragma: no cover
+    def write(self, fname, **kw):  # pragma: no cover
         raise NotImplemented
