@@ -27,6 +27,7 @@ class Source(BaseSource, UnicodeMixin):
         persons = dict(
             author=list(self.persons(kw.pop('author', ''))),
             editor=list(self.persons(kw.pop('editor', ''))))
+        assert 'author' not in kw
         self.entry = database.Entry(genre, fields=kw, persons=persons)
 
     def __unicode__(self):
@@ -34,9 +35,10 @@ class Source(BaseSource, UnicodeMixin):
 
     @classmethod
     def from_entry(cls, key, entry):
-        kw = entry.fields
+        kw = {k: v for k, v in entry.fields.items()}
         for role in entry.persons:
-            kw[role] = ' and '.join('%s' % p for p in entry.persons[role])
+            if entry.persons[role]:
+                kw[role] = ' and '.join('%s' % p for p in entry.persons[role])
         return cls(entry.type, key, **kw)
 
     @staticmethod

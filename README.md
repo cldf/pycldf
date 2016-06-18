@@ -9,36 +9,23 @@ A python package to read and write [CLDF](http://cldf.clld.org) datasets
 [![PyPI](https://img.shields.io/pypi/v/pycldf.svg)](https://pypi.python.org/pypi/pycldf)
 
 
-Reading CLDF
-------------
-
-```python
->>> from pycldf.dataset import Dataset
->>> dataset = Dataset.from_file('mydb.csv')
->>> len(dataset)
-1
->>> dataset.rows[0]
-OrderedDict([(u'ID', u'1'), (u'Language_ID', u'http://glottolog.org/resource/languoid/id/stan1295'), (u'Parameter_ID', u'http://concepticon.clld.org/parameters/1277'), (u'Value', u'hand'), (u'Source', u'Meier2005[3-7]'), (u'Comment', u'')])
-```
-
-
 Writing CLDF
 ------------
 
 ```python
->>> from pycldf.dataset import Dataset
->>> from pycldf.sources import Source
->>> dataset = Dataset('mydb')
->>> dataset.fields = ('ID', 'Language_ID', 'Parameter_ID', 'Value', 'Source', 'Comment')
->>> dataset.sources.add(Source('Meier2005', 'book', author='Hans Meier', year='2005', title='The Book'))
->>> dataset.add_row([
-... '1', 
-... 'http://glottolog.org/resource/languoid/id/stan1295', 
-... 'http://concepticon.clld.org/parameters/1277', 
-... 'hand', 
-... 'Meier2005[3-7]', 
-... ''])
->>> dataset.write('.')
+from pycldf.dataset import Dataset
+from pycldf.sources import Source
+dataset = Dataset('mydb')
+dataset.fields = ('ID', 'Language_ID', 'Parameter_ID', 'Value', 'Source', 'Comment')
+dataset.sources.add(Source('book', 'Meier2005', author='Hans Meier', year='2005', title='The Book'))
+dataset.add_row([
+    '1', 
+    'http://glottolog.org/resource/languoid/id/stan1295', 
+    'http://concepticon.clld.org/parameters/1277', 
+    'hand', 
+    'Meier2005[3-7]', 
+    ''])
+dataset.write('.')
 ```
 
 results in 
@@ -65,40 +52,59 @@ ID,Language_ID,Parameter_ID,Value,Source,Comment
             "@language": "en"
         }
     ],
+    "dc:format": "cldf-1.0",
     "dialect": {
         "header": true,
         "delimiter": ",",
         "encoding": "utf-8"
     },
-    "tableSchema": {
-        "primaryKey": "ID",
-        "columns": [
-            {
-                "datatype": "string",
-                "name": "ID"
-            },
-            {
-                "datatype": "string",
-                "name": "Language_ID"
-            },
-            {
-                "datatype": "string",
-                "name": "Parameter_ID"
-            },
-            {
-                "datatype": "string",
-                "name": "Value"
-            },
-            {
-                "datatype": "string",
-                "name": "Source"
-            },
-            {
-                "datatype": "string",
-                "name": "Comment"
+    "tables": [
+        {
+            "url": "",
+            "dc:type": "cldf-values",
+            "tableSchema": {
+                "primaryKey": "ID",
+                "columns": [
+                    {
+                        "datatype": "string",
+                        "name": "ID"
+                    },
+                    {
+                        "datatype": "string",
+                        "name": "Language_ID"
+                    },
+                    {
+                        "datatype": "string",
+                        "name": "Parameter_ID"
+                    },
+                    {
+                        "datatype": "string",
+                        "name": "Value"
+                    },
+                    {
+                        "datatype": "string",
+                        "name": "Source"
+                    },
+                    {
+                        "datatype": "string",
+                        "name": "Comment"
+                    }
+                ]
             }
-        ]
-    },
-    "dc:format": "cldf-1.0"
+        }
+    ]
 }
 ```
+
+
+Reading CLDF
+------------
+
+```python
+from pycldf.dataset import Dataset
+dataset = Dataset.from_file('mydb.csv')
+assert len(dataset) == 1
+row = dataset.rows[0]
+assert row['Value'] == 'hand'
+```
+

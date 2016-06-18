@@ -1,5 +1,6 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
+from collections import OrderedDict
 
 from clldutils import jsonlib
 
@@ -54,4 +55,8 @@ class Metadata(dict, OptionalFile):
         self.update(jsonlib.load(fname))
 
     def write(self, fname, **kw):
-        jsonlib.dump(self, fname, indent=4)
+        out = OrderedDict()
+        for key in sorted(
+                self.keys(), key=lambda k: (not k.startswith('@'), ':' not in k, k)):
+            out[key] = self[key]
+        jsonlib.dump(out, fname, indent=4)
