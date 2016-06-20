@@ -20,7 +20,7 @@ flake8 --ignore=E711,E712,D100,D101,D103,D102,D301 --max-line-length=100 pycldf
 
 - Bump version number:
 ```
-git commit -a -m"bumbed version number"
+git commit -a -m"bumped version number"
 ```
 
 - Create a release tag:
