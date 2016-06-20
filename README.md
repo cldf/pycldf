@@ -132,8 +132,7 @@ Meier, Hans. 2005. The Book.
 ```
 
 
-Validating a data file
-~~~~~~~~~~~~~~~~~~~~~~
+### Validating a data file
 
 By default, data files are read in strict-mode, i.e. invalid rows will result in an exception
 being raised. To validate a data file, it can be read in validating-mode.
