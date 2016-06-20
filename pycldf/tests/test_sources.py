@@ -51,7 +51,10 @@ class Tests(WithTempDir):
         from pycldf.sources import Sources, Source
 
         sources = Sources()
-        sources.add(Source('book', 'Meier2005', author='Hans Meier', year='2005', title='The Book'))
+        src = Source(
+            'book', 'Meier2005', author='Hans Meier', year='2005', title='The Book')
+        self.assertIn('Meier2005', repr(src))
+        sources.add(src)
         bib = sources._bibdata.to_string(bib_format='bibtex')
         self.assertEqual(len(bib.split('author')), 2)
         self.assertEqual(len(list(sources.expand_refs('Meier2005'))), 1)
@@ -62,6 +65,7 @@ class Tests(WithTempDir):
         from pycldf.sources import Reference, Source
 
         ref = Reference(Source('book', 'huber2005', author='Herrmann Huber'), '2-5')
+        self.assertIn('2-5', repr(ref))
         self.assertEqual('%s' % ref, 'huber2005[2-5]')
         with self.assertRaises(ValueError):
             Reference(Source('book', 'huber2005', author='Herrmann Huber'), '[2-5]')

@@ -2,6 +2,7 @@
 from __future__ import unicode_literals, print_function, division
 from collections import OrderedDict
 import re
+import logging
 
 from uritemplate import expand
 from clldutils.path import Path
@@ -11,6 +12,8 @@ from pycldf.sources import Sources
 from pycldf.metadata import Metadata
 
 
+logging.basicConfig()
+log = logging.getLogger(__name__)
 NAME_PATTERN = re.compile('^[a-zA-Z\-_0-9]+$')
 TAB_SUFFIXES = ['.tsv', '.tab']
 REQUIRED_FIELDS = [('ID',), ('Language_ID',), ('Parameter_ID', 'Feature_ID'), ('Value',)]
@@ -23,17 +26,16 @@ class Row(OrderedDict):
 
     @property
     def url(self):
-        if 'aboutUrl' in self.dataset.metadata.values_table['tableSchema']:
-            return expand(
-                self.dataset.metadata.values_table['tableSchema']['aboutUrl'], self)
+        if self.dataset.table.schema.aboutUrl:
+            return expand(self.dataset.table.schema.aboutUrl, self)
 
-    def expand(self, field):
-        if field == 'Source':
-            return list(self.dataset.sources.expand_refs(self[field]))
-        col_spec = self.dataset.metadata.get_column('values', field, {})
-        if 'valueUrl' in col_spec:
-            return expand(col_spec['valueUrl'], self)
-        return self[field]
+    def valueUrl(self, col):
+        if self.dataset.table.schema.columns[col].valueUrl:
+            return expand(self.dataset.table.schema.columns[col].valueUrl, self)
+
+    @property
+    def refs(self):
+        return list(self.dataset.sources.expand_refs(self.get('Source', '')))
 
 
 class Dataset(object):
@@ -57,6 +59,10 @@ class Dataset(object):
         self._fields = ()
         self._source_count = None
         self._cited_sources = set()
+        self._table = None
+
+    def __repr__(self):
+        return '<%s %s>' % (self.__class__.__name__, self.name)
 
     def __len__(self):
         """The length of a dataset is the number of rows in the values file."""
@@ -82,6 +88,10 @@ class Dataset(object):
         """
         return self._fields
 
+    @property
+    def table(self):
+        return self._table
+
     @fields.setter
     def fields(self, value):
         """
@@ -94,16 +104,16 @@ class Dataset(object):
         assert isinstance(value, tuple)
         assert all(any(field in value for field in variants)
                    for variants in REQUIRED_FIELDS)
-        table = self.metadata.values_table
+        table = self.metadata.get_table()
         if table:
-            assert list(value) == [
-                col['name'] for col in table['tableSchema']['columns']]
+            assert list(value) == list(table.schema.columns.keys())
         else:
             table = self.metadata.add_table(
                 'values',
                 '',
                 [{'name': col, 'datatype': 'string'} for col in value])
-            table['tableSchema']['primaryKey'] = 'ID'
+            table.schema.primaryKey = 'ID'
+        self._table = table
         self._fields = value
 
     @property
@@ -111,11 +121,13 @@ class Dataset(object):
         return list(self._rows.values())
 
     def add_row(self, row):
-        assert len(row) == len(self.fields)
+        if len(row) != len(self.fields):
+            raise ValueError('wrong number of columns in row')
         d = Row(self)
-        for k, v in zip(self.fields, row):
-            d[k] = v
-        assert d['ID'] not in self._rows
+        for col, value in zip(self.table.schema.columns.values(), row):
+            d[col.name] = col.unmarshal(value)
+        if d['ID'] in self._rows:
+            raise ValueError('duplicate row ID: %s' % d['ID'])
         for ref in self.sources.expand_refs(d.get('Source', '')):
             self._cited_sources.add(ref.source.id)
         self._rows[d['ID']] = d
@@ -137,7 +149,7 @@ class Dataset(object):
         raise ValueError(type_)  # pragma: no cover
 
     @classmethod
-    def from_file(cls, fname):
+    def from_file(cls, fname, skip_on_error=False):
         """
         Factory method to create a `Dataset` from a CLDF values file.
 
@@ -158,8 +170,11 @@ class Dataset(object):
             if i == 0:
                 dataset.fields = tuple(row)
             else:
-                dataset.add_row(row)
-        dataset.metadata.values_table['url'] = fname.name
+                try:
+                    dataset.add_row(row)
+                except ValueError as e:
+                    log.warn('skipping row in line %s: %s' % (i + 1, e))
+        dataset.table.url = fname.name
         return dataset
 
     def write(self, outdir='.', suffix='.csv', cited_sources_only=False):
@@ -170,8 +185,9 @@ class Dataset(object):
         with UnicodeWriter(
                 fname, delimiter=self.metadata.dialect['delimiter']) as writer:
             writer.writerow(self.fields)
+            cols = self.table.schema.columns.values()
             for row in self.rows:
-                writer.writerow(list(row.values()))
+                writer.writerow([col.marshal(v) for col, v in zip(cols, row.values())])
         self.metadata.write(Dataset.path(fname, 'metadata'))
         ids = self._cited_sources if cited_sources_only else None
         self.sources.write(Dataset.path(fname, 'sources'), ids=ids)

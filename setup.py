@@ -21,6 +21,7 @@ setup(
         'pybtex',
         'clldutils>=0.8',
         'uritemplate',
+        'python-dateutil',
     ],
     license="Apache 2",
     zip_safe=False,
@@ -38,5 +39,5 @@ setup(
         'Programming Language :: Python :: Implementation :: PyPy'
     ],
     packages=find_packages(),
-    tests_require=['nose', 'coverage'],
+    tests_require=['nose', 'coverage', 'mock'],
 )

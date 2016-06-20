@@ -33,6 +33,9 @@ class Source(BaseSource, UnicodeMixin):
     def __unicode__(self):
         return self.text()
 
+    def __repr__(self):
+        return '<%s %s>' % (self.__class__.__name__, self.id)
+
     @classmethod
     def from_entry(cls, key, entry):
         kw = {k: v for k, v in entry.fields.items()}
@@ -66,6 +69,9 @@ class Reference(UnicodeMixin):
             res += '[%s]' % self.description
         return res
 
+    def __repr__(self):
+        return '<%s %s>' % (self.__class__.__name__, self.__unicode__())
+
 
 class Sources(OptionalFile):
     def __init__(self):
@@ -82,7 +88,10 @@ class Sources(OptionalFile):
         return len(self._bibdata.entries)
 
     def __getitem__(self, item):
-        return Source.from_entry(item, self._bibdata.entries[item])
+        try:
+            return Source.from_entry(item, self._bibdata.entries[item])
+        except KeyError:
+            raise ValueError('missing citekey: %s' % item)
 
     def __contains__(self, item):
         return item in self._bibdata.entries
