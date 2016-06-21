@@ -3,10 +3,9 @@ from __future__ import unicode_literals, print_function, division
 
 from mock import patch, Mock
 from clldutils.testing import WithTempDir
-from clldutils.path import Path
+from clldutils.jsonlib import load
 
-
-FIXTURES = Path(__file__).parent.joinpath('fixtures')
+from pycldf.tests.util import FIXTURES
 
 
 class Tests(WithTempDir):
@@ -16,6 +15,7 @@ class Tests(WithTempDir):
         ds = Dataset.from_file(FIXTURES.joinpath('ds1.csv'))
         self.assertIn('ds1', repr(ds))
         self.assertEqual(len(ds), 2)
+        self.assertEqual(ds.table.url, 'ds1.csv')
         self.assertEqual(ds.metadata['dc:creator'], 'The Author')
 
         row = ['3', 'abcd1234', 'fid2', 'maybe', '', 'new[4]']
@@ -32,6 +32,8 @@ class Tests(WithTempDir):
         out = self.tmp_path()
         ds.write(out, '.tsv')
         self.assertTrue(out.joinpath('ds1.bib').exists())
+        md = load(out.joinpath('ds1.tsv-metadata.json'))
+        self.assertEqual('ds1.tsv', md['tables'][0]['url'])
         Dataset.from_file(out.joinpath('ds1.tsv'))
 
     def test_invalid_dataset_from_file(self):
@@ -41,6 +43,9 @@ class Tests(WithTempDir):
         with patch('pycldf.dataset.log', log):
             Dataset.from_file(FIXTURES.joinpath('invalid.csv'), skip_on_error=True)
             self.assertEqual(log.warn.call_count, 2)
+
+        with self.assertRaises(ValueError):
+            Dataset.from_file(FIXTURES.joinpath('invalid.csv'))
 
     def test_write_read(self):
         from pycldf.dataset import Dataset, REQUIRED_FIELDS
@@ -54,6 +59,20 @@ class Tests(WithTempDir):
         ds2 = Dataset.from_file(self.tmp_path('name.csv'))
         self.assertEqual(list(ds2[0].values()), row)
         self.assertEqual(list(ds2['1'].values()), row)
+
+    def test_write_read_archive(self):
+        from pycldf.dataset import Dataset
+
+        ds = Dataset.from_file(FIXTURES.joinpath('ds1.csv'))
+        out = self.tmp_path()
+
+        with self.assertRaises(ValueError):
+            ds.write(out.joinpath('non-existing'), '.tsv', archive=True)
+
+        ds.write(out, '.tsv', archive=True)
+        ds_out = Dataset.from_zip(out.joinpath('ds1.zip'))
+        self.assertEqual(ds.rows, ds_out.rows)
+        self.assertEqual(ds.metadata, ds_out.metadata)
 
     def test_validate(self):
         from pycldf.dataset import Dataset, REQUIRED_FIELDS

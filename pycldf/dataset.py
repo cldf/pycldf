@@ -3,6 +3,7 @@ from __future__ import unicode_literals, print_function, division
 from collections import OrderedDict
 import re
 import logging
+from zipfile import ZIP_DEFLATED
 
 from uritemplate import expand
 from clldutils.path import Path
@@ -10,6 +11,7 @@ from clldutils.dsv import reader, UnicodeWriter
 
 from pycldf.sources import Sources
 from pycldf.metadata import Metadata
+from pycldf.util import MD_SUFFIX, Archive
 
 
 logging.basicConfig()
@@ -42,15 +44,11 @@ class Dataset(object):
     """
     API to access a CLDF dataset.
     """
-    def __init__(self, name, sources=None, metadata=None):
+    def __init__(self, name):
         assert NAME_PATTERN.match(name)
-        if sources:
-            assert isinstance(sources, Sources)
-        if metadata:
-            assert isinstance(metadata, Metadata)
         self.name = name
-        self.sources = sources or Sources()
-        self.metadata = metadata or Metadata()
+        self.sources = Sources()
+        self.metadata = Metadata()
         self._rows = OrderedDict()
 
         # We store the fields (a.k.a. header) as tuple because it must be immutable after
@@ -121,6 +119,8 @@ class Dataset(object):
         return list(self._rows.values())
 
     def add_row(self, row):
+        if not row:
+            return
         if len(row) != len(self.fields):
             raise ValueError('wrong number of columns in row')
         d = Row(self)
@@ -134,19 +134,61 @@ class Dataset(object):
         return d
 
     @staticmethod
-    def path(fname, type_):
+    def filename(fname, type_):
         """
         Compute the path for optional CLDF files relative to a given values file.
 
         :param fname: Path of the values file
         :param type_: Type of the optional file
-        :return: Path of the optional file
+        :return: name of the optional file
         """
         if type_ == 'sources':
-            return fname.parent.joinpath(fname.stem + '.bib')
+            return fname.stem + '.bib'
         if type_ == 'metadata':
-            return fname.parent.joinpath(fname.stem + fname.suffix + '-metadata.json')
+            return fname.stem + fname.suffix + MD_SUFFIX
         raise ValueError(type_)  # pragma: no cover
+
+    @staticmethod
+    def _existing_file(fname):
+        fname = Path(fname)
+        assert fname.exists() and fname.is_file()
+        return fname
+
+    @classmethod
+    def _from(cls, data, container=None, skip_on_error=False):
+        container = container or data.parent
+        dataset = cls(data.stem)
+        dataset.metadata.read(Dataset.filename(data, 'metadata'), container)
+        dataset.sources.read(Dataset.filename(data, 'sources'), container)
+        if data.suffix in TAB_SUFFIXES:
+            dataset.metadata.dialect['delimiter'] = '\t'
+
+        if isinstance(container, Archive):
+            rows = container.read_text(data.name).split('\n')
+        else:
+            rows = data
+
+        for i, row in enumerate(reader(
+            rows, delimiter=dataset.metadata.dialect.get('delimiter', ',')
+        )):
+            if i == 0:
+                dataset.fields = tuple(row)
+            else:
+                try:
+                    dataset.add_row(row)
+                except ValueError as e:
+                    if skip_on_error:
+                        log.warn('skipping row in line %s: %s' % (i + 1, e))
+                    else:
+                        raise e
+        dataset.table.url = data.name
+        return dataset
+
+    @classmethod
+    def from_zip(cls, fname):
+        fname = cls._existing_file(fname)
+        archive = Archive(fname.as_posix())
+        return cls._from(Path(archive.metadata_name[:-len(MD_SUFFIX)]), archive)
 
     @classmethod
     def from_file(cls, fname, skip_on_error=False):
@@ -156,38 +198,37 @@ class Dataset(object):
         :param fname: Path of the CLDF values file.
         :return: `Dataset` instance.
         """
-        fname = Path(fname)
-        assert fname.exists() and fname.is_file()
-        dataset = cls(
-            fname.stem,
-            metadata=Metadata.from_file(Dataset.path(fname, 'metadata')),
-            sources=Sources.from_file(Dataset.path(fname, 'sources')))
-        if fname.suffix in TAB_SUFFIXES:
-            dataset.metadata.dialect['delimiter'] = '\t'
-        for i, row in enumerate(reader(
-            fname, delimiter=dataset.metadata.dialect.get('delimiter', ',')
-        )):
-            if i == 0:
-                dataset.fields = tuple(row)
-            else:
-                try:
-                    dataset.add_row(row)
-                except ValueError as e:
-                    log.warn('skipping row in line %s: %s' % (i + 1, e))
-        dataset.table.url = fname.name
-        return dataset
+        return cls._from(cls._existing_file(fname), skip_on_error=skip_on_error)
 
-    def write(self, outdir='.', suffix='.csv', cited_sources_only=False):
+    def write(self, outdir='.', suffix='.csv', cited_sources_only=False, archive=False):
+        outdir = Path(outdir)
+        if not outdir.exists():
+            raise ValueError(outdir.as_posix())
+
+        if archive:
+            container = Archive(
+                outdir.joinpath(self.name + '.zip').as_posix(),
+                mode='w',
+                compression=ZIP_DEFLATED)
+        else:
+            container = outdir
+
         fname = Path(outdir).joinpath(self.name + suffix)
         if fname.suffix in TAB_SUFFIXES:
             self.metadata.dialect['delimiter'] = '\t'
-        assert fname.parent.exists()
+
         with UnicodeWriter(
-                fname, delimiter=self.metadata.dialect['delimiter']) as writer:
+                None if isinstance(container, Archive) else fname,
+                delimiter=self.metadata.dialect['delimiter']) as writer:
             writer.writerow(self.fields)
             cols = self.table.schema.columns.values()
             for row in self.rows:
                 writer.writerow([col.marshal(v) for col, v in zip(cols, row.values())])
-        self.metadata.write(Dataset.path(fname, 'metadata'))
+
+        if isinstance(container, Archive):
+            container.write_text(writer.read(), fname.name)
+        self.table.url = fname.name
+
+        self.metadata.write(Dataset.filename(fname, 'metadata'), container)
         ids = self._cited_sources if cited_sources_only else None
-        self.sources.write(Dataset.path(fname, 'sources'), ids=ids)
+        self.sources.write(Dataset.filename(fname, 'sources'), container, ids=ids)

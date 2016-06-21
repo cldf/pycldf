@@ -18,7 +18,7 @@ setup(
     install_requires=[
         'six',
         'pybtex',
-        'clldutils>=0.8',
+        'clldutils>=0.9.1',
         'uritemplate',
         'python-dateutil',
     ],
@@ -38,5 +38,10 @@ setup(
         'Programming Language :: Python :: Implementation :: PyPy'
     ],
     packages=find_packages(),
+    entry_points={
+        'console_scripts': [
+            'cldf=pycldf.cli:main',
+        ]
+    },
     tests_require=['nose', 'coverage', 'mock'],
 )

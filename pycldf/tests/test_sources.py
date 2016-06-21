@@ -36,15 +36,15 @@ class Tests(WithTempDir):
             src.add('@misc{a.b,\n  author="a.b"\n}')
 
         bib = self.tmp_path('test.bib')
-        src.write(bib)
+        src.write(bib.name, bib.parent)
 
         src2 = Sources()
-        src2.read(bib)
+        src2.read(bib.name, bib.parent)
 
         bib = self.tmp_path('test.bib')
-        src2.write(bib, ids=['huber2005'])
+        src2.write(bib.name, bib.parent, ids=['huber2005'])
         src = Sources()
-        src.read(bib)
+        src.read(bib.name, bib.parent)
         self.assertEqual(len(src), 1)
 
     def test_Source_expand_refs(self):

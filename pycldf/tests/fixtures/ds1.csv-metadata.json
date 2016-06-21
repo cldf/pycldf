@@ -2,9 +2,9 @@
   "dc:creator": "The Author",
   "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
   "dialect": {"delimiter": ",", "encoding": "utf-8", "header": true},
+  "dc:title": "a cldf dataset",
   "tables": [
     {
-      "url": "ds1.csv",
       "tableSchema": {
         "columns": [
           {

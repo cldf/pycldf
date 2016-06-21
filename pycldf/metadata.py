@@ -5,9 +5,8 @@ import json
 from datetime import date, datetime
 
 from dateutil.parser import parse as datetime_parser
-from clldutils import jsonlib
 
-from pycldf.util import OptionalFile, CLDF_VERSION, TABLE_TYPES
+from pycldf.util import OptionalData, CLDF_VERSION, TABLE_TYPES
 
 
 def boolean(s):
@@ -179,7 +178,7 @@ class Table(DictWrapper):
         self['url'] = value
 
 
-class Metadata(dict, OptionalFile):
+class Metadata(dict, OptionalData):
     def __init__(self, *args, **kw):
         dict.__init__(self, *args, **kw)
         for k, v in {
@@ -211,12 +210,12 @@ class Metadata(dict, OptionalFile):
         })
         return self.get_table(type_)
 
-    def read(self, fname):
-        self.update(jsonlib.load(fname))
+    def read_string(self, text):
+        self.update(json.loads(text))
 
-    def write(self, fname, **kw):
+    def write_string(self, **kw):
         out = OrderedDict()
         for key in sorted(
                 self.keys(), key=lambda k: (not k.startswith('@'), ':' not in k, k)):
             out[key] = self[key]
-        jsonlib.dump(out, fname, indent=4)
+        return json.dumps(out, indent=4)

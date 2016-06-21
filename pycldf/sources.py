@@ -2,14 +2,14 @@
 from __future__ import unicode_literals, print_function, division
 import re
 
-from six import string_types
+from six import string_types, StringIO
 from pybtex import database
 from pybtex.database.output.bibtex import Writer as BaseWriter
 from clldutils.misc import UnicodeMixin
 from clldutils.source import Source as BaseSource
 from clldutils.source import ID_PATTERN
 
-from pycldf.util import OptionalFile
+from pycldf.util import OptionalData
 
 
 GLOTTOLOG_ID_PATTERN = re.compile('^[1-9][0-9]*$')
@@ -73,7 +73,7 @@ class Reference(UnicodeMixin):
         return '<%s %s>' % (self.__class__.__name__, self.__unicode__())
 
 
-class Sources(OptionalFile):
+class Sources(OptionalData):
     def __init__(self):
         self._bibdata = database.BibliographyData()
 
@@ -130,10 +130,10 @@ class Sources(OptionalFile):
                 except database.BibliographyDataError as e:  # pragma: no cover
                     raise ValueError('%s' % e)
 
-    def read(self, fname):
-        self._add_entries(database.parse_file(fname.as_posix(), bib_format='bibtex'))
+    def read_string(self, text):
+        self._add_entries(database.parse_string(text, bib_format='bibtex'))
 
-    def write(self, fname, ids=None, **kw):
+    def write_string(self, ids=None, **kw):
         if ids:
             bibdata = database.BibliographyData()
             for key, entry in self._bibdata.entries.items():
@@ -142,7 +142,10 @@ class Sources(OptionalFile):
         else:
             bibdata = self._bibdata
         if bibdata.entries:
-            Writer().write_file(bibdata, fname.as_posix())
+            out = StringIO()
+            Writer().write_stream(bibdata, out)
+            out.seek(0)
+            return out.read()
 
     def add(self, *entries):
         """
