@@ -9,7 +9,7 @@ def read(fname):
 
 setup(
     name='pycldf',
-    version="0.2.1",
+    version="0.3.0",
     description='A python library to read and write CLDF datasets',
     long_description=read("README.rst"),
     author='Robert Forkel',
