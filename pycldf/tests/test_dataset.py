@@ -62,12 +62,22 @@ class Tests(WithTempDir):
 
     def test_write_read_archive(self):
         from pycldf.dataset import Dataset
+        from pycldf.util import Archive
 
         ds = Dataset.from_file(FIXTURES.joinpath('ds1.csv'))
         out = self.tmp_path()
 
         with self.assertRaises(ValueError):
             ds.write(out.joinpath('non-existing'), '.tsv', archive=True)
+
+        with Archive(self.tmp_path('archive.zip').as_posix(), 'w') as archive:
+            ds.write('.', archive=archive)
+            ds2 = Dataset.from_file(FIXTURES.joinpath('ds1.csv'))
+            ds2.name = 'new_name'
+            ds2.write('.', archive=archive)
+        ds_out = Dataset.from_zip(self.tmp_path('archive.zip'), name='ds1')
+        self.assertEqual(ds.rows, ds_out.rows)
+        self.assertEqual(ds.metadata, ds_out.metadata)
 
         ds.write(out, '.tsv', archive=True)
         ds_out = Dataset.from_zip(out.joinpath('ds1.zip'))

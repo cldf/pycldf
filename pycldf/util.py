@@ -14,10 +14,9 @@ MD_SUFFIX = '-metadata.json'
 
 
 class Archive(ZipFile):
-    @property
-    def metadata_name(self):
+    def metadata_name(self, prefix=None):
         for name in self.namelist():
-            if name.endswith(MD_SUFFIX):
+            if name.endswith(MD_SUFFIX) and (prefix is None or name.startswith(prefix)):
                 return name
         raise ValueError('no metadata file found')  # pragma: no cover
 

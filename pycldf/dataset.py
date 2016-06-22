@@ -185,10 +185,11 @@ class Dataset(object):
         return dataset
 
     @classmethod
-    def from_zip(cls, fname):
+    def from_zip(cls, fname, name=None):
         fname = cls._existing_file(fname)
         archive = Archive(fname.as_posix())
-        return cls._from(Path(archive.metadata_name[:-len(MD_SUFFIX)]), archive)
+        return cls._from(
+            Path(archive.metadata_name(prefix=name)[:-len(MD_SUFFIX)]), archive)
 
     @classmethod
     def from_file(cls, fname, skip_on_error=False):
@@ -205,11 +206,16 @@ class Dataset(object):
         if not outdir.exists():
             raise ValueError(outdir.as_posix())
 
+        close = False
         if archive:
-            container = Archive(
-                outdir.joinpath(self.name + '.zip').as_posix(),
-                mode='w',
-                compression=ZIP_DEFLATED)
+            if isinstance(archive, Archive):
+                container = archive
+            else:
+                container = Archive(
+                    outdir.joinpath(self.name + '.zip').as_posix(),
+                    mode='w',
+                    compression=ZIP_DEFLATED)
+                close = True
         else:
             container = outdir
 
@@ -232,3 +238,5 @@ class Dataset(object):
         self.metadata.write(Dataset.filename(fname, 'metadata'), container)
         ids = self._cited_sources if cited_sources_only else None
         self.sources.write(Dataset.filename(fname, 'sources'), container, ids=ids)
+        if close:
+            container.close()
