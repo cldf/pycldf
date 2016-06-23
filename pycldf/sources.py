@@ -28,7 +28,10 @@ class Source(BaseSource, UnicodeMixin):
             author=list(self.persons(kw.pop('author', ''))),
             editor=list(self.persons(kw.pop('editor', ''))))
         assert 'author' not in kw
-        self.entry = database.Entry(genre, fields=kw, persons=persons)
+        self.entry = database.Entry(
+            genre,
+            fields={k: v for k, v in kw.items() if v},
+            persons=persons)
 
     def __unicode__(self):
         return self.text()

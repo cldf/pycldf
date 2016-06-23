@@ -47,6 +47,14 @@ class Tests(WithTempDir):
         src.read(bib.name, bib.parent)
         self.assertEqual(len(src), 1)
 
+    def test_Sources_with_None_values(self):
+        from pycldf.sources import Sources, Source
+
+        src = Sources()
+        src.add(Source('book', 'huber2005', title=None))
+        bib = self.tmp_path('test.bib')
+        src.write(bib.name, bib.parent)
+
     def test_Source_expand_refs(self):
         from pycldf.sources import Sources, Source
 
