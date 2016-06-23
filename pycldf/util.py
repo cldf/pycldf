@@ -1,10 +1,10 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_DEFLATED
 from io import TextIOWrapper
 
 from six import binary_type
-from clldutils.path import Path
+from clldutils.path import Path, as_posix
 
 CLDF_VERSION = 'cldf-1.0'
 TABLE_TYPES = {
@@ -14,6 +14,10 @@ MD_SUFFIX = '-metadata.json'
 
 
 class Archive(ZipFile):
+    def __init__(self, fname, mode='r'):
+        ZipFile.__init__(
+            self, as_posix(fname), mode=mode, compression=ZIP_DEFLATED, allowZip64=True)
+
     def metadata_name(self, prefix=None):
         for name in self.namelist():
             if name.endswith(MD_SUFFIX) and (prefix is None or name.startswith(prefix)):

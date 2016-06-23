@@ -3,7 +3,6 @@ from __future__ import unicode_literals, print_function, division
 from collections import OrderedDict
 import re
 import logging
-from zipfile import ZIP_DEFLATED
 
 from uritemplate import expand
 from clldutils.path import Path
@@ -186,8 +185,7 @@ class Dataset(object):
 
     @classmethod
     def from_zip(cls, fname, name=None):
-        fname = cls._existing_file(fname)
-        archive = Archive(fname.as_posix())
+        archive = Archive(cls._existing_file(fname))
         return cls._from(
             Path(archive.metadata_name(prefix=name)[:-len(MD_SUFFIX)]), archive)
 
@@ -211,10 +209,7 @@ class Dataset(object):
             if isinstance(archive, Archive):
                 container = archive
             else:
-                container = Archive(
-                    outdir.joinpath(self.name + '.zip').as_posix(),
-                    mode='w',
-                    compression=ZIP_DEFLATED)
+                container = Archive(outdir.joinpath(self.name + '.zip'), mode='w')
                 close = True
         else:
             container = outdir
