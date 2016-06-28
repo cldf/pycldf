@@ -131,9 +131,13 @@ class Column(DictWrapper):
         self['valueUrl'] = value
 
     def marshal(self, value):
+        if value is None:
+            return ''
         return TYPE_MAP[self.datatype][1](value)
 
     def unmarshal(self, value):
+        if not value:
+            return None
         return TYPE_MAP[self.datatype][0](value)
 
 

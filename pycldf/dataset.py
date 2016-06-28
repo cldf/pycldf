@@ -31,8 +31,9 @@ class Row(OrderedDict):
             return expand(self.dataset.table.schema.aboutUrl, self)
 
     def valueUrl(self, col):
-        if self.dataset.table.schema.columns[col].valueUrl:
-            return expand(self.dataset.table.schema.columns[col].valueUrl, self)
+        if self[col] is not None:
+            if self.dataset.table.schema.columns[col].valueUrl:
+                return expand(self.dataset.table.schema.columns[col].valueUrl, self)
 
     @property
     def refs(self):

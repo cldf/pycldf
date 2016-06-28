@@ -63,6 +63,10 @@ class Tests(WithTempDir):
     def test_type_conversion(self):
         from pycldf.metadata import Column
 
+        col = Column({'datatype': 'string'})
+        self.assertEqual(col.unmarshal(''), None)
+        self.assertEqual(col.marshal(None), '')
+
         for name, value in [
             ('integer', 1),
             ('decimal', 2.456),

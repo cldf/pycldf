@@ -29,6 +29,8 @@ class Tests(WithTempDir):
         self.assertEqual(
             res.valueUrl('Language_ID'),
             'http://glottolog.org/resource/languoid/id/abcd1234')
+        res = ds.add_row(['4', None, None, None, None, None])
+        self.assertEqual(res.valueUrl('Language_ID'), None)
         out = self.tmp_path()
         ds.write(out, '.tsv')
         self.assertTrue(out.joinpath('ds1.bib').exists())

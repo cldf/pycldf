@@ -104,6 +104,7 @@ class Sources(OptionalData):
         return ';'.join('%s' % ref for ref in refs)
 
     def expand_refs(self, refs):
+        refs = refs or ''
         for spec in refs.split(';'):
             spec = spec.strip()
             if spec:
