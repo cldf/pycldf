@@ -160,7 +160,7 @@ class Column(DictWrapper):
         return TYPE_MAP[self.datatype][1](value)
 
     def unmarshal(self, value):
-        if not value:
+        if value == '':
             return None
         return TYPE_MAP[self.datatype][0](value)
 
