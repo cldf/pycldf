@@ -11,6 +11,7 @@ from clldutils.source import ID_PATTERN
 
 from pycldf.util import OptionalData
 
+__all__ = ['Source']
 
 GLOTTOLOG_ID_PATTERN = re.compile('^[1-9][0-9]*$')
 

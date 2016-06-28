@@ -8,6 +8,8 @@ from dateutil.parser import parse as datetime_parser
 
 from pycldf.util import OptionalData, CLDF_VERSION, TABLE_TYPES
 
+__all__ = []
+
 
 def boolean(s):
     """
@@ -97,6 +99,28 @@ class DictWrapper(MutableMapping):
         return self._d.values()
 
 
+class Dialect(DictWrapper):
+    @property
+    def header(self):
+        if 'header' not in self:
+            self['header'] = True
+        return self['header']
+
+    @header.setter
+    def header(self, value):
+        self['header'] = value
+
+    @property
+    def delimiter(self):
+        if 'delimiter' not in self:
+            self['delimiter'] = ','
+        return self['delimiter']
+
+    @delimiter.setter
+    def delimiter(self, value):
+        self['delimiter'] = value
+
+
 class Column(DictWrapper):
     @property
     def datatype(self):
@@ -169,6 +193,10 @@ class Schema(DictWrapper):
 
 
 class Table(DictWrapper):
+    def __init__(self, d, group=None):
+        DictWrapper.__init__(self, d)
+        self.group = group
+
     @property
     def schema(self):
         return Schema(self['tableSchema'])
@@ -180,6 +208,15 @@ class Table(DictWrapper):
     @url.setter
     def url(self, value):
         self['url'] = value
+
+    @property
+    def dialect(self):
+        if self.get('dialect'):
+            return Dialect(self['dialect'])
+        if self.group and 'dialect' in self.group:
+            return Dialect(self.group['dialect'])
+        self['dialect'] = {"delimiter": ",", "encoding": "utf-8", "header": True}
+        return Dialect(self['dialect'])
 
 
 class Metadata(dict, OptionalData):
@@ -193,17 +230,13 @@ class Metadata(dict, OptionalData):
         }.items():
             self.setdefault(k, v)
 
-    @property
-    def dialect(self):
-        return self['dialect']
-
     def get_table(self, type_='values'):
         type_ = TABLE_TYPES[type_]
         for t in self['tables']:
             if t.get('dc:type') == type_:
-                return Table(t)
+                return Table(t, self)
         if type_ == TABLE_TYPES['values'] and len(self['tables']) == 1:
-            return Table(self['tables'][0])
+            return Table(self['tables'][0], self)
 
     def add_table(self, type_, url, columns):
         assert self.get_table(type_) is None

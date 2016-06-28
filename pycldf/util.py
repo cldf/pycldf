@@ -2,21 +2,63 @@
 from __future__ import unicode_literals, print_function, division
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import TextIOWrapper
+from collections import OrderedDict
 
 from six import binary_type
 from clldutils.path import Path, as_posix
+from uritemplate import expand
+
+__all__ = ['Archive']
 
 CLDF_VERSION = 'cldf-1.0'
 TABLE_TYPES = {
     'values': 'cldf-values',
 }
 MD_SUFFIX = '-metadata.json'
+TAB_SUFFIXES = ['.tsv', '.tab']
+
+
+class Row(OrderedDict):
+    def __init__(self, schema):
+        self.schema = schema
+        OrderedDict.__init__(self)
+
+    @classmethod
+    def from_list(cls, schema, row):
+        if not isinstance(row, (list, tuple)):
+            raise TypeError(type(row))  # pragma: no cover
+        d = cls(schema)
+        if len(row) != len(d.schema.columns):
+            raise ValueError('wrong number of columns in row')
+        for col, value in zip(d.schema.columns.values(), row):
+            d[col.name] = col.unmarshal(value)
+        return d
+
+    def to_list(self):
+        return [
+            col.marshal(v) for col, v in zip(self.schema.columns.values(), self.values())]
+
+    @property
+    def url(self):
+        if self.schema.aboutUrl:
+            return expand(self.schema.aboutUrl, self)
+
+    def valueUrl(self, col):
+        if self[col] is not None:
+            if self.schema.columns[col].valueUrl:
+                return expand(self.schema.columns[col].valueUrl, self)
 
 
 class Archive(ZipFile):
     def __init__(self, fname, mode='r'):
         ZipFile.__init__(
             self, as_posix(fname), mode=mode, compression=ZIP_DEFLATED, allowZip64=True)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     def metadata_name(self, prefix=None):
         for name in self.namelist():

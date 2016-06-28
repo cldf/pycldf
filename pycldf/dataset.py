@@ -4,36 +4,25 @@ from collections import OrderedDict
 import re
 import logging
 
-from uritemplate import expand
 from clldutils.path import Path
 from clldutils.dsv import reader, UnicodeWriter
 
 from pycldf.sources import Sources
 from pycldf.metadata import Metadata
-from pycldf.util import MD_SUFFIX, Archive
+from pycldf.util import MD_SUFFIX, Archive, Row, TAB_SUFFIXES
 
+__all__ = ['Dataset']
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
 NAME_PATTERN = re.compile('^[a-zA-Z\-_0-9]+$')
-TAB_SUFFIXES = ['.tsv', '.tab']
 REQUIRED_FIELDS = [('ID',), ('Language_ID',), ('Parameter_ID', 'Feature_ID'), ('Value',)]
 
 
-class Row(OrderedDict):
+class ValuesRow(Row):
     def __init__(self, dataset):
         self.dataset = dataset
-        OrderedDict.__init__(self)
-
-    @property
-    def url(self):
-        if self.dataset.table.schema.aboutUrl:
-            return expand(self.dataset.table.schema.aboutUrl, self)
-
-    def valueUrl(self, col):
-        if self[col] is not None:
-            if self.dataset.table.schema.columns[col].valueUrl:
-                return expand(self.dataset.table.schema.columns[col].valueUrl, self)
+        Row.__init__(self, dataset.table.schema)
 
     @property
     def refs(self):
@@ -121,11 +110,8 @@ class Dataset(object):
     def add_row(self, row):
         if not row:
             return
-        if len(row) != len(self.fields):
-            raise ValueError('wrong number of columns in row')
-        d = Row(self)
-        for col, value in zip(self.table.schema.columns.values(), row):
-            d[col.name] = col.unmarshal(value)
+
+        d = ValuesRow.from_list(self, row)
         if d['ID'] in self._rows:
             raise ValueError('duplicate row ID: %s' % d['ID'])
         for ref in self.sources.expand_refs(d.get('Source', '')):
@@ -159,18 +145,20 @@ class Dataset(object):
         container = container or data.parent
         dataset = cls(data.stem)
         dataset.metadata.read(Dataset.filename(data, 'metadata'), container)
+        dataset._table = dataset.metadata.get_table()
         dataset.sources.read(Dataset.filename(data, 'sources'), container)
+        delimiter = ','
+        if dataset.table:
+            delimiter = dataset.table.dialect.delimiter
         if data.suffix in TAB_SUFFIXES:
-            dataset.metadata.dialect['delimiter'] = '\t'
+            delimiter = '\t'
 
         if isinstance(container, Archive):
             rows = container.read_text(data.name).split('\n')
         else:
             rows = data
 
-        for i, row in enumerate(reader(
-            rows, delimiter=dataset.metadata.dialect.get('delimiter', ',')
-        )):
+        for i, row in enumerate(reader(rows, delimiter=delimiter)):
             if i == 0:
                 dataset.fields = tuple(row)
             else:
@@ -181,6 +169,7 @@ class Dataset(object):
                         log.warn('skipping row in line %s: %s' % (i + 1, e))
                     else:
                         raise e
+        dataset.table.dialect.delimiter = delimiter
         dataset.table.url = data.name
         return dataset
 
@@ -217,15 +206,14 @@ class Dataset(object):
 
         fname = Path(outdir).joinpath(self.name + suffix)
         if fname.suffix in TAB_SUFFIXES:
-            self.metadata.dialect['delimiter'] = '\t'
+            self.table.dialect.delimiter = '\t'
 
         with UnicodeWriter(
                 None if isinstance(container, Archive) else fname,
-                delimiter=self.metadata.dialect['delimiter']) as writer:
+                delimiter=self.table.dialect.delimiter) as writer:
             writer.writerow(self.fields)
-            cols = self.table.schema.columns.values()
             for row in self.rows:
-                writer.writerow([col.marshal(v) for col, v in zip(cols, row.values())])
+                writer.writerow(row.to_list())
 
         if isinstance(container, Archive):
             container.write_text(writer.read(), fname.name)
