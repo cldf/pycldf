@@ -1,6 +1,6 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 import re
 import logging
 
@@ -106,6 +106,18 @@ class Dataset(object):
     @property
     def rows(self):
         return list(self._rows.values())
+
+    @property
+    def stats(self):
+        return dict(
+            languages=set(row['Language_ID'] for row in self.rows),
+            parameters=set(row['Parameter_ID'] for row in self.rows),
+            rowcount=(
+                len(self),
+                sum([1 for row in self.rows
+                     if row['Language_ID'] and row['Parameter_ID']])),
+            values=Counter(row['Value'] for row in self.rows),
+        )
 
     def add_row(self, row):
         if not row:

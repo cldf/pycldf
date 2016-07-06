@@ -5,10 +5,26 @@ from mock import patch, Mock
 from clldutils.testing import WithTempDir
 from clldutils.jsonlib import load
 
-from pycldf.tests.util import FIXTURES
+from pycldf.tests.util import FIXTURES, make_dataset
 
 
 class Tests(WithTempDir):
+    def test_dataset_stats(self):
+        n = 5
+        ds = make_dataset(rows=[[i, i, i, i] for i in range(n)])
+        self.assertEqual(len(ds.stats['languages']), n)
+        self.assertEqual(len(ds.stats['languages']), n)
+        self.assertEqual(ds.stats['values'].most_common(1)[0][1], 1)
+
+        ds.add_row([6, 1, 2, 3])
+        self.assertEqual(len(ds.stats['languages']), n)
+        self.assertEqual(len(ds.stats['languages']), n)
+        self.assertEqual(ds.stats['values'].most_common(1)[0][1], 2)
+
+        ds.add_row([7, None, None, 3])
+        rowcount = ds.stats['rowcount']
+        self.assertGreater(rowcount[0], rowcount[1])
+
     def test_dataset_from_metadata(self):
         from pycldf.dataset import Dataset
 

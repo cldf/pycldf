@@ -19,8 +19,44 @@ from clldutils.path import Path
 from clldutils.clilib import ArgumentParser, ParserError
 from clldutils.jsonlib import load
 
+from pycldf.dataset import Dataset
 from pycldf.metadata import Metadata
 from pycldf.util import MD_SUFFIX
+
+
+def stats(args):
+    """
+    cldf stats <DATASET>
+
+    Print basic stats for CLDF dataset <DATASET>, where <DATASET> may be the path to
+    - a CLDF metadata file
+    - a CLDF core data file
+    - a CLDF zip archive
+    """
+    if len(args.args) < 1:
+        raise ParserError('not enough arguments')
+    fname = Path(args.args[0])
+    if not fname.exists() or not fname.is_file():
+        raise ParserError('%s is not an existing directory' % fname)
+    if fname.suffix == '.zip':
+        ds = Dataset.from_zip(fname)
+    elif fname.name.endswith(MD_SUFFIX):
+        ds = Dataset.from_metadata(fname)
+    else:
+        ds = Dataset.from_file(fname)
+    print(fname)
+    stats_ = ds.stats
+    print("""
+Name: %s
+Different languages: %s
+Different parameters: %s
+Rows: %s
+""" % (
+        ds.name,
+        len(stats_['languages']),
+        len(stats_['parameters']),
+        stats_['rowcount']
+    ))
 
 
 def datasets(args):
@@ -48,5 +84,5 @@ def datasets(args):
 
 
 def main():  # pragma: no cover
-    parser = ArgumentParser('pycldf', datasets)
+    parser = ArgumentParser('pycldf', datasets, stats)
     sys.exit(parser.main())
