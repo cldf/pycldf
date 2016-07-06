@@ -9,6 +9,15 @@ from pycldf.tests.util import FIXTURES
 
 
 class Tests(WithTempDir):
+    def test_dataset_from_metadata(self):
+        from pycldf.dataset import Dataset
+
+        ds = Dataset.from_metadata(FIXTURES.joinpath('ds1.csv-metadata.json'))
+        self.assertIn('ds1', repr(ds))
+
+        with self.assertRaises(ValueError):
+            Dataset.from_metadata(FIXTURES.joinpath('ds1.csv-me.json'))
+
     def test_dataset_from_file(self):
         from pycldf.dataset import Dataset
 
@@ -80,6 +89,11 @@ class Tests(WithTempDir):
         ds_out = Dataset.from_zip(self.tmp_path('archive.zip'), name='ds1')
         self.assertEqual(ds.rows, ds_out.rows)
         self.assertEqual(ds.metadata, ds_out.metadata)
+
+        with Archive(self.tmp_path('archive.zip')) as archive:
+            ds_out = Dataset.from_metadata('ds1.csv-metadata.json', container=archive)
+            self.assertEqual(ds.rows, ds_out.rows)
+            self.assertEqual(ds.metadata, ds_out.metadata)
 
         ds.write(out, '.tsv', archive=True)
         ds_out = Dataset.from_zip(out.joinpath('ds1.zip'))

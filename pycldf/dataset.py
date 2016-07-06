@@ -180,6 +180,14 @@ class Dataset(object):
             Path(archive.metadata_name(prefix=name)[:-len(MD_SUFFIX)]), archive)
 
     @classmethod
+    def from_metadata(cls, fname, container=None):
+        fname = Path(fname)
+        if not fname.name.endswith(MD_SUFFIX):
+            raise ValueError('metadata file name must end with %s' % MD_SUFFIX)
+        return cls._from(
+            fname.parent.joinpath(fname.name[:-len(MD_SUFFIX)]), container=container)
+
+    @classmethod
     def from_file(cls, fname, skip_on_error=False):
         """
         Factory method to create a `Dataset` from a CLDF values file.
