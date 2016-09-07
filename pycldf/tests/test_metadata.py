@@ -10,6 +10,12 @@ FIXTURES = Path(__file__).parent.joinpath('fixtures')
 
 
 class Tests(WithTempDir):
+    def test_factory(self):
+        from pycldf.metadata import Metadata
+
+        ds = Metadata.from_file(FIXTURES.joinpath('ds1.csv-metadata.json'))
+        self.assertEqual(ds['dc:creator'], 'The Author')
+
     def test_DictWrapper(self):
         from pycldf.metadata import DictWrapper
 

@@ -230,6 +230,12 @@ class Metadata(dict, OptionalData):
         }.items():
             self.setdefault(k, v)
 
+    @classmethod
+    def from_file(cls, fname):
+        md = cls()
+        md.read(fname.name, fname.parent)
+        return md
+
     def get_table(self, type_='values'):
         type_ = TABLE_TYPES[type_]
         for t in self['tables']:
