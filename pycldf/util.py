@@ -41,12 +41,13 @@ class Row(OrderedDict):
     @property
     def url(self):
         if self.schema.aboutUrl:
-            return expand(self.schema.aboutUrl, self)
+            return expand(self.schema.aboutUrl, {k: v for k, v in self.items()})
 
     def valueUrl(self, col):
         if self[col] is not None:
             if self.schema.columns[col].valueUrl:
-                return expand(self.schema.columns[col].valueUrl, self)
+                return expand(
+                    self.schema.columns[col].valueUrl, {k: v for k, v in self.items()})
 
 
 class Archive(ZipFile):

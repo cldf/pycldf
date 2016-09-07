@@ -19,7 +19,7 @@ setup(
         'six',
         'pybtex',
         'clldutils>=0.9.1',
-        'uritemplate',
+        'uritemplate>=3.0',
         'python-dateutil',
     ],
     license="Apache 2",
