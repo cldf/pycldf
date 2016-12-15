@@ -23,15 +23,14 @@ class Writer(BaseWriter):
 
 
 class Source(BaseSource, UnicodeMixin):
-    def __init__(self, genre, id_, **kw):
-        BaseSource.__init__(self, genre, id_, **kw)
+    @property
+    def entry(self):
         persons = dict(
-            author=list(self.persons(kw.pop('author', ''))),
-            editor=list(self.persons(kw.pop('editor', ''))))
-        assert 'author' not in kw
-        self.entry = database.Entry(
-            genre,
-            fields={k: v for k, v in kw.items() if v},
+            author=list(self.persons(self.get('author', ''))),
+            editor=list(self.persons(self.get('editor', ''))))
+        return database.Entry(
+            self.genre,
+            fields={k: v for k, v in self.items() if v and k not in ['author', 'editor']},
             persons=persons)
 
     def __unicode__(self):
