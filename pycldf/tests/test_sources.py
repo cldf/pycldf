@@ -47,6 +47,12 @@ class Tests(WithTempDir):
         src.read(bib.name, bib.parent)
         self.assertEqual(len(src), 1)
 
+    def test_Source_from_bibtex(self):
+        from pycldf.sources import Source
+
+        bibtex = '@' + BIB.split('@')[1]
+        self.assertEqual(Source.from_bibtex(bibtex).entry.fields['title'], 'Obrazy z Rus')
+
     def test_Sources_with_None_values(self):
         from pycldf.sources import Sources, Source
 
