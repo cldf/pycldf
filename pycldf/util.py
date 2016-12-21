@@ -31,6 +31,11 @@ class Row(OrderedDict):
         if len(row) != len(d.schema.columns):
             raise ValueError('wrong number of columns in row')
         for col, value in zip(d.schema.columns.values(), row):
+            if col.name == 'Source':
+                if isinstance(value, (list, tuple)):
+                    value = ';'.join('{0}'.format(v) for v in value)
+                elif value is not None:
+                    value = '{0}'.format(value)
             d[col.name] = col.unmarshal(value)
         return d
 
