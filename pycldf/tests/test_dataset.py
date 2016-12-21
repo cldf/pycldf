@@ -36,6 +36,7 @@ class Tests(WithTempDir):
 
     def test_dataset_from_file(self):
         from pycldf.dataset import Dataset
+        from pycldf.sources import Reference
 
         ds = Dataset.from_file(FIXTURES.joinpath('ds1.csv'))
         self.assertIn('ds1', repr(ds))
@@ -47,6 +48,7 @@ class Tests(WithTempDir):
         with self.assertRaises(ValueError):
             ds.add_row(row)
 
+        row[-1] = [row[-1]]
         ds.sources.add('@book{new,\nauthor={new author}}')
         res = ds.add_row(row)
         self.assertEqual(res.url, 'http://example.org/valuesets/3')
@@ -54,7 +56,9 @@ class Tests(WithTempDir):
         self.assertEqual(
             res.valueUrl('Language_ID'),
             'http://glottolog.org/resource/languoid/id/abcd1234')
-        res = ds.add_row(['4', None, None, None, None, None])
+        row = ['4', 'abcd1234', 'fid2', 'maybe', '', Reference(ds.sources['new'], '4')]
+        ds.add_row(row)
+        res = ds.add_row(['5', None, None, None, None, None])
         self.assertEqual(res.valueUrl('Language_ID'), None)
         out = self.tmp_path()
         ds.write(out, '.tsv')
