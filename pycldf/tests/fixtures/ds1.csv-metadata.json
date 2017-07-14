@@ -3,8 +3,12 @@
   "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
   "dialect": {"delimiter": ",", "encoding": "utf-8", "header": true},
   "dc:title": "a cldf dataset",
+  "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#StructureDataset",
+  "dc:source": "ds1.bib",
   "tables": [
     {
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable",
+      "url": "ds1.csv",
       "tableSchema": {
         "columns": [
           {
@@ -30,6 +34,7 @@
           },
           {
             "name": "Source",
+            "separator": ";",
             "datatype": "string"
           }
         ],

@@ -16,12 +16,26 @@ from __future__ import unicode_literals, print_function
 import sys
 
 from clldutils.path import Path
-from clldutils.clilib import ArgumentParser, ParserError
-from clldutils.jsonlib import load
+from clldutils.clilib import ArgumentParserWithLogging, ParserError
+from clldutils.markup import Table
 
 from pycldf.dataset import Dataset
-from pycldf.metadata import Metadata
-from pycldf.util import MD_SUFFIX
+
+
+def _get_dataset(args):
+    if len(args.args) < 1:
+        raise ParserError('not enough arguments')
+    fname = Path(args.args[0])
+    if not fname.exists() or not fname.is_file():
+        raise ParserError('%s is not an existing directory' % fname)
+    if fname.suffix == '.json':
+        return Dataset.from_metadata(fname)
+    return Dataset.from_data(fname)
+
+
+def validate(args):
+    ds = _get_dataset(args)
+    ds.validate(log=args.log)
 
 
 def stats(args):
@@ -31,58 +45,16 @@ def stats(args):
     Print basic stats for CLDF dataset <DATASET>, where <DATASET> may be the path to
     - a CLDF metadata file
     - a CLDF core data file
-    - a CLDF zip archive
     """
-    if len(args.args) < 1:
-        raise ParserError('not enough arguments')
-    fname = Path(args.args[0])
-    if not fname.exists() or not fname.is_file():
-        raise ParserError('%s is not an existing directory' % fname)
-    if fname.suffix == '.zip':
-        ds = Dataset.from_zip(fname)
-    elif fname.name.endswith(MD_SUFFIX):
-        ds = Dataset.from_metadata(fname)
-    else:
-        ds = Dataset.from_file(fname)
-    print(fname)
-    stats_ = ds.stats
-    print("""
-Name: %s
-Different languages: %s
-Different parameters: %s
-Rows: %s
-""" % (
-        ds.name,
-        len(stats_['languages']),
-        len(stats_['parameters']),
-        stats_['rowcount']
-    ))
-
-
-def datasets(args):
-    """
-    cldf datasets <DIR> [ATTRS]
-
-    List all CLDF datasets in directory <DIR>
-    """
-    if len(args.args) < 1:
-        raise ParserError('not enough arguments')
-    d = Path(args.args[0])
-    if not d.exists() or not d.is_dir():
-        raise ParserError('%s is not an existing directory' % d)
-    for fname in sorted(d.glob('*' + MD_SUFFIX), key=lambda p: p.name):
-        md = Metadata(load(fname))
-        data = fname.parent.joinpath(
-            md.get_table().url or fname.name[:-len(MD_SUFFIX)])
-        if data.exists():
-            print(data)
-            if len(args.args) > 1:
-                maxlen = max(len(a) for a in args.args[1:])
-                for attr in args.args[1:]:
-                    if md.get(attr):
-                        print('    %s %s' % ((attr + ':').ljust(maxlen + 1), md[attr]))
+    ds = _get_dataset(args)
+    print(ds)
+    print()
+    t = Table('Path', 'Type', 'Rows')
+    for p, type_, r in ds.stats():
+        t.append([p, type_, r])
+    print(t.render(condensed=False, tablefmt=None))
 
 
 def main():  # pragma: no cover
-    parser = ArgumentParser('pycldf', datasets, stats)
+    parser = ArgumentParserWithLogging('pycldf', stats, validate)
     sys.exit(parser.main())

@@ -6,6 +6,7 @@ install:
   - pip install coverage
   - pip install nose
   - pip install mock
+  - pip install -U setuptools
 script:
   - python setup.py install
   - nosetests --with-coverage --cover-package=pycldf

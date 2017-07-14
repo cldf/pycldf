@@ -1,4 +1,5 @@
 include *.md LICENSE
+recursive-include pycldf *.rdf
 recursive-include pycldf *.json
 recursive-include pycldf *.bib
 recursive-include pycldf *.csv

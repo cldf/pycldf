@@ -18,7 +18,7 @@ setup(
     install_requires=[
         'six',
         'pybtex',
-        'clldutils>=0.9.1',
+        'clldutils>=1.13.2',
         'uritemplate>=3.0',
         'python-dateutil',
     ],

@@ -2,14 +2,13 @@
 from __future__ import unicode_literals, print_function, division
 import re
 
-from six import string_types, StringIO
+from six import string_types
 from pybtex import database
 from pybtex.database.output.bibtex import Writer as BaseWriter
+from clldutils.path import Path, read_text
 from clldutils.misc import UnicodeMixin
 from clldutils.source import Source as BaseSource
 from clldutils.source import ID_PATTERN
-
-from pycldf.util import OptionalData
 
 __all__ = ['Source']
 
@@ -76,9 +75,21 @@ class Reference(UnicodeMixin):
         return '<%s %s>' % (self.__class__.__name__, self.__unicode__())
 
 
-class Sources(OptionalData):
+class Sources(object):
     def __init__(self):
         self._bibdata = database.BibliographyData()
+
+    @classmethod
+    def from_file(cls, fname):
+        res = cls()
+        if fname.exists():
+            res.read(fname)
+        return res
+
+    def __bool__(self):
+        return bool(self._bibdata.entries)
+
+    __nonzero__ = __bool__
 
     def keys(self):
         return self._bibdata.entries.keys()
@@ -101,21 +112,29 @@ class Sources(OptionalData):
 
     @staticmethod
     def format_refs(*refs):
-        return ';'.join('%s' % ref for ref in refs)
+        return ['%s' % ref for ref in refs]
+
+    @staticmethod
+    def parse(ref):
+        sid, pages = ref.strip(), None
+        if '[' in sid:
+            sid, pages = [ss.strip() for ss in sid.split('[', 1)]
+            if not (sid and pages.endswith(']')):
+                raise ValueError(ref)
+            pages = pages[:-1].strip()
+        return sid, pages
+
+    def validate(self, refs):
+        for sid, _ in map(self.parse, [refs] if isinstance(refs, string_types) else refs):
+            if sid not in self:
+                raise ValueError()
 
     def expand_refs(self, refs):
-        refs = refs or ''
-        for spec in refs.split(';'):
-            spec = spec.strip()
-            if spec:
-                sid, pages = spec, None
-                if '[' in spec:
-                    sid, pages = [ss.strip() for ss in spec.split('[', 1)]
-                    assert sid and pages.endswith(']')
-                    pages = pages[:-1].strip()
-                if sid not in self and GLOTTOLOG_ID_PATTERN.match(sid):
-                    self._add_entries(Source('misc', sid, glottolog_id=sid))
-                yield Reference(self[sid], pages)
+        for sid, pages in map(
+                self.parse, [refs] if isinstance(refs, string_types) else refs):
+            if sid not in self and GLOTTOLOG_ID_PATTERN.match(sid):
+                self._add_entries(Source('misc', sid, glottolog_id=sid))
+            yield Reference(self[sid], pages)
 
     def _add_entries(self, data):
         if isinstance(data, Source):
@@ -134,10 +153,10 @@ class Sources(OptionalData):
                 except database.BibliographyDataError as e:  # pragma: no cover
                     raise ValueError('%s' % e)
 
-    def read_string(self, text):
-        self._add_entries(database.parse_string(text, bib_format='bibtex'))
+    def read(self, fname):
+        self._add_entries(database.parse_string(read_text(fname), bib_format='bibtex'))
 
-    def write_string(self, ids=None, **kw):
+    def write(self, fname, ids=None, **kw):
         if ids:
             bibdata = database.BibliographyData()
             for key, entry in self._bibdata.entries.items():
@@ -146,10 +165,9 @@ class Sources(OptionalData):
         else:
             bibdata = self._bibdata
         if bibdata.entries:
-            out = StringIO()
-            Writer().write_stream(bibdata, out)
-            out.seek(0)
-            return out.read()
+            with Path(fname).open('w', encoding='utf8') as fp:
+                Writer().write_stream(bibdata, fp)
+            return fname
 
     def add(self, *entries):
         """

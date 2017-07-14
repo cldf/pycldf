@@ -27,24 +27,32 @@ class Tests(WithTempDir):
             'book', 'huber2005', author='Herrmann Huber', year='2005', title='y'))
         self.assertEqual(len(list(src.items())), 3)
         self.assertEqual(len(list(src.keys())), 3)
-        refs = 'huber2005[1-6];Obrazy;Elegie[34]'
+        refs = ['huber2005[1-6]', 'Obrazy', 'Elegie[34]']
         self.assertEqual(src.format_refs(*list(src.expand_refs(refs))), refs)
         self.assertEqual('%s' % src['huber2005'], 'Huber, Herrmann. 2005. y.')
         with self.assertRaises(ValueError):
             src.add(5)
         with self.assertRaises(ValueError):
             src.add('@misc{a.b,\n  author="a.b"\n}')
+        with self.assertRaises(ValueError):
+            _ = src['unknown']
+            assert _  # pragma: no cover
+        with self.assertRaises(ValueError):
+            src.parse('a[x')
+        with self.assertRaises(ValueError):
+            src.parse('[x]')
+        with self.assertRaises(ValueError):
+            src.validate(['x'])
 
         bib = self.tmp_path('test.bib')
-        src.write(bib.name, bib.parent)
+        src.write(bib)
 
         src2 = Sources()
-        src2.read(bib.name, bib.parent)
+        src2.read(bib)
 
         bib = self.tmp_path('test.bib')
-        src2.write(bib.name, bib.parent, ids=['huber2005'])
-        src = Sources()
-        src.read(bib.name, bib.parent)
+        src2.write(bib, ids=['huber2005'])
+        src = Sources.from_file(bib)
         self.assertEqual(len(src), 1)
 
     def test_Source_from_bibtex(self):
@@ -58,8 +66,7 @@ class Tests(WithTempDir):
 
         src = Sources()
         src.add(Source('book', 'huber2005', title=None))
-        bib = self.tmp_path('test.bib')
-        src.write(bib.name, bib.parent)
+        src.write(self.tmp_path('test.bib'))
 
     def test_Source_expand_refs(self):
         from pycldf.sources import Sources, Source
@@ -74,6 +81,7 @@ class Tests(WithTempDir):
         self.assertEqual(len(list(sources.expand_refs('Meier2005'))), 1)
         bib = sources._bibdata.to_string(bib_format='bibtex')
         self.assertEqual(len(bib.split('author')), 2)
+        self.assertEqual(len(list(sources.expand_refs('12345'))), 1)
 
     def test_Reference(self):
         from pycldf.sources import Reference, Source

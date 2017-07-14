@@ -1,0 +1,60 @@
+{
+    "@context": "http://www.w3.org/ns/csvw",
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#Wordlist",
+    "dialect": {
+        "commentPrefix": null
+    },
+    "tables": [
+        {
+            "url": "forms.csv",
+            "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#FormTable",
+            "tableSchema": {
+                "columns": [
+                    {
+                        "name": "ID",
+                        "propertyUrl": "http://purl.org/dc/terms/identifier",
+                        "required": true,
+                        "datatype": "string"
+                    },
+                    {
+                        "name": "Language_ID",
+                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/Language",
+                        "required": true,
+                        "datatype": "string"
+                    },
+                    {
+                        "name": "Parameter_ID",
+                        "titles": "Concept_ID",
+                        "propertyUrl": "http://www.w3.org/2004/02/skos/core#Concept",
+                        "required": true,
+                        "datatype": "string"
+                    },
+                    {
+                        "name": "Value",
+                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/FormUnit",
+                        "required": true,
+                        "datatype": "string"
+                    },
+                    {
+                        "name": "Segments",
+                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/Segment",
+                        "datatype": "string",
+                        "separator": " "
+                    },
+                    {
+                        "name": "Comment",
+                        "propertyUrl": "http://purl.org/dc/terms/description",
+                        "datatype": "string"
+                    },
+                    {
+                        "name": "Source",
+                        "separator": ";",
+                        "propertyUrl": "http://purl.org/dc/terms/source",
+                        "datatype": "string"
+                    }
+                ],
+                "primaryKey": "ID"
+            }
+        }
+    ]
+}
