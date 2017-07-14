@@ -13,84 +13,104 @@ Writing CLDF
 ------------
 
 ```python
-from pycldf.dataset import Dataset
+from pycldf.dataset import Wordlist
 from pycldf.sources import Source
-dataset = Dataset('mydb')
-dataset.fields = ('ID', 'Language_ID', 'Parameter_ID', 'Value', 'Source', 'Comment')
+dataset = Wordlist.in_dir('mydataset')
 dataset.sources.add(Source('book', 'Meier2005', author='Hans Meier', year='2005', title='The Book'))
-dataset.add_row([
-    '1', 
-    'http://glottolog.org/resource/languoid/id/stan1295', 
-    'http://concepticon.clld.org/parameters/1277', 
-    'hand', 
-    'Meier2005[3-7]', 
-    ''])
-dataset.write('.')
+dataset.write(FormTable=[
+    {
+        'ID': '1', 
+        'Value': 'word', 
+        'Language_ID': 'abcd1234', 
+        'Parameter_ID': '1277', 
+        'Source': ['Meier2005[3-7]'],
+    }])
 ```
 
-results in 
+results in
+```
+$ ls -1 mydataset/
+forms.csv
+sources.bib
+Wordlist-metadata.json
+```
 
-- `mydb.csv`
+- `mydataset/forms.csv`
 ```
-ID,Language_ID,Parameter_ID,Value,Source,Comment
-1,http://glottolog.org/resource/languoid/id/stan1295,http://concepticon.clld.org/parameters/1277,hand,Meier2005[3-7],
+ID,Language_ID,Parameter_ID,Value,Segments,Comment,Source
+1,abcd1234,1277,word,,,Meier2005[3-7]
 ```
-- `mydb.bib`
+- `mydataset/sources.bib`
 ```bibtex
 @book{Meier2005,
     author = {Meier, Hans},
-    title = {The Book},
-    year = {2005}
+    year = {2005},
+    title = {The Book}
 }
+
 ```
-- `mydb.csv-metadata.json`
+- `mydataset/Wordlist-metadata.json`
 ```python
 {
-    "@context": [
-        "http://www.w3.org/ns/csvw",
-        {
-            "@language": "en"
-        }
-    ],
-    "dc:format": "cldf-1.0",
+    "@context": "http://www.w3.org/ns/csvw", 
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#Wordlist", 
+    "dc:source": "sources.bib", 
     "dialect": {
-        "header": true,
-        "delimiter": ",",
-        "encoding": "utf-8"
-    },
+        "commentPrefix": null
+    }, 
     "tables": [
         {
-            "url": "",
-            "dc:type": "cldf-values",
+            "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#FormTable", 
             "tableSchema": {
-                "primaryKey": "ID",
                 "columns": [
                     {
-                        "datatype": "string",
+                        "datatype": "string", 
+                        "propertyUrl": "http://purl.org/dc/terms/identifier", 
+                        "required": true, 
                         "name": "ID"
-                    },
+                    }, 
                     {
-                        "datatype": "string",
+                        "datatype": "string", 
+                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/Language", 
+                        "required": true, 
                         "name": "Language_ID"
-                    },
+                    }, 
                     {
-                        "datatype": "string",
-                        "name": "Parameter_ID"
-                    },
+                        "datatype": "string", 
+                        "propertyUrl": "http://www.w3.org/2004/02/skos/core#Concept", 
+                        "required": true, 
+                        "name": "Parameter_ID", 
+                        "titles": "Concept_ID"
+                    }, 
                     {
-                        "datatype": "string",
+                        "datatype": "string", 
+                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/FormUnit", 
+                        "required": true, 
                         "name": "Value"
-                    },
+                    }, 
                     {
-                        "datatype": "string",
-                        "name": "Source"
-                    },
+                        "datatype": "string", 
+                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/Segment", 
+                        "separator": " ", 
+                        "name": "Segments"
+                    }, 
                     {
-                        "datatype": "string",
+                        "datatype": "string", 
+                        "propertyUrl": "http://purl.org/dc/terms/description", 
                         "name": "Comment"
+                    }, 
+                    {
+                        "datatype": "string", 
+                        "propertyUrl": "http://purl.org/dc/terms/source", 
+                        "separator": ";", 
+                        "name": "Source"
                     }
+                ], 
+                "primaryKey": [
+                    "ID"
                 ]
-            }
+            }, 
+            "url": "forms.csv"
         }
     ]
 }
@@ -101,99 +121,58 @@ Reading CLDF
 ------------
 
 ```python
->>> from pycldf.dataset import Dataset
->>> dataset = Dataset.from_file('mydb.csv')
->>> dataset
-<Dataset mydb>
->>> len(dataset)
-1
->>> row = dataset.rows[0]
->>> row
-Row([('ID', u'1'), 
-     ('Language_ID', 'http://glottolog.org/resource/languoid/id/stan1295'), 
-     ('Parameter_ID', 'http://concepticon.clld.org/parameters/1277'), 
-     ('Value', 'hand'), 
-     ('Source', 'Meier2005[3-7]'), 
-     ('Comment', '')])
->>> row['Value']
-'hand'
->>> row.refs
+>>> from pycldf.dataset import Wordlist
+>>> dataset = Wordlist.from_metadata('mydataset/Wordlist-metadata.json')
+>>> print(dataset)
+<cldf:v1.0:Wordlist at mydataset>
+>>> forms = list(dataset['FormTable'])
+>>> forms[0]
+OrderedDict([('ID', '1'), ('Language_ID', 'abcd1234'), ('Parameter_ID', '1277'), ('Value', 'word'), ('Segments', []), ('Comment', None), ('Source', ['Meier2005[3-7]'])])
+>>> refs = list(dataset.sources.expand_refs(forms[0]['Source']))
+>>> refs
 [<Reference Meier2005[3-7]>]
->>> row.refs[0].source
-<Source Meier2005>
->>> print row.refs[0].source
+>>> print(refs[0].source)
 Meier, Hans. 2005. The Book.
->>> print row.refs[0].source.bibtex()
-@book{Meier2005,
-  year   = {2005},
-  author = {Meier, Hans},
-  title  = {The Book}
-}
 ```
 
 
-### Validating a data file
+Command line usage
+------------------
+
+Installing the `pycldf` package will also install a command line interface `cldf`, which provides some sub-commands to manage CLDF datasets.
+
+
+### Summary statistics
+
+```sh
+$ cldf stats mydataset/Wordlist-metadata.json 
+<cldf:v1.0:Wordlist at mydataset>
+
+Path                   Type          Rows
+---------------------  ----------  ------
+forms.csv              Form Table       1
+mydataset/sources.bib  Sources          1
+```
+
+
+### Validation
 
 By default, data files are read in strict-mode, i.e. invalid rows will result in an exception
 being raised. To validate a data file, it can be read in validating-mode.
 
 For example the following output is generated
 
-```python
->>> from pycldf.dataset import Dataset
->>> dataset = Dataset.from_file('mydb.csv', skip_on_error=True)
-WARNING:pycldf.dataset:skipping row in line 3: wrong number of columns in row
-WARNING:pycldf.dataset:skipping row in line 4: duplicate ID: 1
-WARNING:pycldf.dataset:skipping row in line 5: missing citekey: Mei2005
+```sh
+$ cldf validate mydataset/forms.csv
+WARNING forms.csv: duplicate primary key: (u'1',)
+WARNING forms.csv:4:Source missing source key: Mei2005
 ```
 
 when reading the file
 
 ```
-ID,Language_ID,Parameter_ID,Value,Source,Comment
-1,stan1295,1277,hand,Meier2005[3-7],
-1,stan1295,1277,hand,Meier2005[3-7]
-1,stan1295,1277,hand,Meier2005[3-7],
-2,stan1295,1277,hand,Mei2005[3-7],
-```
-
-
-Support for augmented metadata
-------------------------------
-
-`pycldf` provides some support for metadata properties as described in 
-[W3's Metadata Vocabulary for Tabular Data](https://www.w3.org/TR/tabular-metadata/), in particular,
-- On [column description level](https://www.w3.org/TR/tabular-metadata/#dfn-column-description),
-  - `datatype` is interpreted to use appropriate python objects internally,
-  - a URI template provided as `valueUrl` can be expanded calling `Row.valueUrl(<colname>)`.
-- On [schema description level](https://www.w3.org/TR/tabular-metadata/#dfn-schema-description),
-  - a URI template provided as `aboutUrl` is used to compute the URL available as `Row.url`.
-
-So the example above could be rewritten more succintly:
-
-```python
-from pycldf.dataset import Dataset
-from pycldf.sources import Source
-dataset = Dataset('mydb')
-dataset.fields = ('ID', 'Language_ID', 'Parameter_ID', 'Value', 'Source', 'Comment')
-dataset.table.schema.columns['ID'].datatype = int
-dataset.table.schema.columns['Language_ID'].valueUrl = 'http://glottolog.org/resource/languoid/id/{Language_ID}'
-dataset.table.schema.columns['Parameter_ID'].valueUrl = 'http://concepticon.clld.org/parameters/{Parameter_ID}'
-dataset.sources.add(Source('book', 'Meier2005', author='Hans Meier', year='2005', title='The Book'))
-dataset.add_row(['1', 'stan1295', '1277', 'hand', 'Meier2005[3-7]', ''])
-dataset.write('.')
-```
-
-And then accessed as follows:
-
-```python
->>> from pycldf.dataset import Dataset
->>> dataset = Dataset.from_file('mydb.csv')
->>> row = dataset.rows[0]
->>> type(row['ID'])
-<type 'int'>
->>> row.valueUrl('Language_ID')
-'http://glottolog.org/resource/languoid/id/stan1295'
->>> row['Language_ID']
-'stan1295'
+ID,Language_ID,Parameter_ID,Value,Segments,Comment,Source
+1,abcd1234,1277,word,,,Meier2005[3-7]
+1,stan1295,1277,hand,,,Meier2005[3-7]
+2,stan1295,1277,hand,,,Mei2005[3-7]
 ```

@@ -35,7 +35,7 @@ class Tests(WithTempDir):
     def test_Dataset_validate(self):
         from pycldf.dataset import StructureDataset
 
-        ds = StructureDataset.from_metadata(self.tmp)
+        ds = StructureDataset.in_dir(self.tmp_path('new'))
         ds.write(ValueTable=[])
         ds.validate()
         ds['ValueTable'].tableSchema.columns = []

@@ -127,7 +127,7 @@ class Sources(object):
     def validate(self, refs):
         for sid, _ in map(self.parse, [refs] if isinstance(refs, string_types) else refs):
             if sid not in self:
-                raise ValueError()
+                raise ValueError('missing source key: {0}'.format(sid))
 
     def expand_refs(self, refs):
         for sid, pages in map(

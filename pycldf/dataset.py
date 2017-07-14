@@ -116,7 +116,8 @@ class Dataset(object):
                         validate(self, table, col, row)
                     except ValueError as e:
                         log_or_raise(
-                            '{0}:{1}:{2} {3}'.format(fname, lineno, col.name, e), log=log)
+                            '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
+                            log=log)
 
     @property
     def directory(self):
@@ -129,6 +130,14 @@ class Dataset(object):
     @property
     def version(self):
         return self._tg.common_props['dc:conformsTo'].split('/')[3]
+
+    @classmethod
+    def in_dir(cls, d):
+        fname = Path(d)
+        if not fname.exists():
+            fname.mkdir()
+        assert fname.is_dir()
+        return cls.from_metadata(fname)
 
     @classmethod
     def from_metadata(cls, fname):
@@ -188,8 +197,10 @@ class Dataset(object):
     def write_sources(self):
         return self.sources.write(self.bibpath)
 
-    def write(self, **table_items):
-        self.write_metadata()
+    def write(self, fname=None, **table_items):
+        if self.sources and not self._tg.common_props.get('dc:source'):
+            self._tg.common_props['dc:source'] = 'sources.bib'
+        self.write_metadata(fname)
         self.write_sources()
         for table_type, items in table_items.items():
             self[table_type].write(items)
