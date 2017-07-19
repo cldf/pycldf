@@ -99,8 +99,7 @@ class Dataset(object):
                     log_or_raise('{0} requires column {1}'.format(
                         table.common_props['dc:conformsTo'], col), log=log)
 
-        # check whether self._tg.common_props['dc:conformsTo'] is in validators!
-        self._tg.check_referential_integrity(log=log)
+        data = {}
         for table in self.tables:
             # check whether table.common_props['dc:conformsTo'] is in validators!
             validators = []
@@ -109,8 +108,9 @@ class Dataset(object):
                     if col.propertyUrl.uri in VALIDATORS:
                         validators.append((col, VALIDATORS[col.propertyUrl.uri]))
 
-            table.check_primary_key(log=log)
+            data[table.local_name] = []
             for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
+                data[table.local_name].append((fname, lineno, row))
                 for col, validate in validators:
                     try:
                         validate(self, table, col, row)
@@ -118,6 +118,10 @@ class Dataset(object):
                         log_or_raise(
                             '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
                             log=log)
+            table.check_primary_key(log=log, items=data[table.local_name])
+
+        # check whether self._tg.common_props['dc:conformsTo'] is in validators!
+        self._tg.check_referential_integrity(log=log, data=data)
 
     @property
     def directory(self):

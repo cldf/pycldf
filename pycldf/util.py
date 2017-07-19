@@ -7,4 +7,4 @@ import pycldf
 
 
 def pkg_path(*comps):
-    return Path(pycldf.__file__).parent.joinpath(*comps)
+    return Path(pycldf.__file__).resolve().parent.joinpath(*comps)

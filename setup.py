@@ -18,7 +18,7 @@ setup(
     install_requires=[
         'six',
         'pybtex',
-        'clldutils>=1.13.3',
+        'clldutils>=1.13.4',
         'uritemplate>=3.0',
         'python-dateutil',
     ],
@@ -38,6 +38,7 @@ setup(
         'Programming Language :: Python :: Implementation :: PyPy'
     ],
     packages=find_packages(),
+    include_package_data=True,
     entry_points={
         'console_scripts': [
             'cldf=pycldf.cli:main',
