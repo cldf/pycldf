@@ -226,6 +226,12 @@
     <rdfs:Class rdf:about="http://cldf.clld.org/v1.0/terms.rdf#CognateTable">
         <rdfs:label xml:lang="en">Cognate Table</rdfs:label>
         <rdfs:comment>
+            The table of cognacy judgements of a CLDF Wordlist
+        </rdfs:comment>
+    </rdfs:Class>
+    <rdfs:Class rdf:about="http://cldf.clld.org/v1.0/terms.rdf#CognateTable">
+        <rdfs:label xml:lang="en">Cognate Table</rdfs:label>
+        <rdfs:comment>
             The table of cognate judgements of a CLDF Wordlist
         </rdfs:comment>
     </rdfs:Class>
