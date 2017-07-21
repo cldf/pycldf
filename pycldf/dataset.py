@@ -68,6 +68,14 @@ class Dataset(object):
         self._tg = tablegroup
         self.sources = Sources.from_file(self.bibpath)
 
+    @property
+    def properties(self):
+        return self._tg.common_props
+
+    @property
+    def tables(self):
+        return self._tg.tables
+
     def add_component(self, component):
         if isinstance(component, string_types):
             component = jsonlib.load(
@@ -75,14 +83,13 @@ class Dataset(object):
         if isinstance(component, dict):
             component = Table.fromvalue(component)
         assert isinstance(component, Table)
-        self._tg.tables.append(component)
+        self.tables.append(component)
         component._parent = self._tg
         # FIXME: need a way to declare foreign keys, e.g. for examples!?
 
     @property
     def bibpath(self):
-        return self.directory.joinpath(
-            self._tg.common_props.get('dc:source', 'sources.bib'))
+        return self.directory.joinpath(self.properties.get('dc:source', 'sources.bib'))
 
     def validate(self, log=None):
         default_tg = TableGroup.from_file(
@@ -120,7 +127,7 @@ class Dataset(object):
                             log=log)
             table.check_primary_key(log=log, items=data[table.local_name])
 
-        # check whether self._tg.common_props['dc:conformsTo'] is in validators!
+        # check whether self.properties['dc:conformsTo'] is in validators!
         self._tg.check_referential_integrity(log=log, data=data)
 
     @property
@@ -129,11 +136,11 @@ class Dataset(object):
 
     @property
     def module(self):
-        return self._tg.common_props['dc:conformsTo'].split('#')[1]
+        return self.properties['dc:conformsTo'].split('#')[1]
 
     @property
     def version(self):
-        return self._tg.common_props['dc:conformsTo'].split('/')[3]
+        return self.properties['dc:conformsTo'].split('/')[3]
 
     @classmethod
     def in_dir(cls, d):
@@ -176,13 +183,16 @@ class Dataset(object):
         Tables can be accessed by type.
         """
         type_ = term_uri(type_)
-        for table in self._tg.tables:
+        for table in self.tables:
             if table.common_props.get('dc:conformsTo') == type_:
                 return table
 
-    @property
-    def tables(self):
-        return self._tg.tables
+    @staticmethod
+    def get_tabletype(table):
+        if '#' in table.common_props.get('dc:conformsTo', ''):
+            res = table.common_props['dc:conformsTo'].split('#')[1]
+            if res in TERMS:
+                return res
 
     def stats(self):
         res = []
@@ -192,7 +202,7 @@ class Dataset(object):
                 dctype = TERMS[dctype.split('#')[1]].label
             res.append((table.url.string, dctype, len(list(table))))
         if self.sources:
-            res.append((self.bibpath, 'Sources', len(self.sources)))
+            res.append((self.bibpath.name, 'Sources', len(self.sources)))
         return res
 
     def write_metadata(self, fname=None):
@@ -202,8 +212,8 @@ class Dataset(object):
         return self.sources.write(self.bibpath)
 
     def write(self, fname=None, **table_items):
-        if self.sources and not self._tg.common_props.get('dc:source'):
-            self._tg.common_props['dc:source'] = 'sources.bib'
+        if self.sources and not self.properties.get('dc:source'):
+            self.properties['dc:source'] = 'sources.bib'
         self.write_metadata(fname)
         self.write_sources()
         for table_type, items in table_items.items():

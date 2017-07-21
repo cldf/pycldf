@@ -241,4 +241,10 @@
             The table of languages provided with a CLDF dataset
         </rdfs:comment>
     </rdfs:Class>
+    <rdfs:Class rdf:about="http://cldf.clld.org/v1.0/terms.rdf#ParameterTable">
+        <rdfs:label xml:lang="en">Parameter Table</rdfs:label>
+        <rdfs:comment>
+            The table of parameters of a CLDF dataset.
+        </rdfs:comment>
+    </rdfs:Class>
 </rdf:RDF>
