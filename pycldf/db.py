@@ -107,8 +107,8 @@ CREATE TABLE datasetmeta (
         with self.connection() as db:
             db.execute('PRAGMA foreign_keys = ON;')
             pk = max(
-                [r[0] for r in self.fetchall("SELECT pk FROM dataset", conn=db)]
-                or [0]) + 1
+                [r[0] for r in self.fetchall("SELECT pk FROM dataset", conn=db)] or
+                [0]) + 1
             db.execute(
                 "INSERT INTO dataset (pk,name) VALUES (?,?)", (pk, '{0}'.format(dataset)))
             db.executemany(
