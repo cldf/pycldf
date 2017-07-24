@@ -42,7 +42,7 @@ class Database(object):
             db.execute(
                 """\
 CREATE TABLE dataset (
-    pk INTEGER PRIMARY KEY NOT NULL, 
+    pk INTEGER PRIMARY KEY NOT NULL,
     name TEXT,
     module TEXT,
     metadata_json TEXT
