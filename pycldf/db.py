@@ -6,6 +6,7 @@ from __future__ import unicode_literals, print_function, division
 from collections import OrderedDict
 import sqlite3
 from contextlib import closing
+from json import dumps
 
 import attr
 from clldutils.path import Path, remove
@@ -39,7 +40,13 @@ class Database(object):
             raise ValueError('db file already exists, use force=True to overwrite')
         with self.connection() as db:
             db.execute(
-                "CREATE TABLE dataset (pk INTEGER PRIMARY KEY NOT NULL, name TEXT)")
+                """\
+CREATE TABLE dataset (
+    pk INTEGER PRIMARY KEY NOT NULL, 
+    name TEXT,
+    module TEXT,
+    metadata_json TEXT
+)""")
             db.execute("""\
 CREATE TABLE datasetmeta (
     dataset_pk INT ,
@@ -110,7 +117,9 @@ CREATE TABLE datasetmeta (
                 [r[0] for r in self.fetchall("SELECT pk FROM dataset", conn=db)] or
                 [0]) + 1
             db.execute(
-                "INSERT INTO dataset (pk,name) VALUES (?,?)", (pk, '{0}'.format(dataset)))
+                "INSERT INTO dataset (pk,name,module,metadata_json) VALUES (?,?,?,?)",
+                (pk, '{0}'.format(dataset), dataset.module, dumps(dataset.metadata_dict)))
+            # json.dumps(dataset.metadata_dict)
             db.executemany(
                 "INSERT INTO datasetmeta (dataset_pk,key,value) VALUES (?,?,?)",
                 [(pk, k, '{0}'.format(v)) for k, v in dataset.properties.items()])

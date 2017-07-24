@@ -69,12 +69,20 @@ class Dataset(object):
         self.sources = Sources.from_file(self.bibpath)
 
     @property
+    def tablegroup(self):
+        return self._tg
+
+    @property
+    def metadata_dict(self):
+        return self.tablegroup.asdict(omit_defaults=False)
+
+    @property
     def properties(self):
-        return self._tg.common_props
+        return self.tablegroup.common_props
 
     @property
     def tables(self):
-        return self._tg.tables
+        return self.tablegroup.tables
 
     def add_component(self, component):
         if isinstance(component, string_types):
