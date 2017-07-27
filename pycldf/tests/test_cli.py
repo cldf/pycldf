@@ -26,9 +26,14 @@ class Tests(WithTempDir):
         copy(FIXTURES.joinpath('ds1.csv-metadata.json'), md)
         copy(FIXTURES.joinpath('ds1.bib'), self.tmp_path('ds1.bib'))
         copy(FIXTURES.joinpath('ds1.csv'), self.tmp_path('ds1.csv'))
+        data = self.tmp_path('values.csv')
+        copy(FIXTURES.joinpath('ds1.csv'), data)
 
         with capture(validate, MagicMock(args=[md.as_posix()])) as out:
             self.assertEqual(out, '')
+
+        with capture(stats, MagicMock(args=[data.as_posix()])) as out:
+            self.assertIn('StructureDataset', out)
 
         with capture(stats, MagicMock(args=[md.as_posix()])) as out:
             self.assertIn('cldf:v1.0:StructureDataset', out)
