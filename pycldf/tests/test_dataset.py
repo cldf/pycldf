@@ -3,12 +3,33 @@ from __future__ import unicode_literals, print_function, division
 
 from mock import Mock
 from clldutils.testing import WithTempDir
+from clldutils.csvw.metadata import TableGroup
 from clldutils.path import copy
 
 from pycldf.tests.util import FIXTURES
 
 
 class Tests(WithTempDir):
+    def _make_tg(self, *tables):
+        tg = TableGroup.fromvalue({'tables': list(tables)})
+        tg._fname = self.tmp_path('md.json')
+        return tg
+
+    def test_modules(self):
+        from pycldf.dataset import Dataset, Wordlist, Dictionary, StructureDataset
+
+        ds = Dataset(self._make_tg())
+        self.assertIsNone(ds.primary_table)
+        ds = Dataset(self._make_tg({"url": "data.csv"}))
+        self.assertIsNone(ds.primary_table)
+        ds = Dataset(self._make_tg({
+            "url": "data.csv",
+            "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable"}))
+        self.assertEqual(ds.primary_table, 'ValueTable')
+        self.assertIsNotNone(Wordlist.in_dir(self.tmp_path()).primary_table)
+        self.assertIsNotNone(Dictionary.in_dir(self.tmp_path()).primary_table)
+        self.assertIsNotNone(StructureDataset.in_dir(self.tmp_path()).primary_table)
+
     def test_Dataset_from_scratch(self):
         from pycldf.dataset import Dataset
 

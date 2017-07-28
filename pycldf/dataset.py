@@ -202,6 +202,11 @@ class Dataset(object):
             if res in TERMS:
                 return res
 
+    @property
+    def primary_table(self):
+        if self.tables:
+            return self.get_tabletype(self.tables[0])
+
     def stats(self):
         res = []
         for table in self.tables:
@@ -229,12 +234,18 @@ class Dataset(object):
 
 
 class Wordlist(Dataset):
-    pass
+    @property
+    def primary_table(self):
+        return 'FormTable'
 
 
 class Dictionary(Dataset):
-    pass
+    @property
+    def primary_table(self):
+        return 'EntryTable'
 
 
 class StructureDataset(Dataset):
-    pass
+    @property
+    def primary_table(self):
+        return 'ValueTable'
