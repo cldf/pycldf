@@ -3,7 +3,7 @@ from __future__ import unicode_literals, print_function, division
 
 from mock import Mock
 from clldutils.testing import WithTempDir
-from clldutils.csvw.metadata import TableGroup
+from clldutils.csvw.metadata import TableGroup, ForeignKey
 from clldutils.path import copy
 
 from pycldf.tests.util import FIXTURES
@@ -14,6 +14,33 @@ class Tests(WithTempDir):
         tg = TableGroup.fromvalue({'tables': list(tables)})
         tg._fname = self.tmp_path('md.json')
         return tg
+
+    def test_add_component(self):
+        from pycldf.dataset import Wordlist
+
+        ds = Wordlist.in_dir(self.tmp_path())
+        ds['FormTable'].tableSchema.foreignKeys.append(ForeignKey.fromdict({
+            'columnReference': 'Language_ID',
+            'reference': {'resource': 'languages.csv', 'columnReference': 'ID'}}))
+        ds.add_component('LanguageTable', 'glottocode')
+        with self.assertRaises(ValueError):
+            ds.add_component('LanguageTable')
+        ds.add_component('ParameterTable', {'name': 'url', 'datatype': 'anyURI'})
+
+        ds.write(
+            FormTable=[
+                {'ID': '1', 'Value': 'form', 'Language_ID': 'l', 'Parameter_ID': 'p'}],
+            LanguageTable=[{'ID': 'l'}],
+            ParameterTable=[{'ID': 'p'}])
+        ds.validate()
+
+        ds.write(
+            FormTable=[
+                {'ID': '1', 'Value': 'form', 'Language_ID': 'l', 'Parameter_ID': 'x'}],
+            LanguageTable=[{'ID': 'l'}],
+            ParameterTable=[{'ID': 'p'}])
+        with self.assertRaises(ValueError):
+            ds.validate()
 
     def test_modules(self):
         from pycldf.dataset import Dataset, Wordlist, Dictionary, StructureDataset

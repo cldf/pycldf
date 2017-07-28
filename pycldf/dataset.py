@@ -5,7 +5,7 @@ import sys
 from six import string_types
 import attr
 from clldutils.path import Path
-from clldutils.csvw.metadata import TableGroup, Table
+from clldutils.csvw.metadata import TableGroup, Table, Column, ForeignKey
 from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
@@ -84,16 +84,44 @@ class Dataset(object):
     def tables(self):
         return self.tablegroup.tables
 
-    def add_component(self, component):
+    def add_component(self, component, *cols):
         if isinstance(component, string_types):
             component = jsonlib.load(
                 pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
         if isinstance(component, dict):
             component = Table.fromvalue(component)
         assert isinstance(component, Table)
+        for col in cols:
+            if isinstance(col, string_types):
+                col = Column(name=col, datatype='string')
+            elif isinstance(col, dict):
+                col = Column.fromvalue(col)
+            assert isinstance(col, Column)
+            component.tableSchema.columns.append(col)
+        table_type = self.get_tabletype(component)
+        for table in self.tables:
+            if self.get_tabletype(table) and self.get_tabletype(table) == table_type:
+                raise ValueError('components must not be added twice')
+
         self.tables.append(component)
         component._parent = self._tg
-        # FIXME: need a way to declare foreign keys, e.g. for examples!?
+
+        if table_type:
+            fkey_name = '{0}_ID'.format(table_type.replace('Table', ''))
+            for table in self.tables:
+                schema = table.tableSchema
+                for col in schema.columns:
+                    if col.name == fkey_name:
+                        for fkey in schema.foreignKeys:
+                            if fkey.columnReference == [fkey_name]:
+                                break
+                        else:
+                            schema.foreignKeys.append(ForeignKey.fromdict(dict(
+                                columnReference=fkey_name,
+                                reference=dict(
+                                    resource=component.url.string,
+                                    columnReference='ID'))))
+                        break
 
     @property
     def bibpath(self):
