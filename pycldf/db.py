@@ -42,17 +42,17 @@ class Database(object):
             db.execute(
                 """\
 CREATE TABLE dataset (
-    pk INTEGER PRIMARY KEY NOT NULL,
+    ID INTEGER PRIMARY KEY NOT NULL,
     name TEXT,
     module TEXT,
     metadata_json TEXT
 )""")
             db.execute("""\
 CREATE TABLE datasetmeta (
-    dataset_pk INT ,
+    dataset_ID INT ,
     key TEXT,
     value TEXT,
-    FOREIGN KEY(dataset_pk) REFERENCES dataset(pk)
+    FOREIGN KEY(dataset_ID) REFERENCES dataset(ID)
 )""")
 
     def fetchone(self, sql, conn=None):
@@ -73,15 +73,15 @@ CREATE TABLE datasetmeta (
         else:
             return _do(conn, sql, method)
 
-    def delete(self, dataset_pk):
+    def delete(self, dataset_id):
         with self.connection() as db:
             for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'"):
                 table = row[0]
                 if table != 'dataset':
                     db.execute(
-                        "DELETE FROM {0} WHERE dataset_pk = ?".format(table),
-                        (dataset_pk,))
-            db.execute("DELETE FROM dataset WHERE pk = ?", (dataset_pk,))
+                        "DELETE FROM {0} WHERE dataset_ID = ?".format(table),
+                        (dataset_id,))
+            db.execute("DELETE FROM dataset WHERE ID = ?", (dataset_id,))
             db.commit()
 
     def load(self, dataset):
@@ -114,14 +114,14 @@ CREATE TABLE datasetmeta (
         with self.connection() as db:
             db.execute('PRAGMA foreign_keys = ON;')
             pk = max(
-                [r[0] for r in self.fetchall("SELECT pk FROM dataset", conn=db)] or
+                [r[0] for r in self.fetchall("SELECT ID FROM dataset", conn=db)] or
                 [0]) + 1
             db.execute(
-                "INSERT INTO dataset (pk,name,module,metadata_json) VALUES (?,?,?,?)",
+                "INSERT INTO dataset (ID,name,module,metadata_json) VALUES (?,?,?,?)",
                 (pk, '{0}'.format(dataset), dataset.module, dumps(dataset.metadata_dict)))
             # json.dumps(dataset.metadata_dict)
             db.executemany(
-                "INSERT INTO datasetmeta (dataset_pk,key,value) VALUES (?,?,?)",
+                "INSERT INTO datasetmeta (dataset_ID,key,value) VALUES (?,?,?)",
                 [(pk, k, '{0}'.format(v)) for k, v in dataset.properties.items()])
             for t in tables:
                 cols = {col.name: col for col in t.columns}
@@ -129,7 +129,7 @@ CREATE TABLE datasetmeta (
                 if table:
                     rows = []
                     for row in table:
-                        keys, values = ['dataset_pk'], [pk]
+                        keys, values = ['dataset_ID'], [pk]
                         for k, v in row.items():
                             col = cols[k]
                             if isinstance(v, list):
@@ -180,8 +180,8 @@ class TableSpec(object):
     @property
     def sql(self):
         clauses = [col.sql for col in self.columns]
-        clauses.append('dataset_pk INTEGER NOT NULL')
-        clauses.append('FOREIGN KEY(dataset_pk) REFERENCES dataset(pk)')
+        clauses.append('dataset_ID INTEGER NOT NULL')
+        clauses.append('FOREIGN KEY(dataset_ID) REFERENCES dataset(ID)')
         for fk, ref, refcols in self.foreign_keys:
             clauses.append('FOREIGN KEY({0}) REFERENCES {1}({2})'.format(
                 ','.join(fk), ref, ','.join(refcols)))

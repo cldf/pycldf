@@ -23,7 +23,7 @@ class Tests(WithTempDir):
         self.assertEqual(len(db.fetchall("SELECT name FROM dataset")), 1)
         with self.assertRaises(IntegrityError):
             db.load(ds)
-        db.delete(db.fetchone("SELECT pk FROM dataset")[0])
+        db.delete(db.fetchone("SELECT ID FROM dataset")[0])
         db.load(ds)
         db.drop()
 
