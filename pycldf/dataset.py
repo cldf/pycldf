@@ -5,7 +5,7 @@ import sys
 from six import string_types
 import attr
 from clldutils.path import Path
-from clldutils.csvw.metadata import TableGroup, Table, Column, ForeignKey
+from clldutils.csvw.metadata import TableGroup, Table, Column, ForeignKey, URITemplate
 from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
@@ -93,7 +93,10 @@ class Dataset(object):
         assert isinstance(component, Table)
         for col in cols:
             if isinstance(col, string_types):
-                col = Column(name=col, datatype='string')
+                col_ = Column(name=col, datatype='string')
+                if col in TERMS:
+                    col_.propertyUrl = URITemplate(TERMS[col].uri)
+                col = col_
             elif isinstance(col, dict):
                 col = Column.fromvalue(col)
             assert isinstance(col, Column)
