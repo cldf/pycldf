@@ -12,15 +12,35 @@ from pycldf.sources import Source
 # with a feature ID, will return one row per distinct language.
 SQL_VALUES = """\
 SELECT 
-  l.pk, l.id, l.name, vs.id, de.name, l.latitude, l.longitude, vs.pk 
+  l.pk, 
+  l.id, 
+  l.name, 
+  vs.id, 
+  de.number,
+  de.name,
+  l.latitude, 
+  l.longitude, 
+  vs.pk,
+  g.name,
+  f.name 
 FROM 
-  value AS v, valueset AS vs, language AS l, parameter AS p, domainelement AS de 
+  value AS v, 
+  valueset AS vs, 
+  language AS l,
+  walslanguage AS w,
+  parameter AS p, 
+  domainelement AS de,
+  genus AS g,
+  family AS f
 WHERE 
   v.valueset_pk = vs.pk 
   AND vs.language_pk = l.pk 
   AND vs.parameter_pk = p.pk 
   AND p.id = '{0}' 
-  AND v.domainelement_pk = de.pk;"""
+  AND v.domainelement_pk = de.pk
+  AND l.pk = w.pk
+  AND w.genus_pk = g.pk
+  AND g.family_pk = f.pk"""
 
 # The mapping between WALS languages and Glottocodes or ISO 639-3 codes is many-to-many,
 # this the query below may return more than one code per type/language pair.
@@ -46,14 +66,23 @@ ORDER BY
 
 SQL_FEATURE = """\
 SELECT 
-  p.name, string_agg(c.name, ' and ') 
+  p.name, string_agg(c.name, ' and '), a.name
 FROM
-  parameter AS p, feature AS f, contributioncontributor AS cc, contributor AS c
+  parameter AS p, 
+  feature AS f, 
+  contributioncontributor AS cc, 
+  contributor AS c,
+  chapter AS ch,
+  area AS a
 WHERE
   p.id = '{0}'
-  AND p.pk = f.pk AND f.contribution_pk = cc.contribution_pk AND cc.contributor_pk = c.pk
+  AND p.pk = f.pk 
+  AND f.contribution_pk = cc.contribution_pk 
+  AND cc.contributor_pk = c.pk
+  AND f.contribution_pk = ch.pk
+  AND ch.area_pk = a.pk
 GROUP BY
-  p.name"""
+  p.name, a.name"""
 
 
 def make_cldf(db, out, fid):
@@ -61,10 +90,10 @@ def make_cldf(db, out, fid):
     ds = StructureDataset.in_dir(out)
 
     # We add the WALS language metadata:
-    ds.add_component('LanguageTable', 'glottocode', 'iso639P3code')
+    ds.add_component('LanguageTable', 'glottocode', 'iso639P3code', 'Genus', 'Family')
 
     # And some metadata about the feature:
-    ds.add_component('ParameterTable', 'Authors', 'Url')
+    ds.add_component('ParameterTable', 'Authors', 'Url', 'Area')
 
     # Now we collect the data by querying the database:
     values, languages = [], []
@@ -88,31 +117,37 @@ def make_cldf(db, out, fid):
             sources[vspk].append(Source(r[3], r[2], author=r[4], year=r[5], title=r[6]))
 
     for row in db.execute(SQL_VALUES.format(fid)):
-        ids = lids[row[0]]
-        if row[7] in sources:
-            ds.sources.add(*sources[row[7]])
+        lpk, lid, lname, vsid, denumber, dename, lat, lon, vspk, gname, fname = row
+        ids = lids[lpk]
+        if vspk in sources:
+            ds.sources.add(*sources[vspk])
         languages.append(dict(
-            ID=row[1], 
-            Name=row[2],
-            Latitude=row[5],
-            Longitude=row[6],
+            ID=lid,
+            Name=lname,
+            Latitude=lat,
+            Longitude=lon,
             glottocode=ids.get('glottolog'),
-            iso639P3code=ids.get('iso639-3')))
+            iso639P3code=ids.get('iso639-3'),
+            Genus=gname,
+            Family=fname,
+        ))
         values.append(dict(
-            ID=row[3],
-            Language_ID=row[1],
+            ID=vsid,
+            Language_ID=lid,
             Parameter_ID=fid,
-            Value=row[4],
-            Source=refs.get(row[7], [])
+            Value=denumber,
+            Source=refs.get(vspk, []),
+            Comment=dename,
         ))
 
-    fname, fauthors = list(db.execute(SQL_FEATURE.format(fid)))[0]
+    fname, fauthors, aname = list(db.execute(SQL_FEATURE.format(fid)))[0]
     ds.write(
         ValueTable=values, 
         LanguageTable=languages, 
         ParameterTable=[{
             'ID': fid,
             'Name': fname,
+            'Area': aname,
             'Authors': fauthors,
             'Url': 'http://wals.info/feature/' + fid}])
 
