@@ -40,7 +40,9 @@ WHERE
   AND v.domainelement_pk = de.pk
   AND l.pk = w.pk
   AND w.genus_pk = g.pk
-  AND g.family_pk = f.pk"""
+  AND g.family_pk = f.pk
+ORDER BY
+  l.name"""
 
 # The mapping between WALS languages and Glottocodes or ISO 639-3 codes is many-to-many,
 # this the query below may return more than one code per type/language pair.
