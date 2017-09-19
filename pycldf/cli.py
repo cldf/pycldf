@@ -20,6 +20,7 @@ from clldutils.clilib import ArgumentParserWithLogging, ParserError
 from clldutils.markup import Table
 
 from pycldf.dataset import Dataset
+from pycldf.db import Database
 
 
 def _get_dataset(args):
@@ -55,6 +56,23 @@ def stats(args):
     print(t.render(condensed=False, tablefmt=None))
 
 
+def createdb(args):
+    """
+    cldf createdb <DATASET> <SQLITE_DB_PATH>
+
+    Load CLDF dataset <DATASET> into a SQLite DB, where <DATASET> may be the path to
+    - a CLDF metadata file
+    - a CLDF core data file
+    """
+    if len(args.args) < 2:
+        raise ParserError('not enough arguments')
+    db = Database(args.args[1])
+    db.create()
+    ds = _get_dataset(args)
+    db.load(ds)
+    args.log.info('{0} loaded in {1}'.format(ds, db.fname))
+
+
 def main():  # pragma: no cover
-    parser = ArgumentParserWithLogging('pycldf', stats, validate)
+    parser = ArgumentParserWithLogging('pycldf', stats, validate, createdb)
     sys.exit(parser.main())
