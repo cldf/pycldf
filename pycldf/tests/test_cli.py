@@ -20,7 +20,7 @@ class Tests(WithTempDir):
             stats(MagicMock(args=[self.tmp_path('new').as_posix()]))
 
     def test_all(self):
-        from pycldf.cli import validate, stats
+        from pycldf.cli import validate, stats, createdb
 
         md = self.tmp_path('md.json')
         copy(FIXTURES.joinpath('ds1.csv-metadata.json'), md)
@@ -37,3 +37,13 @@ class Tests(WithTempDir):
 
         with capture(stats, MagicMock(args=[md.as_posix()])) as out:
             self.assertIn('cldf:v1.0:StructureDataset', out)
+
+        with self.assertRaises(ParserError):
+            createdb(MagicMock(args=[md.as_posix()]))
+
+        log = MagicMock()
+        with capture(
+            createdb,
+            MagicMock(log=log, args=[md.as_posix(), self.tmp_path('test.sqlite')])
+        ) as _:
+            self.assertTrue(log.info.called)

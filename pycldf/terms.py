@@ -3,6 +3,7 @@ from __future__ import unicode_literals, print_function, division
 from xml.etree import ElementTree
 
 import attr
+from six.moves.urllib.parse import urlparse
 
 from pycldf.util import pkg_path
 
@@ -47,6 +48,13 @@ class Terms(dict):
         for e in r.findall(qname(RDFS, 'Class')):
             terms.append(Term.from_element(e))
         dict.__init__(self, {t.name: t for t in terms})
+
+    def is_cldf_uri(self, uri):
+        if uri and urlparse(uri).netloc == 'cldf.clld.org':
+            if uri not in [term.uri for term in self.values()]:
+                raise ValueError(uri)
+            return True
+        return False
 
     @property
     def properties(self):

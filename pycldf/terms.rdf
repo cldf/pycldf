@@ -20,6 +20,23 @@
         <foaf:homepage rdf:resource="http://cldf.clld.org/" />
     </owl:Ontology>
 
+    <rdf:Property rdf:about="http://cldf.clld.org/v1.0/terms.rdf#slice">
+        <rdfs:label xml:lang="en">Slice</rdfs:label>
+        <rdfs:comment rdf:parseType="Literal">
+            <p>Slice specification following Python's slice notation</p>
+        </rdfs:comment>
+    </rdf:Property>
+
+    <rdf:Property rdf:about="http://cldf.clld.org/v1.0/terms.rdf#source">
+        <rdfs:label xml:lang="en">Source</rdfs:label>
+        <rdfs:comment rdf:parseType="Literal">
+            <p>Semicolon-separated source specifications, of the form &lt;source_ID&gt;[], 
+            e.g. http://glottolog.org/resource/reference/id/318814[34], or meier2015[3-12]
+            where meier2015 is a citation key in the accompanying BibTeX file.</p>
+        </rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://purl.org/dc/terms/source" />
+    </rdf:Property>
+
     <rdf:Property rdf:about="http://cldf.clld.org/v1.0/terms.rdf#iso639P3code">
         <rdfs:label xml:lang="en">ISO 639-3 code</rdfs:label>
         <owl:equivalentProperty rdf:resource="http://lexvo.org/ontology#iso639P3Code" />
@@ -38,6 +55,22 @@
         </rdfs:comment>
         <rdfs:seeAlso rdf:resource="http://glottolog.org" />
         <rdfs:subPropertyOf rdf:resource="http://purl.org/dc/terms/identifier" />
+    </rdf:Property>
+
+    <rdf:Property rdf:about="http://cldf.clld.org/v1.0/terms.rdf#macroarea">
+        <rdfs:label xml:lang="en">Macroarea</rdfs:label>
+        <rdfs:comment rdf:parseType="Literal">
+            <p>A macroarea as defined by <a href="http://glottolog.org">Glottolog</a>.</p>
+        </rdfs:comment>
+        <rdfs:seeAlso rdf:resource="http://glottolog.org/meta/glossary#macroarea" />
+    </rdf:Property>
+
+    <rdf:Property rdf:about="http://cldf.clld.org/v1.0/terms.rdf#category">
+        <rdfs:label xml:lang="en">Category</rdfs:label>
+        <rdfs:comment rdf:parseType="Literal">
+            <p>A category to which values for a <a href="https://en.wikipedia.org/wiki/Categorical_variable">categorical variable (a.k.a. parameter)</a> can be assigned.</p>
+        </rdfs:comment>
+        <rdfs:seeAlso rdf:resource="https://en.wikipedia.org/wiki/Categorical_variable" />
     </rdf:Property>
 
     <rdf:Property rdf:about="http://cldf.clld.org/v1.0/terms.rdf#alignment">
@@ -226,13 +259,13 @@
     <rdfs:Class rdf:about="http://cldf.clld.org/v1.0/terms.rdf#CognateTable">
         <rdfs:label xml:lang="en">Cognate Table</rdfs:label>
         <rdfs:comment>
-            The table of cognacy judgements of a CLDF Wordlist
+            The table of cognate judgements accompanying a CLDF Wordlist
         </rdfs:comment>
     </rdfs:Class>
-    <rdfs:Class rdf:about="http://cldf.clld.org/v1.0/terms.rdf#CognateTable">
-        <rdfs:label xml:lang="en">Cognate Table</rdfs:label>
+    <rdfs:Class rdf:about="http://cldf.clld.org/v1.0/terms.rdf#PartialCognateTable">
+        <rdfs:label xml:lang="en">Partial Cognate Table</rdfs:label>
         <rdfs:comment>
-            The table of cognate judgements of a CLDF Wordlist
+            The table of partial cognate judgements of a CLDF Wordlist
         </rdfs:comment>
     </rdfs:Class>
     <rdfs:Class rdf:about="http://cldf.clld.org/v1.0/terms.rdf#LanguageTable">
@@ -244,7 +277,7 @@
     <rdfs:Class rdf:about="http://cldf.clld.org/v1.0/terms.rdf#ParameterTable">
         <rdfs:label xml:lang="en">Parameter Table</rdfs:label>
         <rdfs:comment>
-            The table of parameters of a CLDF dataset.
+            The table of parameters available in a CLDF dataset
         </rdfs:comment>
     </rdfs:Class>
 </rdf:RDF>

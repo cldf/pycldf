@@ -18,7 +18,7 @@
                     },
                     {
                         "name": "Language_ID",
-                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/Language",
+                        "propertyUrl": "http://purl.org/linguistics/gold/Language",
                         "required": true,
                         "datatype": "string"
                     },
@@ -43,7 +43,7 @@
                     {
                         "name": "Source",
                         "separator": ";",
-                        "propertyUrl": "http://purl.org/dc/terms/source",
+                        "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source",
                         "datatype": "string"
                     }
                 ],

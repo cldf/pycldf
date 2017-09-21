@@ -3,10 +3,60 @@ from __future__ import unicode_literals, print_function, division
 
 from mock import Mock
 from clldutils.testing import WithTempDir
-from clldutils.csvw.metadata import TableGroup, ForeignKey
+from clldutils.csvw.metadata import TableGroup, ForeignKey, URITemplate
 from clldutils.path import copy
 
 from pycldf.tests.util import FIXTURES
+
+
+class TestWordlist(WithTempDir):
+    def test_cognates(self):
+        from pycldf.dataset import Wordlist
+
+        ds = Wordlist.in_dir(self.tmp_path())
+        ds['FormTable'].get_column('Segments').separator = None
+        ds.write(
+            FormTable=[
+                {'ID': '1',
+                 'Value': 'form',
+                 'Form': 'abcdefg',
+                 'Segments': 'a bc d e f',
+                 'Language_ID': 'l',
+                 'Parameter_ID': 'p'}
+            ],
+        )
+        self.assertEqual(
+            ' '.join(ds.get_soundsequence(list(ds['FormTable'])[0])), 'a bc d e f')
+
+    def test_partial_cognates(self):
+        from pycldf.dataset import Wordlist
+
+        ds = Wordlist.in_dir(self.tmp_path())
+        ds['FormTable'].get_column('Segments').separator = '+'
+        ds.add_component('PartialCognateTable')
+        ds.write(
+            FormTable=[
+                {'ID': '1',
+                 'Value': 'form',
+                 'Form': 'abcdefg',
+                 'Segments': ['a bc', 'd e f', 'g'],
+                 'Language_ID': 'l',
+                 'Parameter_ID': 'p'}
+            ],
+            PartialCognateTable=[
+                {
+                    'Form_ID': '1',
+                    'Cognate_set_ID': '1',
+                    'Segment_slices': ['1:3'],
+                }
+            ],
+        )
+        self.assertEqual(
+            ' '.join(ds.get_soundsequence(list(ds['FormTable'])[0])),
+            'a bc d e f g')
+        self.assertEqual(
+            ' '.join(ds.get_subsequence(list(ds['PartialCognateTable'])[0])),
+            'd e f g')
 
 
 class Tests(WithTempDir):
@@ -93,6 +143,20 @@ class Tests(WithTempDir):
         with self.assertRaises(ValueError):
             ds.validate()
 
+        ds = StructureDataset.in_dir(self.tmp_path('new'))
+        ds.add_component('LanguageTable')
+        ds.write(ValueTable=[])
+        ds['LanguageTable'].common_props['dc:conformsTo'] = 'http://cldf.clld.org/404'
+        with self.assertRaises(ValueError):
+            ds.validate()
+
+        ds = StructureDataset.in_dir(self.tmp_path('new'))
+        ds['ValueTable'].get_column('Source').propertyUrl = URITemplate(
+            'http://cldf.clld.org/404')
+        ds.write(ValueTable=[])
+        with self.assertRaises(ValueError):
+            ds.validate()
+
     def test_Dataset_write(self):
         from pycldf.dataset import StructureDataset
 
@@ -100,6 +164,17 @@ class Tests(WithTempDir):
         ds.write(ValueTable=[])
         self.assertTrue(self.tmp_path('values.csv').exists())
         ds.validate()
+        ds.sources.add("@misc{ky,\ntitle={the title}\n}")
+        ds.write(ValueTable=[
+            {
+                'ID': '1',
+                'Language_ID': 'abcd1234',
+                'Parameter_ID': 'f1',
+                'Value': 'yes',
+                'Source': ['key[1-20]', 'ky'],
+            }])
+        with self.assertRaises(ValueError):
+            ds.validate()
         ds.sources.add("@misc{key,\ntitle={the title}\n}")
         ds.write(ValueTable=[
             {
@@ -157,7 +232,7 @@ class Tests(WithTempDir):
 
         for col in ds._tg.tables[0].tableSchema.columns:
             if col.name == 'Language_ID':
-                col.propertyUrl.uri = 'http://cldf.clld.org/terms.rdf#glottocode'
+                col.propertyUrl.uri = 'http://cldf.clld.org/v1.0/terms.rdf#glottocode'
 
         log = Mock()
         ds.validate(log=log)

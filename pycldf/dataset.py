@@ -1,6 +1,7 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
 import sys
+from itertools import chain
 
 from six import string_types
 import attr
@@ -10,22 +11,11 @@ from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
 from pycldf.sources import Sources
-from pycldf.util import pkg_path
+from pycldf.util import pkg_path, multislice
 from pycldf.terms import term_uri, TERMS
 from pycldf.validators import VALIDATORS
 
 MD_SUFFIX = '-metadata.json'
-
-
-#
-# TODO: support components! -> languages.csv, examples.csv
-# validate examples?! have validate call each components/columns validate method?
-# - register validators
-#   - per propertyUrl on columns
-#      latitude, longitude, glottocode, iso639P3code
-#   - per dc:conformsTo on tables
-# def validator(table, row, column, value):
-#
 
 
 @attr.s
@@ -147,10 +137,22 @@ class Dataset(object):
 
         data = {}
         for table in self.tables:
-            # check whether table.common_props['dc:conformsTo'] is in validators!
+            type_uri = table.common_props.get('dc:conformsTo')
+            if type_uri:
+                try:
+                    TERMS.is_cldf_uri(table.common_props.get('dc:conformsTo'))
+                except ValueError:
+                    log_or_raise('invalid CLDF URI: {0}'.format(type_uri), log=log)
+
+            # FIXME: check whether table.common_props['dc:conformsTo'] is in validators!
             validators = []
             for col in table.tableSchema.columns:
                 if col.propertyUrl:
+                    try:
+                        TERMS.is_cldf_uri(col.propertyUrl.uri)
+                    except ValueError:
+                        log_or_raise(
+                            'invalid CLDF URI: {0}'.format(col.propertyUrl.uri), log=log)
                     if col.propertyUrl.uri in VALIDATORS:
                         validators.append((col, VALIDATORS[col.propertyUrl.uri]))
 
@@ -166,7 +168,6 @@ class Dataset(object):
                             log=log)
             table.check_primary_key(log=log, items=data[table.local_name])
 
-        # check whether self.properties['dc:conformsTo'] is in validators!
         self._tg.check_referential_integrity(log=log, data=data)
 
     @property
@@ -268,6 +269,43 @@ class Wordlist(Dataset):
     @property
     def primary_table(self):
         return 'FormTable'
+
+    def get_soundsequence(self, row, table='FormTable'):
+        col = self[table].get_column(
+            "http://cldf.clld.org/v1.0/terms.rdf#soundSequence")
+        sounds = row[col.name]
+        if isinstance(sounds, string_types):
+            # This may be the case when no morpheme boundaries are provided.
+            sounds = [sounds]
+        return list(chain(*[s.split() for s in sounds]))
+
+    def get_subsequence(self, partial_cognate):
+        """
+        Compute the subsequence of the morphemes of a form which is specified in a partial
+        cognate assignment.
+
+        :param partial_cognate:
+        :return:
+        """
+        # 1. Determine the "slices" column in the PartialCognateTable
+        slices = self['PartialCognateTable'].get_column(
+            "http://cldf.clld.org/v1.0/terms.rdf#slices")
+
+        # 2. Determine the "soundSequence" column in the FormTable
+        morphemes = self['FormTable'].get_column(
+            "http://cldf.clld.org/v1.0/terms.rdf#soundSequence")
+
+        # 3. Retrieve the matching row in FormTable
+        for row in self['FormTable']:
+            if row['ID'] == partial_cognate['Form_ID']:
+                break
+        else:
+            raise ValueError(partial_cognate['Form_ID'])  # pragma: no cover
+
+        # 4. Slice the segments
+        return list(chain(*[
+            s.split() for s in multislice(
+                row[morphemes.name], *partial_cognate[slices.name])]))
 
 
 class Dictionary(Dataset):

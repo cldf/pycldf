@@ -18,7 +18,7 @@
                     },
                     {
                         "name": "Language_ID",
-                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/Language",
+                        "propertyUrl": "http://purl.org/linguistics/gold/Language",
                         "required": true,
                         "datatype": "string"
                     },
@@ -31,13 +31,13 @@
                     },
                     {
                         "name": "Value",
-                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/FormUnit",
+                        "propertyUrl": "http://purl.org/linguistics/gold/FormUnit",
                         "required": true,
                         "datatype": "string"
                     },
                     {
                         "name": "Segments",
-                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/Segment",
+                        "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#soundSequence",
                         "datatype": "string",
                         "separator": " "
                     },
@@ -49,7 +49,7 @@
                     {
                         "name": "Source",
                         "separator": ";",
-                        "propertyUrl": "http://purl.org/dc/terms/source",
+                        "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source",
                         "datatype": "string"
                     }
                 ],
