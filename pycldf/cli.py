@@ -49,6 +49,9 @@ def stats(args):
     """
     ds = _get_dataset(args)
     print(ds)
+    md = Table('key', 'value')
+    md.extend(ds.properties.items())
+    print(md.render(condensed=False, tablefmt=None))
     print()
     t = Table('Path', 'Type', 'Rows')
     for p, type_, r in ds.stats():
