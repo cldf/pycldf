@@ -289,7 +289,7 @@ class Wordlist(Dataset):
         """
         # 1. Determine the "slices" column in the PartialCognateTable
         slices = self['PartialCognateTable'].get_column(
-            "http://cldf.clld.org/v1.0/terms.rdf#slices")
+            "http://cldf.clld.org/v1.0/terms.rdf#slice")
 
         # 2. Determine the "soundSequence" column in the FormTable
         morphemes = self['FormTable'].get_column(
