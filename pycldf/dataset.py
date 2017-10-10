@@ -226,6 +226,7 @@ class Dataset(object):
         for table in self.tables:
             if table.common_props.get('dc:conformsTo') == type_:
                 return table
+        raise KeyError(table)
 
     @staticmethod
     def get_tabletype(table):
@@ -233,6 +234,7 @@ class Dataset(object):
             res = table.common_props['dc:conformsTo'].split('#')[1]
             if res in TERMS:
                 return res
+        raise KeyError(table)
 
     @property
     def primary_table(self):

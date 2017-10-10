@@ -21,11 +21,13 @@
             {
                 "name": "Cognate_source",
                 "datatype": "string",
+                "separator": ";",
                 "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source"
             },
             {
                 "name": "Alignment_source",
                 "datatype": "string",
+                "separator": ";",
                 "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source"
             }
 		],
