@@ -10,7 +10,7 @@ from clldutils.misc import UnicodeMixin
 from clldutils.source import Source as BaseSource
 from clldutils.source import ID_PATTERN
 
-__all__ = ['Source']
+__all__ = ['Source', 'Reference']
 
 GLOTTOLOG_ID_PATTERN = re.compile('^[1-9][0-9]*$')
 

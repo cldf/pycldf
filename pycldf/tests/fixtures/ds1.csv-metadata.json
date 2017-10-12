@@ -13,28 +13,34 @@
         "columns": [
           {
             "name": "ID",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
             "datatype": "string"
           },
           {
             "name": "Language_ID",
             "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference",
             "valueUrl": "http://glottolog.org/resource/languoid/id/{Language_ID}"
           },
           {
             "name": "Parameter_ID",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference",
             "datatype": "string"
           },
           {
             "name": "Value",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#value",
             "datatype": "string"
           },
           {
             "name": "Comment",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#comment",
             "datatype": "string"
           },
           {
             "name": "Source",
             "separator": ";",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source",
             "datatype": "string"
           }
         ],

@@ -1,6 +1,6 @@
 {
-    "url": "parameters.csv", 
-    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ParameterTable", 
+    "url": "cognatesets.csv", 
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#CognatesetTable", 
     "tableSchema": {
         "columns": [
             {
@@ -13,16 +13,19 @@
                 }
             }, 
             {
-                "name": "Name", 
-                "required": false, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name", 
-                "datatype": "string"
-            }, 
-            {
                 "name": "Description", 
                 "required": false, 
                 "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#description", 
                 "datatype": "string"
+            }, 
+            {
+                "name": "Source", 
+                "required": false, 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source", 
+                "datatype": {
+                    "base": "string"
+                }, 
+                "separator": ";"
             }
         ]
     }

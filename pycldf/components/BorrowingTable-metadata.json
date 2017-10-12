@@ -1,6 +1,6 @@
 {
-    "url": "cognates.csv", 
-    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#CognateTable", 
+    "url": "borrowings.csv", 
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#BorrowingTable", 
     "tableSchema": {
         "columns": [
             {
@@ -13,23 +13,22 @@
                 }
             }, 
             {
-                "name": "Form_ID", 
+                "name": "Form_ID_target", 
                 "required": true, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#formReference", 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#targetFormReference", 
                 "datatype": "string"
             }, 
             {
-                "name": "Cognateset_ID", 
-                "required": true, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#cognatesetReference", 
-                "datatype": "string"
-            }, 
-            {
-                "name": "Alignment", 
+                "name": "Form_ID_source", 
                 "required": false, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#alignment", 
-                "datatype": "string", 
-                "separator": " "
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#sourceFormReference", 
+                "datatype": "string"
+            }, 
+            {
+                "name": "Comment", 
+                "required": false, 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#comment", 
+                "datatype": "string"
             }, 
             {
                 "name": "Source", 

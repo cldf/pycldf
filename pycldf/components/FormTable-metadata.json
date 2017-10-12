@@ -1,6 +1,6 @@
 {
-    "url": "partialcognates.csv", 
-    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#PartialCognateTable", 
+    "url": "forms.csv", 
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#FormTable", 
     "tableSchema": {
         "columns": [
             {
@@ -13,33 +13,35 @@
                 }
             }, 
             {
-                "name": "Form_ID", 
+                "name": "Language_ID", 
                 "required": true, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#formReference", 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference", 
                 "datatype": "string"
             }, 
             {
-                "name": "Cognateset_ID", 
+                "name": "Parameter_ID", 
                 "required": true, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#cognatesetReference", 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference", 
                 "datatype": "string"
             }, 
             {
-                "name": "Slice", 
+                "name": "Form", 
                 "required": true, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#slice", 
-                "datatype": {
-                    "base": "string", 
-                    "format": "\\d+(:\\d+)?"
-                }, 
-                "separator": " "
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#lexicalUnit", 
+                "datatype": "string"
             }, 
             {
-                "name": "Alignment", 
+                "name": "Segments", 
                 "required": false, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#alignment", 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#soundSequence", 
                 "datatype": "string", 
                 "separator": " "
+            }, 
+            {
+                "name": "Comment", 
+                "required": false, 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#comment", 
+                "datatype": "string"
             }, 
             {
                 "name": "Source", 

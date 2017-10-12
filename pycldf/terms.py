@@ -1,22 +1,28 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
 from xml.etree import ElementTree
+from json import loads
 
 import attr
 from six.moves.urllib.parse import urlparse
+from clldutils.csvw.metadata import Column
 
 from pycldf.util import pkg_path
+
+__all__ = ['term_uri', 'TERMS']
 
 URL = "http://cldf.clld.org/v1.0/terms.rdf"
 RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 RDFS = "http://www.w3.org/2000/01/rdf-schema#"
+CSVW = "http://www.w3.org/ns/csvw#"
 
 
-def term_uri(name, ns=URL):
+def term_uri(name, terms=None, ns=URL):
     if not name.startswith(ns):
         sep = '' if ns.endswith('#') else '#'
         name = sep.join([ns, name])
-    return name
+    if not terms or name in terms:
+        return name
 
 
 def qname(ns, lname):
@@ -28,6 +34,7 @@ class Term(object):
     name = attr.ib()
     label = attr.ib()
     type = attr.ib(validator=attr.validators.in_(['Class', 'Property']))
+    element = attr.ib()
 
     @property
     def uri(self):
@@ -38,7 +45,23 @@ class Term(object):
         return cls(
             name=e.attrib[qname(RDF, 'about')].split('#')[1],
             label=e.find(qname(RDFS, 'label')).text,
-            type=e.tag.split('}')[1])
+            type=e.tag.split('}')[1],
+            element=e)
+
+    def csvw_prop(self, lname):
+        if self.element.find(qname(CSVW, lname)) is not None:
+            return loads(self.element.find(qname(CSVW, lname)).text)
+
+    def to_column(self):
+        col = Column(
+            name=self.csvw_prop('name') or self.element.find(qname(RDFS, 'label')).text,
+            propertyUrl=self.element.attrib[qname(RDF, 'about')],
+            datatype=self.csvw_prop('datatype') or 'string')
+        for k in ['separator', 'null', 'valueUrl']:
+            v = self.csvw_prop(k)
+            if v:
+                setattr(col, k, v)
+        return col
 
 
 class Terms(dict):
@@ -48,10 +71,11 @@ class Terms(dict):
         for e in r.findall(qname(RDFS, 'Class')):
             terms.append(Term.from_element(e))
         dict.__init__(self, {t.name: t for t in terms})
+        self.by_uri = {t.uri: t for t in terms}
 
     def is_cldf_uri(self, uri):
         if uri and urlparse(uri).netloc == 'cldf.clld.org':
-            if uri not in [term.uri for term in self.values()]:
+            if uri not in self.by_uri:
                 raise ValueError(uri)
             return True
         return False

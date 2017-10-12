@@ -30,13 +30,18 @@ total 196
 For further inspection we can use the `cldf` command:
 ```bash
 (pycldf)dlt5502178l:~/venvs/pycldf/pycldf/examples$ cldf validate wals_1A_cldf/StructureDataset-metadata.json 
-(pycldf)dlt5502178l:~/venvs/pycldf/pycldf/examples$ cldf stats wals_1A_cldf/StructureDataset-metadata.json 
+(pycldf)dlt5502178l:~/venvs/pycldf/pycldf/examples$ cldf stats wals_1A_cldf/StructureDataset-metadata.json
 <cldf:v1.0:StructureDataset at wals_1A_cldf>
+key            value
+-------------  ----------------------------------------------------
+dc:source      sources.bib
+dc:conformsTo  http://cldf.clld.org/v1.0/terms.rdf#StructureDataset
 
 Path            Type               Rows
 --------------  ---------------  ------
 values.csv      Value Table         563
 languages.csv   Language Table      563
 parameters.csv  Parameter Table       1
+codes.csv       Code Table            5
 sources.bib     Sources             947
 ```

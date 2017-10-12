@@ -5,8 +5,7 @@ from itertools import groupby
 from sqlalchemy import create_engine
 
 from clldutils.path import Path
-from pycldf.dataset import StructureDataset
-from pycldf.sources import Source
+from pycldf import StructureDataset, Source
 
 # WALS only has one value per feature/language pair. So the query below, when parametrized
 # with a feature ID, will return one row per distinct language.
@@ -92,10 +91,11 @@ def make_cldf(db, out, fid):
     ds = StructureDataset.in_dir(out)
 
     # We add the WALS language metadata:
-    ds.add_component('LanguageTable', 'glottocode', 'iso639P3code', 'Genus', 'Family')
+    ds.add_component('LanguageTable', 'Genus', 'Family')
 
     # And some metadata about the feature:
     ds.add_component('ParameterTable', 'Authors', 'Url', 'Area')
+    ds.add_component('CodeTable')
 
     # Now we collect the data by querying the database:
     values, languages = [], []
@@ -118,6 +118,7 @@ def make_cldf(db, out, fid):
             refs[vspk].append(ref)
             sources[vspk].append(Source(r[3], r[2], author=r[4], year=r[5], title=r[6]))
 
+    codes = {}
     for row in db.execute(SQL_VALUES.format(fid)):
         lpk, lid, lname, vsid, denumber, dename, lat, lon, vspk, gname, fname = row
         ids = lids[lpk]
@@ -129,7 +130,7 @@ def make_cldf(db, out, fid):
             Latitude=lat,
             Longitude=lon,
             glottocode=ids.get('glottolog'),
-            iso639P3code=ids.get('iso639-3'),
+            iso=ids.get('iso639-3'),
             Genus=gname,
             Family=fname,
         ))
@@ -138,9 +139,14 @@ def make_cldf(db, out, fid):
             Language_ID=lid,
             Parameter_ID=fid,
             Value=denumber,
+            Code_ID='{0}-{1}'.format(fid, denumber),
             Source=refs.get(vspk, []),
-            Comment=dename,
         ))
+        codes[denumber] = {
+            'ID': '{0}-{1}'.format(fid, denumber),
+            'Name': dename,
+            'Parameter_ID': fid,
+        }
 
     fname, fauthors, aname = list(db.execute(SQL_FEATURE.format(fid)))[0]
     ds.write(
@@ -151,7 +157,9 @@ def make_cldf(db, out, fid):
             'Name': fname,
             'Area': aname,
             'Authors': fauthors,
-            'Url': 'http://wals.info/feature/' + fid}])
+            'Url': 'http://wals.info/feature/' + fid}],
+        CodeTable=codes.values(),
+    )
 
 
 if __name__ == '__main__':

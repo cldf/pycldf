@@ -1,12 +1,108 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
+from unittest import TestCase
 
 from mock import Mock
 from clldutils.testing import WithTempDir
-from clldutils.csvw.metadata import TableGroup, ForeignKey, URITemplate
+from clldutils.csvw.metadata import TableGroup, ForeignKey, URITemplate, Column
 from clldutils.path import copy
 
 from pycldf.tests.util import FIXTURES
+from pycldf.terms import term_uri
+
+
+class TestMakeColumn(TestCase):
+    def test_make_column(self):
+        from pycldf.dataset import make_column
+
+        self.assertEqual(make_column('name').datatype.base, 'string')
+        self.assertEqual(
+            make_column({'name': 'num', 'datatype': 'decimal'}).datatype.base, 'decimal')
+        self.assertEqual(make_column(term_uri('latitude')).datatype.base, 'decimal')
+        self.assertEqual(make_column(term_uri('source')).separator, ';')
+        self.assertIsNone(make_column(Column('name')).datatype)
+        with self.assertRaises(TypeError):
+            make_column(5)
+
+
+class TestGeneric(WithTempDir):
+    def _make_one(self):
+        from pycldf.dataset import Generic
+
+        return Generic.in_dir(self.tmp_path())
+
+    def test_primary_table(self):
+        ds = self._make_one()
+        self.assertIsNone(ds.primary_table)
+
+    def test_column_access(self):
+        ds = self._make_one()
+        with self.assertRaises(KeyError):
+            assert ds['']
+
+        ds.add_component('ValueTable')
+        self.assertEqual(ds['ValueTable'], ds['values.csv'])
+
+        with self.assertRaises(KeyError):
+            assert ds['ValueTable', 'colx']
+
+        self.assertEqual(
+            ds['ValueTable', 'Language_ID'], ds['values.csv', 'languageReference'])
+
+    def test_foreign_key_creation(self):
+        ds = self._make_one()
+        ds.add_component('ValueTable')
+        self.assertEqual(ds['ValueTable'].tableSchema.foreignKeys, [])
+        ds.add_component('LanguageTable')
+        self.assertEqual(len(ds['ValueTable'].tableSchema.foreignKeys), 1)
+        ds.write(
+            ValueTable=[{
+                'ID': '1',
+                'Language_ID': 'abc',
+                'Parameter_ID': 'xyz',
+                'Value': '?',
+            }],
+            LanguageTable=[])
+        with self.assertRaises(ValueError):
+            ds.validate()
+        ds.write(
+            ValueTable=[{
+                'ID': '1',
+                'Language_ID': 'abc',
+                'Parameter_ID': 'xyz',
+                'Value': '?',
+            }],
+            LanguageTable=[{'ID': 'abc', 'Name': 'language'}])
+        ds.validate()
+
+    def test_add_table(self):
+        ds = self._make_one()
+        ds.add_table('stuff.csv', term_uri('id'), 'col1')
+        ds.write(fname=self.tmp_path('t.json'), **{'stuff.csv': [{'ID': '.ab'}]})
+        with self.assertRaises(ValueError):
+            ds.validate()
+        ds['stuff.csv', 'ID'].name = 'nid'
+        with self.assertRaises(ValueError):
+            ds.add_columns('stuff.csv', term_uri('id'))
+        with self.assertRaises(ValueError):
+            ds.add_columns('stuff.csv', 'col1')
+
+    def test_add_foreign_key(self):
+        ds = self._make_one()
+        ds.add_table('primary.csv', term_uri('id'), 'col1')
+        ds.add_table('foreign.csv', 'fk_id')
+        ds.write(**{'primary.csv': [{'ID': 'ab'}], 'foreign.csv': [{'fk_id': 'xy'}]})
+        ds.validate()
+
+        ds.add_foreign_key('foreign.csv', 'fk_id', 'primary.csv')
+        ds.write(**{'primary.csv': [{'ID': 'ab'}], 'foreign.csv': [{'fk_id': 'xy'}]})
+        with self.assertRaises(ValueError):
+            ds.validate()
+
+        ds.add_foreign_key('foreign.csv', 'fk_id', 'primary.csv', 'ID')
+        ds.write(**{'primary.csv': [{'ID': 'ab'}], 'foreign.csv': [{'fk_id': 'xy'}]})
+        with self.assertRaises(ValueError):
+            ds.validate()
 
 
 class TestWordlist(WithTempDir):
@@ -14,7 +110,7 @@ class TestWordlist(WithTempDir):
         from pycldf.dataset import Wordlist
 
         ds = Wordlist.in_dir(self.tmp_path())
-        ds['FormTable'].get_column('Segments').separator = None
+        ds['FormTable', 'Segments'].separator = None
         ds.write(
             FormTable=[
                 {'ID': '1',
@@ -45,9 +141,10 @@ class TestWordlist(WithTempDir):
             ],
             PartialCognateTable=[
                 {
+                    'ID': '1',
                     'Form_ID': '1',
-                    'Cognate_set_ID': '1',
-                    'Segment_slices': ['1:3'],
+                    'Cognateset_ID': '1',
+                    'Slice': ['1:3'],
                 }
             ],
         )
@@ -72,14 +169,14 @@ class Tests(WithTempDir):
         ds['FormTable'].tableSchema.foreignKeys.append(ForeignKey.fromdict({
             'columnReference': 'Language_ID',
             'reference': {'resource': 'languages.csv', 'columnReference': 'ID'}}))
-        ds.add_component('LanguageTable', 'glottocode')
+        ds.add_component('LanguageTable')
         with self.assertRaises(ValueError):
             ds.add_component('LanguageTable')
         ds.add_component('ParameterTable', {'name': 'url', 'datatype': 'anyURI'})
 
         ds.write(
             FormTable=[
-                {'ID': '1', 'Value': 'form', 'Language_ID': 'l', 'Parameter_ID': 'p'}],
+                {'ID': '1', 'Form': 'form', 'Language_ID': 'l', 'Parameter_ID': 'p'}],
             LanguageTable=[{'ID': 'l'}],
             ParameterTable=[{'ID': 'p'}])
         ds.validate()
@@ -164,7 +261,7 @@ class Tests(WithTempDir):
         ds.write(ValueTable=[])
         self.assertTrue(self.tmp_path('values.csv').exists())
         ds.validate()
-        ds.sources.add("@misc{ky,\ntitle={the title}\n}")
+        ds.add_sources("@misc{ky,\ntitle={the title}\n}")
         ds.write(ValueTable=[
             {
                 'ID': '1',
@@ -236,7 +333,7 @@ class Tests(WithTempDir):
 
         log = Mock()
         ds.validate(log=log)
-        self.assertEqual(log.warn.call_count, 3)
+        self.assertEqual(log.warn.call_count, 4)
 
     def test_Module(self):
         from pycldf.dataset import get_modules

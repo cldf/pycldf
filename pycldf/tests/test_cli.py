@@ -45,5 +45,5 @@ class Tests(WithTempDir):
         with capture(
             createdb,
             MagicMock(log=log, args=[md.as_posix(), self.tmp_path('test.sqlite')])
-        ) as _:
+        ):
             self.assertTrue(log.info.called)

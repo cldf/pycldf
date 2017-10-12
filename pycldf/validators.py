@@ -17,7 +17,7 @@ def valid_regex(regex, name, dataset, table, column, row):
 
 def valid_igt(dataset, table, column, row):
     gloss, morphemes = row[column.name], None
-    col = table.get_column('http://purl.org/linguistics/gold/GrammarUnit')
+    col = table.get_column('http://cldf.clld.org/v1.0/terms.rdf#analyzedWord')
     if col:
         morphemes = row[col.name]
 
@@ -30,6 +30,6 @@ VALIDATORS = {
         partial(valid_regex, '[a-z]{3}$', 'ISO 639-3 code'),
     'http://cldf.clld.org/v1.0/terms.rdf#glottocode':
         partial(valid_regex, '[a-z0-9]{4}[0-9]{4}$', 'glottocode'),
-    'http://purl.org/linguistics/gold/hasGlosses': valid_igt,
+    'http://cldf.clld.org/v1.0/terms.rdf#gloss': valid_igt,
     'http://cldf.clld.org/v1.0/terms.rdf#source': valid_references,
 }

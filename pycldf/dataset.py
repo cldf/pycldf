@@ -6,7 +6,7 @@ from itertools import chain
 from six import string_types
 import attr
 from clldutils.path import Path
-from clldutils.csvw.metadata import TableGroup, Table, Column, ForeignKey, URITemplate
+from clldutils.csvw.metadata import TableGroup, Table, Column, ForeignKey
 from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
@@ -15,6 +15,7 @@ from pycldf.util import pkg_path, multislice
 from pycldf.terms import term_uri, TERMS
 from pycldf.validators import VALIDATORS
 
+__all__ = ['Dataset', 'Dictionary', 'StructureDataset', 'Generic', 'Wordlist']
 MD_SUFFIX = '-metadata.json'
 
 
@@ -44,18 +45,34 @@ def get_modules():
         ds = sys.modules[__name__]
         for p in pkg_path('modules').glob('*{0}'.format(MD_SUFFIX)):
             tg = TableGroup.from_file(p)
-            mod = Module(tg.common_props['dc:conformsTo'], tg.tables[0].url.string)
+            mod = Module(
+                tg.common_props['dc:conformsTo'],
+                tg.tables[0].url.string if tg.tables else None)
             mod.cls = getattr(ds, mod.id)
             _modules.append(mod)
     return _modules
+
+
+def make_column(spec):
+    if isinstance(spec, string_types):
+        if spec in TERMS.by_uri:
+            return TERMS.by_uri[spec].to_column()
+        return Column(name=spec, datatype='string')
+    if isinstance(spec, dict):
+        return Column.fromvalue(spec)
+    if isinstance(spec, Column):
+        return spec
+    raise TypeError(spec)
 
 
 class Dataset(object):
     """
     API to access a CLDF dataset.
     """
+
     def __init__(self, tablegroup):
         self._tg = tablegroup
+        self.auto_constraints()
         self.sources = Sources.from_file(self.bibpath)
 
     @property
@@ -74,6 +91,14 @@ class Dataset(object):
     def tables(self):
         return self.tablegroup.tables
 
+    def add_sources(self, *sources):
+        self.sources.add(*sources)
+
+    def add_table(self, url, *cols):
+        self.add_component(
+            {"url": url, "tableSchema": {"columns": []}},
+            *cols)
+
     def add_component(self, component, *cols):
         if isinstance(component, string_types):
             component = jsonlib.load(
@@ -81,16 +106,7 @@ class Dataset(object):
         if isinstance(component, dict):
             component = Table.fromvalue(component)
         assert isinstance(component, Table)
-        for col in cols:
-            if isinstance(col, string_types):
-                col_ = Column(name=col, datatype='string')
-                if col in TERMS:
-                    col_.propertyUrl = URITemplate(TERMS[col].uri)
-                col = col_
-            elif isinstance(col, dict):
-                col = Column.fromvalue(col)
-            assert isinstance(col, Column)
-            component.tableSchema.columns.append(col)
+        self.add_columns(component, *cols)
         table_type = self.get_tabletype(component)
         for table in self.tables:
             if self.get_tabletype(table) and self.get_tabletype(table) == table_type:
@@ -98,19 +114,62 @@ class Dataset(object):
 
         self.tables.append(component)
         component._parent = self._tg
+        self.auto_constraints(component)
 
+    def add_columns(self, table, *cols):
+        table = self[table]
+        for col in cols:
+            existing = [c.name for c in table.tableSchema.columns]
+            existing.extend([
+                c.propertyUrl.uri for c in table.tableSchema.columns if c.propertyUrl])
+            col = make_column(col)
+            if col.name in existing:
+                raise ValueError('Duplicate column name: {0}'.format(col.name))
+            if col.propertyUrl and col.propertyUrl.uri in existing:
+                raise ValueError('Duplicate column property: {0}'.format(col.propertyUrl.uri))
+            table.tableSchema.columns.append(make_column(col))
+        self.auto_constraints()
+
+    def add_foreign_key(self, foreign_t, foreign_c, primary_t, primary_c=None):
+        foreign_c = self[foreign_t, foreign_c].name
+        foreign_t = self[foreign_t]
+        if not primary_c:
+            primary_t = self[primary_t]
+            primary_c = primary_t.tableSchema.primaryKey
+        else:
+            primary_c = self[primary_t, primary_c].name
+            primary_t = self[primary_t]
+        foreign_t.tableSchema.foreignKeys.append(ForeignKey.fromdict(dict(
+            columnReference=foreign_c,
+            reference=dict(
+                resource=primary_t.url.string,
+                columnReference=primary_c))))
+
+    def auto_constraints(self, component=None):
+        if not component:
+            for table in self.tables:
+                self.auto_constraints(table)
+            return
+
+        if not component.tableSchema.primaryKey:
+            idcol = component.get_column(term_uri('id'))
+            if idcol:
+                component.tableSchema.primaryKey = [idcol.name]
+
+        table_type = self.get_tabletype(component)
         if table_type:
-            fkey_name = '{0}_ID'.format(table_type.replace('Table', ''))
+            # auto-add foreign keys:
+            ref_name = table_type.lower().replace('table', '') + 'reference'
             for table in self.tables:
                 schema = table.tableSchema
                 for col in schema.columns:
-                    if col.name == fkey_name:
+                    if col.propertyUrl and col.propertyUrl.uri.lower().endswith(ref_name):
                         for fkey in schema.foreignKeys:
-                            if fkey.columnReference == [fkey_name]:
+                            if fkey.columnReference == [col.name]:
                                 break
                         else:
                             schema.foreignKeys.append(ForeignKey.fromdict(dict(
-                                columnReference=fkey_name,
+                                columnReference=col.name,
                                 reference=dict(
                                     resource=component.url.string,
                                     columnReference='ID'))))
@@ -124,14 +183,21 @@ class Dataset(object):
         default_tg = TableGroup.from_file(
             pkg_path('modules', '{0}{1}'.format(self.module, MD_SUFFIX)))
         for default_table in default_tg.tables:
-            table = self[default_table.common_props['dc:conformsTo']]
-            if not table:
+            table = None
+            try:
+                table = self[default_table.common_props['dc:conformsTo']]
+            except KeyError:
                 log_or_raise('{0} requires {1}'.format(
                     self.module, default_table.common_props['dc:conformsTo']), log=log)
-            else:
-                default_cols = set(c.name for c in default_table.tableSchema.columns
-                                   if c.required or c.common_props.get('dc:isRequiredBy'))
-                for col in default_cols - set(c.name for c in table.tableSchema.columns):
+
+            if table:
+                default_cols = set(
+                    c.propertyUrl.uri for c in default_table.tableSchema.columns
+                    if c.required or c.common_props.get('dc:isRequiredBy'))
+                cols = set(
+                    c.propertyUrl.uri for c in table.tableSchema.columns
+                    if c.propertyUrl)
+                for col in default_cols - cols:
                     log_or_raise('{0} requires column {1}'.format(
                         table.common_props['dc:conformsTo'], col), log=log)
 
@@ -218,14 +284,50 @@ class Dataset(object):
     def __repr__(self):
         return '<cldf:%s:%s at %s>' % (self.version, self.module, self.directory)
 
-    def __getitem__(self, type_):
+    def __getitem__(self, item):
         """
-        Tables can be accessed by type.
+        Access to tables and columns.
+
+        If a pair (table-spec, column-spec) is passed as `item`, a Column will be
+        returned, otherwise `item` is assumed to be a table-spec.
+
+        A table-spec may be
+        - a CLDF ontology URI matching the dc:conformsTo property of a table
+        - the local name of a CLDF ontology URI, where the complete URI matches the
+          the dc:conformsTo property of a table
+        - a filename matching the `url` property of a table
+
+        A column-spec may be
+        - a CLDF ontology URI matching the propertyUrl of a column
+        - the local name of a CLDF ontology URI, where the complete URI matches the
+          propertyUrl of a column
+        - the name of a column
         """
-        type_ = term_uri(type_)
-        for table in self.tables:
-            if table.common_props.get('dc:conformsTo') == type_:
-                return table
+        if isinstance(item, tuple):
+            table, column = item
+        else:
+            table, column = item, None
+
+        if not isinstance(table, Table):
+            uri = term_uri(table, terms=TERMS.by_uri)
+            for t in self.tables:
+                if (uri and t.common_props.get('dc:conformsTo') == uri) \
+                        or t.url.string == table:
+                    break
+            else:
+                raise KeyError(table)
+        else:
+            t = table
+
+        if not column:
+            return t
+
+        uri = term_uri(column, terms=TERMS.by_uri)
+        for c in t.tableSchema.columns:
+            if (c.propertyUrl and c.propertyUrl.uri == uri) or c.header == column:
+                return c
+
+        raise KeyError(column)
 
     @staticmethod
     def get_tabletype(table):
@@ -306,6 +408,12 @@ class Wordlist(Dataset):
         return list(chain(*[
             s.split() for s in multislice(
                 row[morphemes.name], *partial_cognate[slices.name])]))
+
+
+class Generic(Dataset):
+    @property
+    def primary_table(self):
+        return None
 
 
 class Dictionary(Dataset):

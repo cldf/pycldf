@@ -1,5 +1,4 @@
-pycldf
-======
+# pycldf
 
 A python package to read and write [CLDF](http://cldf.clld.org) datasets
 
@@ -9,18 +8,17 @@ A python package to read and write [CLDF](http://cldf.clld.org) datasets
 [![PyPI](https://img.shields.io/pypi/v/pycldf.svg)](https://pypi.python.org/pypi/pycldf)
 
 
-Writing CLDF
-------------
+## Writing CLDF
 
 ```python
-from pycldf.dataset import Wordlist
-from pycldf.sources import Source
+from pycldf import Wordlist, Source
+
 dataset = Wordlist.in_dir('mydataset')
-dataset.sources.add(Source('book', 'Meier2005', author='Hans Meier', year='2005', title='The Book'))
+dataset.add_sources(Source('book', 'Meier2005', author='Hans Meier', year='2005', title='The Book'))
 dataset.write(FormTable=[
     {
         'ID': '1', 
-        'Value': 'word', 
+        'Form': 'word', 
         'Language_ID': 'abcd1234', 
         'Parameter_ID': '1277', 
         'Source': ['Meier2005[3-7]'],
@@ -50,75 +48,47 @@ ID,Language_ID,Parameter_ID,Value,Segments,Comment,Source
 
 ```
 - `mydataset/Wordlist-metadata.json`
+
+
+### Advanced writing
+
+To add predefined CLDF components to a dataset, use the `add_component` method:
 ```python
-{
-    "@context": "http://www.w3.org/ns/csvw", 
-    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#Wordlist", 
-    "dc:source": "sources.bib", 
-    "dialect": {
-        "commentPrefix": null
-    }, 
-    "tables": [
-        {
-            "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#FormTable", 
-            "tableSchema": {
-                "columns": [
-                    {
-                        "datatype": "string", 
-                        "propertyUrl": "http://purl.org/dc/terms/identifier", 
-                        "required": true, 
-                        "name": "ID"
-                    }, 
-                    {
-                        "datatype": "string", 
-                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/Language", 
-                        "required": true, 
-                        "name": "Language_ID"
-                    }, 
-                    {
-                        "datatype": "string", 
-                        "propertyUrl": "http://www.w3.org/2004/02/skos/core#Concept", 
-                        "required": true, 
-                        "name": "Parameter_ID", 
-                        "titles": "Concept_ID"
-                    }, 
-                    {
-                        "datatype": "string", 
-                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/FormUnit", 
-                        "required": true, 
-                        "name": "Value"
-                    }, 
-                    {
-                        "datatype": "string", 
-                        "propertyUrl": "http://linguistics-ontology.org/gold/2010/Segment", 
-                        "separator": " ", 
-                        "name": "Segments"
-                    }, 
-                    {
-                        "datatype": "string", 
-                        "propertyUrl": "http://purl.org/dc/terms/description", 
-                        "name": "Comment"
-                    }, 
-                    {
-                        "datatype": "string", 
-                        "propertyUrl": "http://purl.org/dc/terms/source", 
-                        "separator": ";", 
-                        "name": "Source"
-                    }
-                ], 
-                "primaryKey": [
-                    "ID"
-                ]
-            }, 
-            "url": "forms.csv"
-        }
-    ]
-}
+from pycldf import StructureDataset, term_uri
+
+dataset = StructureDataset.in_dir('mydataset')
+dataset.add_component('ParameterTable')
+dataset.write(
+    ValueTable=[{'ID': '1', 'Language_ID': 'abc', 'Parameter_ID': '1', 'Value': 'x'}],
+	ParameterTable=[{'ID': '1', 'Name': 'Grammatical Feature'}])
 ```
 
+It is also possible to add generic tables:
+```python
+dataset.add_table('contributors.csv', term_uri('id'), term_uri('name'))
+```
+which can also be linked to other tables:
+```python
+dataset.add_columns('ParameterTable', 'Contributor_ID')
+dataset.add_foreign_key('ParameterTable', 'Contributor_ID', 'contributors.csv', 'ID')
+```
 
-Reading CLDF
-------------
+### Addressing tables and columns
+
+Tables in a dataset can be referenced using a `Dataset`'s `__getitem__` method,
+passing
+- a full CLDF Ontology URI for the corresponding component,
+- the local name of the component in the CLDF Ontology,
+- the `url` of the table.
+
+Columns in a dataset can be referenced using a `Dataset`'s `__getitem__` method,
+passing a tuple `(<TABLE>, <COLUMN>)` where `<TABLE>` specifies a table as explained
+above and `<COLUMN>` is
+- a full CLD Ontolgy URI used as `propertyUrl` of the column,
+- the `name` property of the column.
+
+
+## Reading CLDF
 
 ```python
 >>> from pycldf.dataset import Wordlist
@@ -136,8 +106,7 @@ Meier, Hans. 2005. The Book.
 ```
 
 
-Command line usage
-------------------
+## Command line usage
 
 Installing the `pycldf` package will also install a command line interface `cldf`, which provides some sub-commands to manage CLDF datasets.
 

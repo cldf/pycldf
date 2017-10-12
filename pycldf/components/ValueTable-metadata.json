@@ -1,6 +1,6 @@
 {
-    "url": "examples.csv", 
-    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ExampleTable", 
+    "url": "values.csv", 
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable", 
     "tableSchema": {
         "columns": [
             {
@@ -19,35 +19,25 @@
                 "datatype": "string"
             }, 
             {
-                "name": "Primary", 
+                "name": "Parameter_ID", 
                 "required": true, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#primaryText", 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference", 
                 "datatype": "string"
             }, 
             {
-                "name": "Analyzed", 
+                "name": "Value", 
                 "required": false, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#analyzedWord", 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#value", 
                 "datatype": "string", 
-                "separator": "\\t"
+                "null": [
+                    "?", 
+                    ""
+                ]
             }, 
             {
-                "name": "Gloss", 
+                "name": "Code_ID", 
                 "required": false, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#gloss", 
-                "datatype": "string", 
-                "separator": "\\t"
-            }, 
-            {
-                "name": "Translation", 
-                "required": false, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#translatedText", 
-                "datatype": "string"
-            }, 
-            {
-                "name": "Language_ID_meta", 
-                "required": false, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#metaLanguageReference", 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#codeReference", 
                 "datatype": "string"
             }, 
             {
@@ -55,6 +45,15 @@
                 "required": false, 
                 "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#comment", 
                 "datatype": "string"
+            }, 
+            {
+                "name": "Source", 
+                "required": false, 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source", 
+                "datatype": {
+                    "base": "string"
+                }, 
+                "separator": ";"
             }
         ]
     }

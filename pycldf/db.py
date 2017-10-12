@@ -12,6 +12,8 @@ import attr
 from clldutils.path import Path, remove
 from clldutils.csvw.datatypes import DATATYPES
 
+__all__ = ['Database']
+
 
 def identity(s):
     return s

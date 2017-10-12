@@ -1,6 +1,6 @@
 {
-    "url": "parameters.csv", 
-    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ParameterTable", 
+    "url": "senses.csv", 
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#SenseTable", 
     "tableSchema": {
         "columns": [
             {
@@ -13,15 +13,15 @@
                 }
             }, 
             {
-                "name": "Name", 
-                "required": false, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name", 
+                "name": "Description", 
+                "required": true, 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#description", 
                 "datatype": "string"
             }, 
             {
-                "name": "Description", 
-                "required": false, 
-                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#description", 
+                "name": "Entry_ID", 
+                "required": true, 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#entryReference", 
                 "datatype": "string"
             }
         ]

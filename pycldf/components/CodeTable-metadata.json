@@ -1,6 +1,6 @@
 {
-    "url": "parameters.csv", 
-    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ParameterTable", 
+    "url": "codes.csv", 
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#CodeTable", 
     "tableSchema": {
         "columns": [
             {
@@ -11,6 +11,12 @@
                     "base": "string", 
                     "format": "[a-zA-Z0-9_\\-]+"
                 }
+            }, 
+            {
+                "name": "Parameter_ID", 
+                "required": true, 
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference", 
+                "datatype": "string"
             }, 
             {
                 "name": "Name", 
