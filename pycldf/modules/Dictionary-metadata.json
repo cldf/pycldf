@@ -7,9 +7,7 @@
     ], 
     "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#Dictionary", 
     "dialect": {
-        "trim": true, 
-        "commentPrefix": null, 
-        "doubleQuote": false
+        "commentPrefix": null
     }, 
     "tables": [
         {
@@ -33,13 +31,13 @@
                         "datatype": "string"
                     }, 
                     {
-                        "name": "headword", 
+                        "name": "Headword", 
                         "required": true, 
                         "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#headword", 
                         "datatype": "string"
                     }, 
                     {
-                        "name": "part_of_speech", 
+                        "name": "Part_Of_Speech", 
                         "required": false, 
                         "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#partOfSpeech", 
                         "datatype": "string"
