@@ -75,6 +75,29 @@ class TestGeneric(WithTempDir):
             LanguageTable=[{'ID': 'abc', 'Name': 'language'}])
         ds.validate()
 
+    def test_foreign_key_creation_two_fks_to_new_comp(self):
+        ds = self._make_one()
+        ds.add_component('BorrowingTable')
+        ds.add_component('FormTable')
+        self.assertEqual(len(ds['BorrowingTable'].tableSchema.foreignKeys), 2)
+
+    def test_foreign_key_creation_two_fks_from_new_comp(self):
+        ds = self._make_one()
+        ds.add_component('FormTable')
+        ds.add_component('BorrowingTable')
+        self.assertEqual(len(ds['BorrowingTable'].tableSchema.foreignKeys), 2)
+        ds.write(
+            FormTable=[{
+                'ID': '1',
+                'Language_ID': 'abc',
+                'Parameter_ID': 'xyz',
+                'Form': 'form',
+            }],
+            BorrowingTable=[{
+                'ID': 'abc',
+                'Form_ID_Target': '1'}])
+        ds.validate()
+
     def test_add_table(self):
         ds = self._make_one()
         ds.add_table('stuff.csv', term_uri('id'), 'col1')

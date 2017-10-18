@@ -146,6 +146,11 @@ class Dataset(object):
                 columnReference=primary_c))))
 
     def auto_constraints(self, component=None):
+        """
+        Use CLDF reference properties to implicitely create foreign key constraints.
+
+        :param component: A Table object or `None`.
+        """
         if not component:
             for table in self.tables:
                 self.auto_constraints(table)
@@ -155,6 +160,25 @@ class Dataset(object):
             idcol = component.get_column(term_uri('id'))
             if idcol:
                 component.tableSchema.primaryKey = [idcol.name]
+
+        for col in component.tableSchema.columns:
+            if col.propertyUrl and col.propertyUrl.uri.endswith('Reference'):
+                ref_name = col.propertyUrl.uri.split('#')[1].replace('Reference', 'Table')
+                for fkey in component.tableSchema.foreignKeys:
+                    if fkey.columnReference == [col.name]:
+                        break
+                else:
+                    # Let's see whether we have the component this column references:
+                    for table in self.tables:
+                        table_type = self.get_tabletype(table)
+                        if table_type and ref_name.endswith(table_type):
+                            component.tableSchema.foreignKeys.append(
+                                ForeignKey.fromdict(dict(
+                                    columnReference=col.name,
+                                    reference=dict(
+                                        resource=table.url.string,
+                                        columnReference='ID'))))
+                        break
 
         table_type = self.get_tabletype(component)
         if table_type:
@@ -173,7 +197,6 @@ class Dataset(object):
                                 reference=dict(
                                     resource=component.url.string,
                                     columnReference='ID'))))
-                        break
 
     @property
     def bibpath(self):
