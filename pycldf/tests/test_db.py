@@ -20,8 +20,6 @@ class Tests(WithTempDir):
         ds = Dataset.from_metadata(FIXTURES.joinpath('ds1.csv-metadata.json'))
         db = self._make_db()
         db.create()
-        with self.assertRaises(ValueError):
-            db.create()
         db.load(ds)
         self.assertEqual(len(db.fetchall("SELECT name FROM dataset")), 1)
         with self.assertRaises(IntegrityError):
@@ -29,6 +27,13 @@ class Tests(WithTempDir):
         db.delete(db.fetchone("SELECT ID FROM dataset")[0])
         db.load(ds)
         db.drop()
+
+    def test_create(self):
+        db = self._make_db()
+        db.create()
+        with self.assertRaises(ValueError):
+            db.create()
+        db.create(force=True)
 
     def test_update(self):
         ds = Dictionary.in_dir(self.tmp_path('d1'))

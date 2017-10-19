@@ -37,9 +37,12 @@ class Database(object):
     def connection(self):
         return closing(sqlite3.connect(self.fname.as_posix()))
 
-    def create(self):
+    def create(self, force=False):
         if self.fname and self.fname.exists():
-            raise ValueError('db file already exists, use force=True to overwrite')
+            if force:
+                self.drop()
+            else:
+                raise ValueError('db file already exists, use force=True to overwrite')
         with self.connection() as db:
             db.execute(
                 """\
