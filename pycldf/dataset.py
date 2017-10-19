@@ -272,12 +272,15 @@ class Dataset(object):
         return self.properties['dc:conformsTo'].split('/')[3]
 
     @classmethod
-    def in_dir(cls, d):
+    def in_dir(cls, d, empty_tables=False):
         fname = Path(d)
         if not fname.exists():
             fname.mkdir()
         assert fname.is_dir()
-        return cls.from_metadata(fname)
+        res = cls.from_metadata(fname)
+        if empty_tables:
+            del res.tables[:]
+        return res
 
     @classmethod
     def from_metadata(cls, fname):

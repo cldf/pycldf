@@ -9,6 +9,7 @@ from clldutils.path import copy, write_text
 
 from pycldf.tests.util import FIXTURES
 from pycldf.terms import term_uri
+from pycldf.dataset import Generic, Wordlist, StructureDataset, Dictionary
 
 
 class TestMakeColumn(TestCase):
@@ -25,12 +26,12 @@ class TestMakeColumn(TestCase):
             make_column(5)
 
 
-class TestGeneric(WithTempDir):
-    def _make_one(self):
-        from pycldf.dataset import Generic
+class ModuleTest(WithTempDir):
+    def _make_one(self, cls=Generic, **kw):
+        return cls.in_dir(self.tmp_path(), **kw)
 
-        return Generic.in_dir(self.tmp_path())
 
+class TestGeneric(ModuleTest):
     def test_primary_table(self):
         ds = self._make_one()
         self.assertIsNone(ds.primary_table)
@@ -128,11 +129,15 @@ class TestGeneric(WithTempDir):
             ds.validate()
 
 
-class TestWordlist(WithTempDir):
-    def test_cognates(self):
-        from pycldf.dataset import Wordlist
+class TestWordlist(ModuleTest):
+    def test_in_dir(self):
+        ds = self._make_one(Wordlist)
+        self.assertEqual(len(ds.tables), 1)
+        ds = self._make_one(Wordlist, empty_tables=True)
+        self.assertEqual(len(ds.tables), 0)
 
-        ds = Wordlist.in_dir(self.tmp_path())
+    def test_cognates(self):
+        ds = self._make_one(Wordlist)
         ds['FormTable', 'Segments'].separator = None
         ds.write(
             FormTable=[
@@ -148,9 +153,7 @@ class TestWordlist(WithTempDir):
             ' '.join(ds.get_soundsequence(list(ds['FormTable'])[0])), 'a bc d e f')
 
     def test_partial_cognates(self):
-        from pycldf.dataset import Wordlist
-
-        ds = Wordlist.in_dir(self.tmp_path())
+        ds = self._make_one(Wordlist)
         ds['FormTable'].get_column('Segments').separator = '+'
         ds.add_component('PartialCognateTable')
         ds.write(
