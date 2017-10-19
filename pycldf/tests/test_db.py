@@ -11,11 +11,14 @@ from pycldf.tests.util import FIXTURES
 
 
 class Tests(WithTempDir):
-    def test_db(self):
+    def _make_db(self, fname='db.sqlite'):
         from pycldf.db import Database
 
+        return Database(self.tmp_path(fname))
+
+    def test_db(self):
         ds = Dataset.from_metadata(FIXTURES.joinpath('ds1.csv-metadata.json'))
-        db = Database(self.tmp_path('db.sqlite'))
+        db = self._make_db()
         db.create()
         with self.assertRaises(ValueError):
             db.create()
@@ -28,13 +31,11 @@ class Tests(WithTempDir):
         db.drop()
 
     def test_update(self):
-        from pycldf.db import Database
-
         ds = Dictionary.in_dir(self.tmp_path('d1'))
         ds.write(EntryTable=[], SenseTable=[])
         ds2 = Dictionary.in_dir(self.tmp_path('d2'))
         ds2.write(EntryTable=[], SenseTable=[])
-        db = Database(self.tmp_path('db.sqlite'))
+        db = self._make_db()
         db.create()
         db.load(ds)
         db.load(ds2)
@@ -45,13 +46,12 @@ class Tests(WithTempDir):
             db.load(ds)
 
     def test_newcol(self):
-        from pycldf.db import Database
-
         ds = StructureDataset.in_dir(self.tmp_path('d'))
-        ds['ValueTable'].tableSchema.columns.append(
-            Column(name='col1', datatype='anyURI'))
-        ds['ValueTable'].tableSchema.columns.append(
-            Column(name='col2', datatype='integer'))
+        ds['ValueTable'].tableSchema.columns.extend([
+            Column(name='col1', datatype='anyURI'),
+            Column(name='col2', datatype='integer'),
+            Column(name='col3'),
+        ])
         ds.write(ValueTable=[{
             'ID': '1',
             'Language_ID': 'l',
@@ -59,7 +59,7 @@ class Tests(WithTempDir):
             'Value': 'v',
             'col2': 5,
             'col1': anyURI().to_python('http://example.org')}])
-        db = Database(self.tmp_path('db.sqlite'))
+        db = self._make_db()
         db.create()
         db.load(ds)
         self.assertEqual(

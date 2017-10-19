@@ -197,7 +197,10 @@ def schema(ds):
         spec = TableSpec(ds.get_tabletype(table), table.tableSchema.primaryKey or [])
         for c in table.tableSchema.columns:
             spec.columns.append(ColSpec(
-                c.header, c.datatype.base, c.separator, c.header in spec.primary_key))
+                c.header,
+                c.datatype.base if c.datatype else 'string',
+                c.separator,
+                c.header in spec.primary_key))
         for fk in table.tableSchema.foreignKeys:
             if fk.reference.schemaReference:
                 # We only support Foreign Key references between tables!
