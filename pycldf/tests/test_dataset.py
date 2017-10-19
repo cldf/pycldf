@@ -9,7 +9,7 @@ from clldutils.path import copy, write_text
 
 from pycldf.tests.util import FIXTURES
 from pycldf.terms import term_uri
-from pycldf.dataset import Generic, Wordlist, StructureDataset, Dictionary
+from pycldf.dataset import Generic, Wordlist, StructureDataset, Dictionary, Dataset
 
 
 class TestMakeColumn(TestCase):
@@ -182,16 +182,14 @@ class TestWordlist(ModuleTest):
             'd e f g')
 
 
-class Tests(WithTempDir):
+class Tests(ModuleTest):
     def _make_tg(self, *tables):
         tg = TableGroup.fromvalue({'tables': list(tables)})
         tg._fname = self.tmp_path('md.json')
         return tg
 
     def test_add_component(self):
-        from pycldf.dataset import Wordlist
-
-        ds = Wordlist.in_dir(self.tmp_path())
+        ds = self._make_one(Wordlist)
         ds['FormTable'].tableSchema.foreignKeys.append(ForeignKey.fromdict({
             'columnReference': 'Language_ID',
             'reference': {'resource': 'languages.csv', 'columnReference': 'ID'}}))
@@ -216,8 +214,6 @@ class Tests(WithTempDir):
             ds.validate()
 
     def test_modules(self):
-        from pycldf.dataset import Dataset, Wordlist, Dictionary, StructureDataset
-
         ds = Dataset(self._make_tg())
         self.assertIsNone(ds.primary_table)
         ds = Dataset(self._make_tg({"url": "data.csv"}))
@@ -231,8 +227,6 @@ class Tests(WithTempDir):
         self.assertIsNotNone(StructureDataset.in_dir(self.tmp_path()).primary_table)
 
     def test_Dataset_from_scratch(self):
-        from pycldf.dataset import Dataset
-
         # An unknown file name cannot be used with Dataset.from_data:
         copy(FIXTURES.joinpath('ds1.csv'), self.tmp_path('xyz.csv'))
         with self.assertRaises(ValueError):
@@ -262,8 +256,6 @@ class Tests(WithTempDir):
         self.assertEqual(len(ds.stats()), 1)
 
     def test_Dataset_validate(self):
-        from pycldf.dataset import StructureDataset
-
         ds = StructureDataset.in_dir(self.tmp_path('new'))
         ds.write(ValueTable=[])
         ds.validate()
@@ -289,8 +281,6 @@ class Tests(WithTempDir):
             ds.validate()
 
     def test_Dataset_write(self):
-        from pycldf.dataset import StructureDataset
-
         ds = StructureDataset.from_metadata(self.tmp)
         ds.write(ValueTable=[])
         self.assertTrue(self.tmp_path('values.csv').exists())
@@ -349,8 +339,6 @@ class Tests(WithTempDir):
         ds.validate()
 
     def test_validators(self):
-        from pycldf.dataset import Dataset
-
         copy(FIXTURES.joinpath('invalid.csv'), self.tmp_path('values.csv'))
         ds = Dataset.from_data(self.tmp_path('values.csv'))
 

@@ -122,7 +122,7 @@ CREATE TABLE SourceTable (
     dataset_ID INT ,
     ID TEXT PRIMARY KEY NOT NULL,
     bibtex_type TEXT,
-    {0} 
+    {0}
     extra TEXT,
     FOREIGN KEY(dataset_ID) REFERENCES dataset(ID)
 )""".format('\n    '.join('`{0}` TEXT,'.format(f) for f in BIBTEX_FIELDS)))

@@ -76,11 +76,11 @@ class Tests(WithTempDir):
         db.load(ds)
         self.assertEqual(
             db.fetchone("""\
-select 
-  s.title 
-from 
-  SourceTable as s, ValueSource as vs, ValueTable as v 
-where 
+select
+  s.title
+from
+  SourceTable as s, ValueSource as vs, ValueTable as v
+where
   s.id = vs.source_id and vs.value_id = v.idx and v.idx = 1""")[0],
             'title')
         self.assertEqual(
