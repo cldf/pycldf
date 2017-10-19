@@ -42,6 +42,10 @@
             "separator": ";",
             "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source",
             "datatype": "string"
+          },
+          {
+            "name": "custom",
+            "separator": " "
           }
         ],
         "aboutUrl": "http://example.org/valuesets/{ID}",

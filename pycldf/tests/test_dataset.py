@@ -5,7 +5,7 @@ from unittest import TestCase
 from mock import Mock
 from clldutils.testing import WithTempDir
 from clldutils.csvw.metadata import TableGroup, ForeignKey, URITemplate, Column
-from clldutils.path import copy
+from clldutils.path import copy, write_text
 
 from pycldf.tests.util import FIXTURES
 from pycldf.terms import term_uri
@@ -230,10 +230,18 @@ class Tests(WithTempDir):
     def test_Dataset_from_scratch(self):
         from pycldf.dataset import Dataset
 
+        # An unknown file name cannot be used with Dataset.from_data:
         copy(FIXTURES.joinpath('ds1.csv'), self.tmp_path('xyz.csv'))
         with self.assertRaises(ValueError):
             Dataset.from_data(self.tmp_path('xyz.csv'))
 
+        # Known file name, but non-standard column name:
+        write_text(
+            self.tmp_path('values.csv'), "IDX,Language_ID,Parameter_ID,Value\n1,1,1,1")
+        with self.assertRaises(ValueError):
+            ds = Dataset.from_data(self.tmp_path('values.csv'))
+
+        # A known file name will determine the CLDF module of the dataset:
         copy(FIXTURES.joinpath('ds1.csv'), self.tmp_path('values.csv'))
         ds = Dataset.from_data(self.tmp_path('values.csv'))
         self.assertEqual(ds.module, 'StructureDataset')

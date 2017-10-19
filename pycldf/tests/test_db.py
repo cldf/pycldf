@@ -52,21 +52,37 @@ class Tests(WithTempDir):
 
     def test_newcol(self):
         ds = StructureDataset.in_dir(self.tmp_path('d'))
+
+        # We rename the ID column of the ValueTable:
+        ds['ValueTable', 'ID'].name = 'idx'
         ds['ValueTable'].tableSchema.columns.extend([
             Column(name='col1', datatype='anyURI'),
             Column(name='col2', datatype='integer'),
             Column(name='col3'),
         ])
         ds.write(ValueTable=[{
-            'ID': '1',
+            'idx': '1',
             'Language_ID': 'l',
             'Parameter_ID': 'p',
             'Value': 'v',
+            'Source': ['meier2015'],
             'col2': 5,
             'col1': anyURI().to_python('http://example.org')}])
         db = self._make_db()
         db.create()
+        with self.assertRaises(IntegrityError):  # A missing source is referenced!
+            db.load(ds)
+        ds.add_sources("@misc{meier2015,\ntitle={title}\n}")
         db.load(ds)
+        self.assertEqual(
+            db.fetchone("""\
+select 
+  s.title 
+from 
+  SourceTable as s, ValueSource as vs, ValueTable as v 
+where 
+  s.id = vs.source_id and vs.value_id = v.idx and v.idx = 1""")[0],
+            'title')
         self.assertEqual(
             db.fetchone("select col1 from valuetable")[0], 'http://example.org')
         self.assertEqual(

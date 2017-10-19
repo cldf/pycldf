@@ -301,7 +301,15 @@ class Dataset(object):
         fname = Path(fname)
         for mod in get_modules():
             if mod.match(fname):
-                return mod.cls.from_metadata(fname if fname.is_dir() else fname.parent)
+                res = mod.cls.from_metadata(fname if fname.is_dir() else fname.parent)
+                for line in fname.open(encoding='utf8'):
+                    required_cols = [
+                        c.name for c in res[res.primary_table].tableSchema.columns
+                        if c.required]
+                    if not set(required_cols).issubset(set(line.split(','))):
+                        raise ValueError()
+                    break
+                return res
         raise ValueError(fname)
 
     def __repr__(self):
