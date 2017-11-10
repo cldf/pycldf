@@ -558,7 +558,7 @@
         <rdfs:label xml:lang="en">Wordlist</rdfs:label>
         <rdfs:comment rdf:parseType="Literal">
             <p>A dataset according to the
-                <a href="https://github.com/glottobank/cldf/tree/master/modules/wordlist">CLDF Wordlist</a>
+                <a href="https://github.com/cldf/cldf/tree/master/modules/wordlist">CLDF Wordlist</a>
                 specification</p>
         </rdfs:comment>
         <rdfs:subClassOf rdf:resource="http://www.w3.org/ns/dcat#Distribution"/>
@@ -568,7 +568,7 @@
         <rdfs:label xml:lang="en">Dictionary</rdfs:label>
         <rdfs:comment rdf:parseType="Literal">
             <p>A dataset according to the
-                <a href="https://github.com/glottobank/cldf/tree/master/modules/dictionary">CLDF Dictionary</a>
+                <a href="https://github.com/cldf/cldf/tree/master/modules/dictionary">CLDF Dictionary</a>
                 specification</p>
         </rdfs:comment>
         <rdfs:subClassOf rdf:resource="http://www.w3.org/ns/dcat#Distribution"/>
@@ -578,7 +578,7 @@
         <rdfs:label xml:lang="en">Structure Dataset</rdfs:label>
         <rdfs:comment rdf:parseType="Literal">
             <p>A dataset according to the
-                <a href="https://github.com/glottobank/cldf/tree/master/modules/structure_dataset">CLDF Structure Dataset</a>
+                <a href="https://github.com/cldf/cldf/tree/master/modules/structure_dataset">CLDF Structure Dataset</a>
                 specification</p>
         </rdfs:comment>
         <rdfs:subClassOf rdf:resource="http://www.w3.org/ns/dcat#Distribution"/>

@@ -14,7 +14,7 @@ setup(
     long_description=read("README.rst"),
     author='Robert Forkel',
     author_email='forkel@shh.mpg.de',
-    url='https://github.com/glottobank/pycldf',
+    url='https://github.com/cldf/pycldf',
     install_requires=[
         'six',
         'pybtex',

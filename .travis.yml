@@ -4,12 +4,13 @@ python:
   - "2.7"
 install:
   - pip install coverage
-  - pip install nose
+  - pip install pytest
   - pip install mock
+  - pip install pytest-cov
   - pip install -U setuptools
 script:
   - python setup.py install
-  - nosetests --with-coverage --cover-package=pycldf
+  - pytest --cov pycldf
 before_install:
   pip install codecov
 after_success:
