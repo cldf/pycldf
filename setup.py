@@ -28,6 +28,7 @@ setup(
             'pytest>=3.1',
             'pytest-mock',
             'mock',
+            'coverage>=4.2',
             'pytest-cov',
         ],
     },
@@ -47,7 +48,8 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy'
     ],
-    packages=find_packages(),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     include_package_data=True,
     entry_points={
         'console_scripts': [

@@ -1,6 +1,11 @@
 [run]
-branch = False
+branch = True
 source = pycldf
+
+[paths]
+source =
+    src/pycldf
+    .tox/*/lib/python*/site-packages/pycldf
 
 [report]
 exclude_lines =
@@ -11,3 +16,5 @@ exclude_lines =
 ignore_errors = True
 omit =
     tests/*
+show_missing = True
+

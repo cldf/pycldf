@@ -6,10 +6,10 @@ import pytest
 from clldutils.clilib import ParserError
 from clldutils.path import copy
 
+from pycldf.cli import validate, stats, createdb
+
 
 def test_stats(tmp_dir):
-    from pycldf.cli import stats
-
     with pytest.raises(ParserError):
         stats(MagicMock(args=MagicMock()))
 
@@ -18,8 +18,6 @@ def test_stats(tmp_dir):
 
 
 def test_all(capsys, data, tmp_dir):
-    from pycldf.cli import validate, stats, createdb
-
     md = tmp_dir / 'md.json'
     copy(data.joinpath('ds1.csv-metadata.json'), md)
     copy(data.joinpath('ds1.bib'), tmp_dir / 'ds1.bib')
