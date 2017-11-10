@@ -22,9 +22,19 @@ setup(
         'uritemplate>=3.0',
         'python-dateutil',
     ],
+    extras_require={
+        'dev': ['flake8'],
+        'test': [
+            'pytest>=3.1',
+            'pytest-mock',
+            'mock',
+            'pytest-cov',
+        ],
+    },
     license="Apache 2",
     zip_safe=False,
     keywords='',
+    platforms='any',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -44,5 +54,4 @@ setup(
             'cldf=pycldf.cli:main',
         ]
     },
-    tests_require=['pytest>=3.1', 'coverage', 'mock'],
 )
