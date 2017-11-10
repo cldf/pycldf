@@ -44,5 +44,5 @@ setup(
             'cldf=pycldf.cli:main',
         ]
     },
-    tests_require=['nose', 'coverage', 'mock'],
+    tests_require=['pytest>=3.1', 'coverage', 'mock'],
 )
