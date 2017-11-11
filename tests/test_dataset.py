@@ -11,6 +11,21 @@ from pycldf.dataset import (
     Generic, Wordlist, StructureDataset, Dictionary, Dataset, make_column, get_modules)
 
 
+@pytest.fixture
+def ds(tmp_dir):
+    return Generic.in_dir(tmp_dir)
+
+
+@pytest.fixture
+def ds_wl(tmp_dir):
+    return Wordlist.in_dir(tmp_dir)
+
+
+@pytest.fixture
+def ds_wl_notables(tmp_dir):
+    return Wordlist.in_dir(tmp_dir, empty_tables=True)
+
+
 @pytest.mark.parametrize("col_spec,datatype", [
     ('name', 'string'),
     ({'name': 'num', 'datatype': 'decimal'}, 'decimal'),
@@ -27,16 +42,11 @@ def test_make_column():
         make_column(5)
 
 
-def _make_ds(d, cls=Generic, **kw):
-    return cls.in_dir(d, **kw)
+def test_primary_table(ds):
+    assert ds.primary_table is None
 
 
-def test_primary_table(tmp_dir):
-    assert _make_ds(tmp_dir).primary_table is None
-
-
-def test_column_access(tmp_dir):
-    ds = _make_ds(tmp_dir)
+def test_column_access(ds):
     with pytest.raises(KeyError):
         assert ds['']
 
@@ -49,8 +59,7 @@ def test_column_access(tmp_dir):
     assert ds['ValueTable', 'Language_ID'] == ds['values.csv', 'languageReference']
 
 
-def test_foreign_key_creation(tmp_dir):
-    ds = _make_ds(tmp_dir)
+def test_foreign_key_creation(ds):
     ds.add_component('ValueTable')
     assert not ds['ValueTable'].tableSchema.foreignKeys
     ds.add_component('LanguageTable')
@@ -76,15 +85,13 @@ def test_foreign_key_creation(tmp_dir):
     ds.validate()
 
 
-def test_foreign_key_creation_two_fks_to_new_comp(tmp_dir):
-    ds = _make_ds(tmp_dir)
+def test_foreign_key_creation_two_fks_to_new_comp(ds):
     ds.add_component('BorrowingTable')
     ds.add_component('FormTable')
     assert len(ds['BorrowingTable'].tableSchema.foreignKeys) == 2
 
 
-def test_foreign_key_creation_two_fks_from_new_comp(tmp_dir):
-    ds = _make_ds(tmp_dir)
+def test_foreign_key_creation_two_fks_from_new_comp(ds):
     ds.add_component('FormTable')
     ds.add_component('BorrowingTable')
     assert len(ds['BorrowingTable'].tableSchema.foreignKeys) == 2
@@ -101,8 +108,7 @@ def test_foreign_key_creation_two_fks_from_new_comp(tmp_dir):
     ds.validate()
 
 
-def test_add_table(tmp_dir):
-    ds = _make_ds(tmp_dir)
+def test_add_table(tmp_dir, ds):
     ds.add_table('stuff.csv', term_uri('id'), 'col1')
     ds.write(fname=tmp_dir / 't.json', **{'stuff.csv': [{'ID': '.ab'}]})
     with pytest.raises(ValueError):
@@ -114,8 +120,7 @@ def test_add_table(tmp_dir):
         ds.add_columns('stuff.csv', 'col1')
 
 
-def test_add_foreign_key(tmp_dir):
-    ds = _make_ds(tmp_dir)
+def test_add_foreign_key(ds):
     ds.add_table('primary.csv', term_uri('id'), 'col1')
     ds.add_table('foreign.csv', 'fk_id')
     ds.write(**{'primary.csv': [{'ID': 'ab'}], 'foreign.csv': [{'fk_id': 'xy'}]})
@@ -132,17 +137,17 @@ def test_add_foreign_key(tmp_dir):
         ds.validate()
 
 
-def test_in_dir(tmp_dir):
-    ds = _make_ds(tmp_dir, Wordlist)
-    assert len(ds.tables) == 1
-    ds = _make_ds(tmp_dir, Wordlist, empty_tables=True)
-    assert len(ds.tables) == 0
+def test_in_dir(ds_wl):
+    assert len(ds_wl.tables) == 1
 
 
-def test_cognates(tmp_dir):
-    ds = _make_ds(tmp_dir, Wordlist)
-    ds['FormTable', 'Segments'].separator = None
-    ds.write(
+def test_in_dir_empty(ds_wl_notables):
+    assert len(ds_wl_notables.tables) == 0
+
+
+def test_cognates(ds_wl):
+    ds_wl['FormTable', 'Segments'].separator = None
+    ds_wl.write(
         FormTable=[
             {'ID': '1',
              'Value': 'form',
@@ -152,14 +157,13 @@ def test_cognates(tmp_dir):
              'Parameter_ID': 'p'}
         ],
     )
-    assert ' '.join(ds.get_soundsequence(list(ds['FormTable'])[0])) == 'a bc d e f'
+    assert ' '.join(ds_wl.get_soundsequence(list(ds_wl['FormTable'])[0])) == 'a bc d e f'
 
 
-def test_partial_cognates(tmp_dir):
-    ds = _make_ds(tmp_dir, Wordlist)
-    ds['FormTable'].get_column('Segments').separator = '+'
-    ds.add_component('PartialCognateTable')
-    ds.write(
+def test_partial_cognates(ds_wl):
+    ds_wl['FormTable'].get_column('Segments').separator = '+'
+    ds_wl.add_component('PartialCognateTable')
+    ds_wl.write(
         FormTable=[
             {'ID': '1',
              'Value': 'form',
@@ -177,8 +181,8 @@ def test_partial_cognates(tmp_dir):
             }
         ],
     )
-    assert ' '.join(ds.get_soundsequence(list(ds['FormTable'])[0])) == 'a bc d e f g'
-    assert ' '.join(ds.get_subsequence(list(ds['PartialCognateTable'])[0])) == 'd e f g'
+    assert ' '.join(ds_wl.get_soundsequence(list(ds_wl['FormTable'])[0])) == 'a bc d e f g'
+    assert ' '.join(ds_wl.get_subsequence(list(ds_wl['PartialCognateTable'])[0])) == 'd e f g'
 
 
 def _make_tg(tmp_dir, *tables):
@@ -187,30 +191,29 @@ def _make_tg(tmp_dir, *tables):
     return tg
 
 
-def test_add_component(tmp_dir):
-    ds = _make_ds(tmp_dir, Wordlist)
-    ds['FormTable'].tableSchema.foreignKeys.append(ForeignKey.fromdict({
+def test_add_component(ds_wl):
+    ds_wl['FormTable'].tableSchema.foreignKeys.append(ForeignKey.fromdict({
         'columnReference': 'Language_ID',
         'reference': {'resource': 'languages.csv', 'columnReference': 'ID'}}))
-    ds.add_component('LanguageTable')
+    ds_wl.add_component('LanguageTable')
     with pytest.raises(ValueError):
-        ds.add_component('LanguageTable')
-    ds.add_component('ParameterTable', {'name': 'url', 'datatype': 'anyURI'})
+        ds_wl.add_component('LanguageTable')
+    ds_wl.add_component('ParameterTable', {'name': 'url', 'datatype': 'anyURI'})
 
-    ds.write(
+    ds_wl.write(
         FormTable=[
             {'ID': '1', 'Form': 'form', 'Language_ID': 'l', 'Parameter_ID': 'p'}],
         LanguageTable=[{'ID': 'l'}],
         ParameterTable=[{'ID': 'p'}])
-    ds.validate()
+    ds_wl.validate()
 
-    ds.write(
+    ds_wl.write(
         FormTable=[
             {'ID': '1', 'Value': 'form', 'Language_ID': 'l', 'Parameter_ID': 'x'}],
         LanguageTable=[{'ID': 'l'}],
         ParameterTable=[{'ID': 'p'}])
     with pytest.raises(ValueError):
-        ds.validate()
+        ds_wl.validate()
 
 
 def test_modules(tmp_dir):
