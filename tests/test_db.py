@@ -1,8 +1,9 @@
-# coding: utf8
-from __future__ import unicode_literals, print_function, division
-from sqlite3 import IntegrityError
+from __future__ import unicode_literals
 
 import pytest
+
+from sqlite3 import IntegrityError
+
 from clldutils.csvw.metadata import Column
 from clldutils.csvw.datatypes import anyURI
 
@@ -10,14 +11,14 @@ from pycldf.dataset import Dataset, Dictionary, StructureDataset
 
 
 @pytest.fixture
-def db(tmp_dir):
+def db(tmpdir):
     from pycldf.db import Database
 
-    return Database(tmp_dir / 'db.sqlite')
+    return Database(str(tmpdir / 'db.sqlite'))
 
 
-def test_db(db, data):
-    ds = Dataset.from_metadata(data.joinpath('ds1.csv-metadata.json'))
+def test_db(data, db):
+    ds = Dataset.from_metadata(str(data / 'ds1.csv-metadata.json'))
     db.create()
     db.load(ds)
     assert len(db.fetchall("SELECT name FROM dataset")) == 1
@@ -35,10 +36,10 @@ def test_create(db):
     db.create(force=True)
 
 
-def test_update(db, tmp_dir):
-    ds = Dictionary.in_dir(tmp_dir / 'd1')
+def test_update(tmpdir, db):
+    ds = Dictionary.in_dir(str(tmpdir / 'd1'))
     ds.write(EntryTable=[], SenseTable=[])
-    ds2 = Dictionary.in_dir(tmp_dir / 'd2')
+    ds2 = Dictionary.in_dir(str(tmpdir / 'd2'))
     ds2.write(EntryTable=[], SenseTable=[])
     db.create()
     db.load(ds)
@@ -50,8 +51,8 @@ def test_update(db, tmp_dir):
         db.load(ds)
 
 
-def test_newcol(db, tmp_dir):
-    ds = StructureDataset.in_dir(tmp_dir / 'd')
+def test_newcol(tmpdir, db):
+    ds = StructureDataset.in_dir(str(tmpdir / 'd'))
 
     # We rename the ID column of the ValueTable:
     ds['ValueTable', 'ID'].name = 'idx'

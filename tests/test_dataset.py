@@ -1,10 +1,9 @@
-# coding: utf8
-from __future__ import unicode_literals, print_function, division
+from __future__ import unicode_literals
 
 import pytest
-from mock import Mock
+
+from clldutils.path import copy, write_text, Path
 from clldutils.csvw.metadata import TableGroup, ForeignKey, URITemplate, Column
-from clldutils.path import copy, write_text
 
 from pycldf.terms import term_uri
 from pycldf.dataset import (
@@ -12,18 +11,18 @@ from pycldf.dataset import (
 
 
 @pytest.fixture
-def ds(tmp_dir):
-    return Generic.in_dir(tmp_dir)
+def ds(tmpdir):
+    return Generic.in_dir(str(tmpdir))
 
 
 @pytest.fixture
-def ds_wl(tmp_dir):
-    return Wordlist.in_dir(tmp_dir)
+def ds_wl(tmpdir):
+    return Wordlist.in_dir(str(tmpdir))
 
 
 @pytest.fixture
-def ds_wl_notables(tmp_dir):
-    return Wordlist.in_dir(tmp_dir, empty_tables=True)
+def ds_wl_notables(tmpdir):
+    return Wordlist.in_dir(str(tmpdir), empty_tables=True)
 
 
 @pytest.mark.parametrize("col_spec,datatype", [
@@ -108,9 +107,9 @@ def test_foreign_key_creation_two_fks_from_new_comp(ds):
     ds.validate()
 
 
-def test_add_table(tmp_dir, ds):
+def test_add_table(tmpdir, ds):
     ds.add_table('stuff.csv', term_uri('id'), 'col1')
-    ds.write(fname=tmp_dir / 't.json', **{'stuff.csv': [{'ID': '.ab'}]})
+    ds.write(fname=str(tmpdir/ 't.json'), **{'stuff.csv': [{'ID': '.ab'}]})
     with pytest.raises(ValueError):
         ds.validate()
     ds['stuff.csv', 'ID'].name = 'nid'
@@ -185,9 +184,9 @@ def test_partial_cognates(ds_wl):
     assert ' '.join(ds_wl.get_subsequence(list(ds_wl['PartialCognateTable'])[0])) == 'd e f g'
 
 
-def _make_tg(tmp_dir, *tables):
+def _make_tg(tmpdir, *tables):
     tg = TableGroup.fromvalue({'tables': list(tables)})
-    tg._fname = tmp_dir / 'md.json'
+    tg._fname = Path(str(tmpdir / 'md.json'))  # FIXME: clldutils dependency
     return tg
 
 
@@ -216,34 +215,34 @@ def test_add_component(ds_wl):
         ds_wl.validate()
 
 
-def test_modules(tmp_dir):
-    ds = Dataset(_make_tg(tmp_dir))
+def test_modules(tmpdir):
+    ds = Dataset(_make_tg(tmpdir))
     assert ds.primary_table is None
-    ds = Dataset(_make_tg(tmp_dir, {"url": "data.csv"}))
+    ds = Dataset(_make_tg(tmpdir, {"url": "data.csv"}))
     assert ds.primary_table is None
-    ds = Dataset(_make_tg(tmp_dir, {
+    ds = Dataset(_make_tg(tmpdir, {
         "url": "data.csv",
         "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable"}))
     assert ds.primary_table == 'ValueTable'
-    assert Wordlist.in_dir(tmp_dir).primary_table
-    assert Dictionary.in_dir(tmp_dir).primary_table
-    assert StructureDataset.in_dir(tmp_dir).primary_table
+    assert Wordlist.in_dir(str(tmpdir)).primary_table
+    assert Dictionary.in_dir(str(tmpdir)).primary_table
+    assert StructureDataset.in_dir(str(tmpdir)).primary_table
 
 
-def test_Dataset_from_scratch(tmp_dir, data):
+def test_Dataset_from_scratch(tmpdir, data):
     # An unknown file name cannot be used with Dataset.from_data:
-    copy(data.joinpath('ds1.csv'), tmp_dir / 'xyz.csv')
+    copy(str(data / 'ds1.csv'), str(tmpdir / 'xyz.csv'))
     with pytest.raises(ValueError):
-        Dataset.from_data(tmp_dir / 'xyz.csv')
+        Dataset.from_data(str(tmpdir / 'xyz.csv'))
 
     # Known file name, but non-standard column name:
-    write_text(tmp_dir / 'values.csv', "IDX,Language_ID,Parameter_ID,Value\n1,1,1,1")
+    write_text(str(tmpdir / 'values.csv'), "IDX,Language_ID,Parameter_ID,Value\n1,1,1,1")
     with pytest.raises(ValueError):
-        ds = Dataset.from_data(tmp_dir / 'values.csv')
+        ds = Dataset.from_data(str(tmpdir / 'values.csv'))
 
     # A known file name will determine the CLDF module of the dataset:
-    copy(data.joinpath('ds1.csv'), tmp_dir / 'values.csv')
-    ds = Dataset.from_data(tmp_dir / 'values.csv')
+    copy(str(data /'ds1.csv'), str(tmpdir / 'values.csv'))
+    ds = Dataset.from_data(str(tmpdir / 'values.csv'))
     assert ds.module == 'StructureDataset'
 
     assert len(list(ds['ValueTable'])) == 2
@@ -259,8 +258,8 @@ def test_Dataset_from_scratch(tmp_dir, data):
     assert len(ds.stats()) == 1
 
 
-def test_Dataset_validate(tmp_dir):
-    ds = StructureDataset.in_dir(tmp_dir / 'new')
+def test_Dataset_validate(tmpdir):
+    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.write(ValueTable=[])
     ds.validate()
     ds['ValueTable'].tableSchema.columns = []
@@ -270,14 +269,14 @@ def test_Dataset_validate(tmp_dir):
     with pytest.raises(ValueError):
         ds.validate()
 
-    ds = StructureDataset.in_dir(tmp_dir / 'new')
+    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.add_component('LanguageTable')
     ds.write(ValueTable=[])
     ds['LanguageTable'].common_props['dc:conformsTo'] = 'http://cldf.clld.org/404'
     with pytest.raises(ValueError):
         ds.validate()
 
-    ds = StructureDataset.in_dir(tmp_dir / 'new')
+    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds['ValueTable'].get_column('Source').propertyUrl = URITemplate(
         'http://cldf.clld.org/404')
     ds.write(ValueTable=[])
@@ -285,10 +284,10 @@ def test_Dataset_validate(tmp_dir):
         ds.validate()
 
 
-def test_Dataset_write(tmp_dir):
-    ds = StructureDataset.from_metadata(tmp_dir)
+def test_Dataset_write(tmpdir):
+    ds = StructureDataset.from_metadata(str(tmpdir))
     ds.write(ValueTable=[])
-    assert (tmp_dir / 'values.csv').exists()
+    assert (tmpdir / 'values.csv').exists()
     ds.validate()
     ds.add_sources("@misc{ky,\ntitle={the title}\n}")
     ds.write(ValueTable=[
@@ -344,14 +343,14 @@ def test_Dataset_write(tmp_dir):
     ds.validate()
 
 
-def test_validators(data, tmp_dir):
-    copy(data.joinpath('invalid.csv'), tmp_dir / 'values.csv')
-    ds = Dataset.from_data(tmp_dir / 'values.csv')
+def test_validators(tmpdir, mocker, data):
+    copy(str(data / 'invalid.csv'), str(tmpdir / 'values.csv'))
+    ds = Dataset.from_data(str(tmpdir / 'values.csv'))
 
     with pytest.raises(ValueError):
         ds.validate()
 
-    log = Mock()
+    log = mocker.Mock()
     ds.validate(log=log)
     assert log.warn.call_count == 2
 
@@ -359,7 +358,7 @@ def test_validators(data, tmp_dir):
         if col.name == 'Language_ID':
             col.propertyUrl.uri = 'http://cldf.clld.org/v1.0/terms.rdf#glottocode'
 
-    log = Mock()
+    log = mocker.Mock()
     ds.validate(log=log)
     assert log.warn.call_count == 4
 

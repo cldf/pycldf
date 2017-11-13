@@ -1,5 +1,5 @@
 # coding: utf8
-from __future__ import unicode_literals, print_function, division
+from __future__ import unicode_literals
 
 import pytest
 
@@ -17,7 +17,7 @@ BIB = """@BOOK{Obrazy,
 """
 
 
-def test_Sources(tmp_dir):
+def test_Sources(tmpdir):
     src = Sources()
     src.add(BIB, Source(
         'book', 'huber2005', author='Herrmann Huber', year='2005', title='y'))
@@ -40,7 +40,7 @@ def test_Sources(tmp_dir):
     with pytest.raises(ValueError):
         src.validate(['x'])
 
-    bib = tmp_dir / 'test.bib'
+    bib = str(tmpdir / 'test.bib')
     src.write(bib)
 
     src2 = Sources()
@@ -56,10 +56,10 @@ def test_Source_from_bibtex():
     assert Source.from_bibtex(bibtex).entry.fields['title'] == 'Obrazy z Rus'
 
 
-def test_Sources_with_None_values(tmp_dir):
+def test_Sources_with_None_values(tmpdir):
     src = Sources()
     src.add(Source('book', 'huber2005', title=None))
-    src.write(tmp_dir / 'test.bib')
+    src.write(str(tmpdir / 'test.bib'))
 
 
 def test_Source_expand_refs():

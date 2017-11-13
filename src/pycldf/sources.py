@@ -82,6 +82,7 @@ class Sources(object):
     @classmethod
     def from_file(cls, fname):
         res = cls()
+        fname = Path(fname)
         if fname.exists():
             res.read(fname)
         return res
