@@ -2,9 +2,13 @@ language: python
 python:
   - "3.4"
   - "2.7"
+cache: pip
+before_cache:
+- rm -f $HOME/.cache/pip/log/debug.log
 install:
   - pip install coverage
   - pip install "pytest>=3.1"
+  - pip install pytest-mock
   - pip install mock
   - pip install pytest-cov
   - pip install -U setuptools
