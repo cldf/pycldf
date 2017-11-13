@@ -1,43 +1,42 @@
-# coding: utf8
-from __future__ import unicode_literals, print_function, division
+from __future__ import unicode_literals
 
-from mock import MagicMock
 import pytest
-from clldutils.clilib import ParserError
+
 from clldutils.path import copy
+from clldutils.clilib import ParserError
 
 from pycldf.cli import validate, stats, createdb
 
 
-def test_stats(tmp_dir):
+def test_stats(tmpdir, mocker):
     with pytest.raises(ParserError):
-        stats(MagicMock(args=MagicMock()))
+        stats(mocker.MagicMock(args=mocker.MagicMock()))
 
     with pytest.raises(ParserError):
-        stats(MagicMock(args=[tmp_dir.joinpath('new').as_posix()]))
+        stats(mocker.MagicMock(args=[str(tmpdir / 'new')]))
 
 
-def test_all(capsys, data, tmp_dir):
-    md = tmp_dir / 'md.json'
-    copy(data.joinpath('ds1.csv-metadata.json'), md)
-    copy(data.joinpath('ds1.bib'), tmp_dir / 'ds1.bib')
-    copy(data.joinpath('ds1.csv'), tmp_dir / 'ds1.csv')
-    pdata = tmp_dir / 'values.csv'
-    copy(data.joinpath('ds1.csv'), pdata)
+def test_all(capsys, tmpdir, mocker, data):
+    md = str(tmpdir / 'md.json')
+    copy(str(data / 'ds1.csv-metadata.json'), md)
+    copy(str(data / 'ds1.bib'), str(tmpdir / 'ds1.bib'))
+    copy(str(data / 'ds1.csv'), str(tmpdir / 'ds1.csv'))
+    pdata = str(tmpdir / 'values.csv')
+    copy(str(data / 'ds1.csv'), pdata)
 
-    validate(MagicMock(args=[md.as_posix()]))
+    validate(mocker.MagicMock(args=[md]))
     out, err = capsys.readouterr()
     assert not out
 
-    stats(MagicMock(args=[pdata.as_posix()]))
+    stats(mocker.MagicMock(args=[pdata]))
     out, err = capsys.readouterr()
     assert 'StructureDataset' in out
 
-    stats(MagicMock(args=[md.as_posix()]))
+    stats(mocker.MagicMock(args=[md]))
 
     with pytest.raises(ParserError):
-        createdb(MagicMock(args=[md.as_posix()]))
+        createdb(mocker.MagicMock(args=[md]))
 
-    log = MagicMock()
-    createdb(MagicMock(log=log, args=[md.as_posix(), tmp_dir / 'test.sqlite']))
+    log = mocker.MagicMock()
+    createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
     assert log.info.called

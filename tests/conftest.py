@@ -1,15 +1,12 @@
-# coding: utf8
-from __future__ import unicode_literals, print_function, division
+from __future__ import unicode_literals
 
 import pytest
-from clldutils.path import Path
+
+from clldutils import path
+
+DATA = path.Path(__file__).parent / 'data'
 
 
-@pytest.fixture
-def tmp_dir(tmpdir):
-    return Path(str(tmpdir))
-
-
-@pytest.fixture
+@pytest.fixture(scope='module')
 def data():
-    return Path(__file__).parent.joinpath('data')
+    return DATA
