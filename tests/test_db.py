@@ -4,8 +4,8 @@ import pytest
 
 from sqlite3 import IntegrityError
 
-from clldutils.csvw.metadata import Column
-from clldutils.csvw.datatypes import anyURI
+from csvw.metadata import Column
+from csvw.datatypes import anyURI
 
 from pycldf.dataset import Dataset, Dictionary, StructureDataset
 

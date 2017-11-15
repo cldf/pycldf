@@ -1,20 +1,22 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
+
 from xml.etree import ElementTree
 from json import loads
 
-import attr
 from six.moves.urllib.parse import urlparse
-from clldutils.csvw.metadata import Column
+
+import attr
+from csvw.metadata import Column
 
 from pycldf.util import pkg_path
 
 __all__ = ['term_uri', 'TERMS']
 
-URL = "http://cldf.clld.org/v1.0/terms.rdf"
-RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-RDFS = "http://www.w3.org/2000/01/rdf-schema#"
-CSVW = "http://www.w3.org/ns/csvw#"
+URL = 'http://cldf.clld.org/v1.0/terms.rdf'
+RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+RDFS = 'http://www.w3.org/2000/01/rdf-schema#'
+CSVW = 'http://www.w3.org/ns/csvw#'
 
 
 def term_uri(name, terms=None, ns=URL):

@@ -1,12 +1,14 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
+
 import sys
 from itertools import chain
 
 from six import string_types
+
 import attr
+from csvw.metadata import TableGroup, Table, Column, ForeignKey
 from clldutils.path import Path
-from clldutils.csvw.metadata import TableGroup, Table, Column, ForeignKey
 from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
@@ -16,6 +18,7 @@ from pycldf.terms import term_uri, TERMS
 from pycldf.validators import VALIDATORS
 
 __all__ = ['Dataset', 'Dictionary', 'StructureDataset', 'Generic', 'Wordlist']
+
 MD_SUFFIX = '-metadata.json'
 
 

@@ -2,8 +2,8 @@ from __future__ import unicode_literals
 
 import pytest
 
+from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column
 from clldutils.path import copy, write_text, Path
-from clldutils.csvw.metadata import TableGroup, ForeignKey, URITemplate, Column
 
 from pycldf.terms import term_uri
 from pycldf.dataset import (
