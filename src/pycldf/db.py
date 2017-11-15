@@ -1,13 +1,14 @@
 # coding: utf8
-"""
-Functionality to load a set of CLDF datasets into a sqlite db.
+"""Functionality to load a set of CLDF datasets into a sqlite db.
 
 Notes:
 - Only CLDF components will be loaded into the db.
 - The names of the columns in the database are the names from the CSV files, not the
   preferred labels for the corresponding CLDF properties.
 """
+
 from __future__ import unicode_literals, print_function, division
+
 from collections import OrderedDict, defaultdict
 import sqlite3
 from contextlib import closing
@@ -16,8 +17,8 @@ from json import dumps
 from six import text_type
 
 import attr
+from csvw.datatypes import DATATYPES
 from clldutils.path import Path, remove
-from clldutils.csvw.datatypes import DATATYPES
 
 from pycldf.terms import term_uri
 from pycldf.sources import Sources
