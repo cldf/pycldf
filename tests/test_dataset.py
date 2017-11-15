@@ -99,6 +99,7 @@ def test_foreign_key_creation_two_fks_from_new_comp(ds):
             'ID': '1',
             'Language_ID': 'abc',
             'Parameter_ID': 'xyz',
+            'Value': 'value',
             'Form': 'form',
         }],
         BorrowingTable=[{
@@ -201,7 +202,7 @@ def test_add_component(ds_wl):
 
     ds_wl.write(
         FormTable=[
-            {'ID': '1', 'Form': 'form', 'Language_ID': 'l', 'Parameter_ID': 'p'}],
+            {'ID': '1', 'Value': 'value', 'Form': 'form', 'Language_ID': 'l', 'Parameter_ID': 'p'}],
         LanguageTable=[{'ID': 'l'}],
         ParameterTable=[{'ID': 'p'}])
     ds_wl.validate()
