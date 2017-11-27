@@ -165,41 +165,43 @@ class Dataset(object):
                 component.tableSchema.primaryKey = [idcol.name]
 
         for col in component.tableSchema.columns:
-            if col.propertyUrl and col.propertyUrl.uri.endswith('Reference'):
-                ref_name = col.propertyUrl.uri.split('#')[1].replace('Reference', 'Table')
+            if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
+                ref_name = TERMS.by_uri[col.propertyUrl.uri].references
+                if not ref_name:
+                    continue
                 for fkey in component.tableSchema.foreignKeys:
                     if fkey.columnReference == [col.name]:
                         break
                 else:
                     # Let's see whether we have the component this column references:
-                    for table in self.tables:
-                        table_type = self.get_tabletype(table)
-                        if table_type and ref_name.endswith(table_type):
-                            component.tableSchema.foreignKeys.append(
-                                ForeignKey.fromdict(dict(
-                                    columnReference=col.name,
-                                    reference=dict(
-                                        resource=table.url.string,
-                                        columnReference='ID'))))
-                        break
+                    try:
+                        table = self[ref_name]
+                        component.tableSchema.foreignKeys.append(
+                            ForeignKey.fromdict(dict(
+                                columnReference=col.name,
+                                reference=dict(
+                                    resource=table.url.string,
+                                    columnReference='ID'))))
+                    except KeyError:
+                        continue
 
         table_type = self.get_tabletype(component)
         if table_type:
-            # auto-add foreign keys:
-            ref_name = table_type.lower().replace('table', '') + 'reference'
+            # auto-add foreign keys targetting the new component:
             for table in self.tables:
                 schema = table.tableSchema
                 for col in schema.columns:
-                    if col.propertyUrl and col.propertyUrl.uri.lower().endswith(ref_name):
-                        for fkey in schema.foreignKeys:
-                            if fkey.columnReference == [col.name]:
-                                break
-                        else:
-                            schema.foreignKeys.append(ForeignKey.fromdict(dict(
-                                columnReference=col.name,
-                                reference=dict(
-                                    resource=component.url.string,
-                                    columnReference='ID'))))
+                    if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
+                        if TERMS.by_uri[col.propertyUrl.uri].references == table_type:
+                            for fkey in schema.foreignKeys:
+                                if fkey.columnReference == [col.name]:
+                                    break
+                            else:
+                                schema.foreignKeys.append(ForeignKey.fromdict(dict(
+                                    columnReference=col.name,
+                                    reference=dict(
+                                        resource=component.url.string,
+                                        columnReference='ID'))))
 
     @property
     def bibpath(self):
@@ -383,7 +385,7 @@ class Dataset(object):
         for table in self.tables:
             dctype = table.common_props.get('dc:conformsTo')
             if dctype.split('#')[1] in TERMS:
-                dctype = TERMS[dctype.split('#')[1]].label
+                dctype = TERMS[dctype.split('#')[1]].csvw_prop('name')
             res.append((table.url.string, dctype, len(list(table))))
         if self.sources:
             res.append((self.bibpath.name, 'Sources', len(self.sources)))
@@ -409,9 +411,8 @@ class Wordlist(Dataset):
     def primary_table(self):
         return 'FormTable'
 
-    def get_soundsequence(self, row, table='FormTable'):
-        col = self[table].get_column(
-            "http://cldf.clld.org/v1.0/terms.rdf#soundSequence")
+    def get_segments(self, row, table='FormTable'):
+        col = self[table].get_column("http://cldf.clld.org/v1.0/terms.rdf#segments")
         sounds = row[col.name]
         if isinstance(sounds, string_types):
             # This may be the case when no morpheme boundaries are provided.
@@ -426,13 +427,13 @@ class Wordlist(Dataset):
         :param partial_cognate:
         :return:
         """
-        # 1. Determine the "slices" column in the PartialCognateTable
-        slices = self['PartialCognateTable'].get_column(
-            "http://cldf.clld.org/v1.0/terms.rdf#slice")
+        # 1. Determine the "segmentSlice" column in the CognateTable
+        slices = self['CognateTable'].get_column(
+            "http://cldf.clld.org/v1.0/terms.rdf#segmentSlice")
 
-        # 2. Determine the "soundSequence" column in the FormTable
+        # 2. Determine the "segments" column in the FormTable
         morphemes = self['FormTable'].get_column(
-            "http://cldf.clld.org/v1.0/terms.rdf#soundSequence")
+            "http://cldf.clld.org/v1.0/terms.rdf#segments")
 
         # 3. Retrieve the matching row in FormTable
         for row in self['FormTable']:

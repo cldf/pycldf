@@ -16,7 +16,7 @@ setup(
     url='https://github.com/cldf/pycldf',
     install_requires=[
         'clldutils>=1.13.10',
-        'csvw==0.1',
+        'csvw>=0.1',
         'uritemplate>=3.0',
         'python-dateutil',
         'pybtex',

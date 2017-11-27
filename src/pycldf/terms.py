@@ -17,6 +17,7 @@ URL = 'http://cldf.clld.org/v1.0/terms.rdf'
 RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 RDFS = 'http://www.w3.org/2000/01/rdf-schema#'
 CSVW = 'http://www.w3.org/ns/csvw#'
+DC = 'http://purl.org/dc/terms/'
 
 
 def term_uri(name, terms=None, ns=URL):
@@ -34,9 +35,9 @@ def qname(ns, lname):
 @attr.s
 class Term(object):
     name = attr.ib()
-    label = attr.ib()
     type = attr.ib(validator=attr.validators.in_(['Class', 'Property']))
     element = attr.ib()
+    references = attr.ib(default=None)
 
     @property
     def uri(self):
@@ -44,11 +45,13 @@ class Term(object):
 
     @classmethod
     def from_element(cls, e):
+        ref = e.find(qname(DC, 'references'))
         return cls(
             name=e.attrib[qname(RDF, 'about')].split('#')[1],
-            label=e.find(qname(RDFS, 'label')).text,
             type=e.tag.split('}')[1],
-            element=e)
+            element=e,
+            references=ref.attrib[qname(RDF, 'resource')].split('#')[1] \
+            if ref is not None else None)
 
     def csvw_prop(self, lname):
         if self.element.find(qname(CSVW, lname)) is not None:

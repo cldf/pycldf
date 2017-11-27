@@ -103,7 +103,7 @@ def test_foreign_key_creation_two_fks_from_new_comp(ds):
         }],
         BorrowingTable=[{
             'ID': 'abc',
-            'Form_ID_Target': '1'}])
+            'Target_Form_ID': '1'}])
     ds.validate()
 
 
@@ -156,12 +156,12 @@ def test_cognates(ds_wl):
              'Parameter_ID': 'p'}
         ],
     )
-    assert ' '.join(ds_wl.get_soundsequence(list(ds_wl['FormTable'])[0])) == 'a bc d e f'
+    assert ' '.join(ds_wl.get_segments(list(ds_wl['FormTable'])[0])) == 'a bc d e f'
 
 
 def test_partial_cognates(ds_wl):
     ds_wl['FormTable'].get_column('Segments').separator = '+'
-    ds_wl.add_component('PartialCognateTable')
+    ds_wl.add_component('CognateTable')
     ds_wl.write(
         FormTable=[
             {'ID': '1',
@@ -171,17 +171,17 @@ def test_partial_cognates(ds_wl):
              'Language_ID': 'l',
              'Parameter_ID': 'p'}
         ],
-        PartialCognateTable=[
+        CognateTable=[
             {
                 'ID': '1',
                 'Form_ID': '1',
                 'Cognateset_ID': '1',
-                'Slice': ['1:3'],
+                'Segment_Slice': ['2:4'],
             }
         ],
     )
-    assert ' '.join(ds_wl.get_soundsequence(list(ds_wl['FormTable'])[0])) == 'a bc d e f g'
-    assert ' '.join(ds_wl.get_subsequence(list(ds_wl['PartialCognateTable'])[0])) == 'd e f g'
+    assert ' '.join(ds_wl.get_segments(list(ds_wl['FormTable'])[0])) == 'a bc d e f g'
+    assert ' '.join(ds_wl.get_subsequence(list(ds_wl['CognateTable'])[0])) == 'd e f g'
 
 
 def _make_tg(tmpdir, *tables):
@@ -335,9 +335,9 @@ def test_Dataset_write(tmpdir):
         {
             'ID': '1',
             'Language_ID': 'abcd1234',
-            'Primary': 'si',
-            'Translation': 'yes',
-            'Analyzed': ['morph1', 'morph2', 'morph3'],
+            'Primary_Text': 'si',
+            'Translated_Text': 'yes',
+            'Analyzed_Word': ['morph1', 'morph2', 'morph3'],
             'Gloss': ['gl1', 'gl2', 'gl3'],
         }])
     ds.validate()

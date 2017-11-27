@@ -15,6 +15,6 @@ def multislice(sliceable, *slices):
     res = type(sliceable)()
     for sl in slices:
         if isinstance(sl, string_types):
-            sl = map(int, sl.split(':'))
+            sl = [int(s) - (1 if i < 2 else 0) for i, s in enumerate(sl.split(':'))]
         res += sliceable[slice(*sl)]
     return res
