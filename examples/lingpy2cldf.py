@@ -11,20 +11,20 @@ LINGPY_DIALECT = Dialect(delimiter='\t', skipBlankRows=True)
 
 def main(out):
     ds = Wordlist.in_dir(out)
-    ds.add_sources(read_text('polynesian.bib'))
+    ds.add_sources(read_text('lingpy_tutorial/polynesian.bib'))
     ds.add_component('LanguageTable')
     ds.add_component('ParameterTable', 'Concepticon_ID')
     ds.add_component('CognateTable')
 
     languages, parameters, forms, cognates = {}, {}, [], []
 
-    for d in reader('polynesian.tsv', dicts=True, dialect=LINGPY_DIALECT):
+    for d in reader('lingpy_tutorial/polynesian.tsv', dicts=True, dialect=LINGPY_DIALECT):
         lid = slug(d['DOCULECT'])
         if lid not in languages:
             languages[lid] = dict(
                 ID=lid,
                 Name=d['DOCULECT_IN_SOURCE'],
-                glottocode=d['GLOTTOCODE'])
+                Glottocode=d['GLOTTOCODE'])
 
         pid = d['CONCEPTICON_ID']
         if pid not in parameters:
@@ -50,7 +50,7 @@ def main(out):
 
 
 if __name__ == '__main__':
-    out = Path('cldf')
+    out = Path('lingpy_cldf')
     if not out.exists():
         out.mkdir()
     main(out)

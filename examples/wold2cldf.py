@@ -93,9 +93,9 @@ def make_cldf(db, out, mid):
     ds.add_component(
         'BorrowingTable',
         {
-            'name': 'relation',
+            'name': 'Relation',
             'datatype': {'base': 'string', 'format': 'immediate|earlier'}},
-        {'name': 'certain', 'datatype': 'boolean'})
+        {'name': 'Certain', 'datatype': 'boolean'})
 
     # Now we collect the data by querying the database:
     forms, languages = [], {}
@@ -118,8 +118,8 @@ def make_cldf(db, out, mid):
         languages[lpk] = dict(
             ID=lid,
             Name=lname,
-            glottocode=ids.get('glottolog'),
-            Iso=ids.get('iso639-3'),
+            Glottocode=ids.get('glottolog'),
+            ISO639P3code=ids.get('iso639-3'),
         )
         forms.append(dict(
             ID=vid,
@@ -136,10 +136,10 @@ def make_cldf(db, out, mid):
         if form != 'Unidentifiable':
             borrowings.append(dict(
                 ID='{0}'.format(i + 1),
-                Form_ID_Source=uid,
-                Form_ID_Target=upk2uid[tpk],
-                relation=lrel,
-                certain=lcertain,
+                Source_Form_ID=uid,
+                Target_Form_ID=upk2uid[tpk],
+                Relation=lrel,
+                Certain=lcertain,
             ))
             sourceforms[uid] = dict(
                 ID=uid,
@@ -150,8 +150,8 @@ def make_cldf(db, out, mid):
             languages[lpk] = dict(
                 ID=lid,
                 Name=lname,
-                glottocode=ids.get('glottolog'),
-                Iso=ids.get('iso639-3'),
+                Glottocode=ids.get('glottolog'),
+                ISO639P3code=ids.get('iso639-3'),
             )
 
     meanings = []

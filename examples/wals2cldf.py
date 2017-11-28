@@ -129,8 +129,8 @@ def make_cldf(db, out, fid):
             Name=lname,
             Latitude=lat,
             Longitude=lon,
-            glottocode=ids.get('glottolog'),
-            Iso=ids.get('iso639-3'),
+            Glottocode=ids.get('glottolog'),
+            ISO639P3code=ids.get('iso639-3'),
             Genus=gname,
             Family=fname,
         ))
