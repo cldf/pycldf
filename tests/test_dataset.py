@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import pytest
 
-from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column
+from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table
 from clldutils.path import copy, write_text, Path
 
 from pycldf.terms import term_uri
@@ -109,7 +109,7 @@ def test_foreign_key_creation_two_fks_from_new_comp(ds):
 
 def test_add_table(tmpdir, ds):
     ds.add_table('stuff.csv', term_uri('id'), 'col1')
-    ds.write(fname=str(tmpdir/ 't.json'), **{'stuff.csv': [{'ID': '.ab'}]})
+    ds.write(fname=str(tmpdir / 't.json'), **{'stuff.csv': [{'ID': '.ab'}]})
     with pytest.raises(ValueError):
         ds.validate()
     ds['stuff.csv', 'ID'].name = 'nid'
@@ -190,6 +190,13 @@ def _make_tg(tmpdir, *tables):
     return tg
 
 
+def test_add_component_from_table(ds):
+    ds.add_component(Table.fromvalue({
+        "url": 'u.csv',
+        "dc:conformsTo": "funny#stuff",
+        "tableSchema": {"columns": []}}))
+
+
 def test_add_component(ds_wl):
     ds_wl['FormTable'].tableSchema.foreignKeys.append(ForeignKey.fromdict({
         'columnReference': 'Language_ID',
@@ -258,6 +265,12 @@ def test_Dataset_from_scratch(tmpdir, data):
     assert len(ds.stats()) == 1
 
 
+def test_Dataset_from_data_empty_file(tmpdir):
+    write_text(str(tmpdir / 'values.csv'), '')
+    with pytest.raises(ValueError):
+        Dataset.from_data(str(tmpdir / 'values.csv'))
+
+
 def test_Dataset_validate(tmpdir):
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.write(ValueTable=[])
@@ -282,6 +295,15 @@ def test_Dataset_validate(tmpdir):
     ds.write(ValueTable=[])
     with pytest.raises(ValueError):
         ds.validate()
+
+
+def test_Dataset_validate_missing_table(tmpdir, mocker):
+    ds = StructureDataset.from_metadata(str(tmpdir))
+    ds.tablegroup.tables = []
+    ds.write()
+    log = mocker.Mock()
+    ds.validate(log=log)
+    assert log.warn.called
 
 
 def test_Dataset_write(tmpdir):

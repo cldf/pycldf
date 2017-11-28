@@ -251,16 +251,18 @@ class Dataset(object):
                         validators.append((col, VALIDATORS[col.propertyUrl.uri]))
 
             data[table.local_name] = []
-            for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
-                data[table.local_name].append((fname, lineno, row))
-                for col, validate in validators:
-                    try:
-                        validate(self, table, col, row)
-                    except ValueError as e:
-                        log_or_raise(
-                            '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
-                            log=log)
-            table.check_primary_key(log=log, items=data[table.local_name])
+            fname = Path(table.url.resolve(table._parent.base))
+            if fname.exists():
+                for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
+                    data[table.local_name].append((fname, lineno, row))
+                    for col, validate in validators:
+                        try:
+                            validate(self, table, col, row)
+                        except ValueError as e:
+                            log_or_raise(
+                                '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
+                                log=log)
+                table.check_primary_key(log=log, items=data[table.local_name])
 
         self._tg.check_referential_integrity(log=log, data=data)
 
@@ -317,6 +319,8 @@ class Dataset(object):
                     if not set(required_cols).issubset(set(line.split(','))):
                         raise ValueError()
                     break
+                else:
+                    raise ValueError('empty data file!')
                 return res
         raise ValueError(fname)
 
