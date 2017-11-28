@@ -99,6 +99,9 @@ class Sources(object):
         for key, entry in self._bibdata.entries.items():
             yield Source.from_entry(key, entry)
 
+    def __iter__(self):
+        return self.items()
+
     def __len__(self):
         return len(self._bibdata.entries)
 

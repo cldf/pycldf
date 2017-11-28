@@ -21,6 +21,9 @@ def test_Sources(tmpdir):
     src = Sources()
     src.add(BIB, Source(
         'book', 'huber2005', author='Herrmann Huber', year='2005', title='y'))
+    for entry in src:
+        assert entry.genre == 'book'
+        break
     assert len(list(src.items())) == 3
     assert len(list(src.keys())) == 3
     refs = ['huber2005[1-6]', 'Obrazy', 'Elegie[34]']
