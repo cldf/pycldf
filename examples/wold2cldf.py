@@ -8,44 +8,44 @@ from clldutils.path import Path
 from pycldf import Wordlist
 
 SQL_FORMS = """\
-SELECT 
+SELECT
   l.pk, l.id, l.name, vs.pk, v.id, p.id, u.name, u.pk
-FROM 
+FROM
   counterpart as cp,
-  value AS v, 
-  valueset AS vs, 
+  value AS v,
+  valueset AS vs,
   language AS l,
-  parameter AS p, 
+  parameter AS p,
   contribution AS c,
   unit AS u
 WHERE
   cp.word_pk = u.pk
   AND cp.pk = v.pk
-  AND v.valueset_pk = vs.pk 
+  AND v.valueset_pk = vs.pk
   AND vs.contribution_pk = c.pk
-  AND vs.language_pk = l.pk 
-  AND vs.parameter_pk = p.pk 
-  AND c.id = '{0}' 
+  AND vs.language_pk = l.pk
+  AND vs.parameter_pk = p.pk
+  AND c.id = '{0}'
 ORDER BY
   p.pk, u.name"""
 
 SQL_SOURCE_FORMS = """\
-SELECT 
+SELECT
   l.pk, l.id, l.name, u.name, u.id, lo.target_word_pk, lo.relation, lo.certain
-FROM 
+FROM
   language AS l,
   unit AS u,
   loan as lo
 WHERE
   u.pk = lo.source_word_pk
   AND lo.target_word_pk in (
-    SELECT cp.word_pk 
-    from counterpart as cp, valueset as vs, value as v, contribution as c 
-    where 
-      c.id = '{0}' 
-      and vs.contribution_pk = c.pk 
-      and cp.pk = v.pk 
-      and v.valueset_pk = vs.pk) 
+    SELECT cp.word_pk
+    from counterpart as cp, valueset as vs, value as v, contribution as c
+    where
+      c.id = '{0}'
+      and vs.contribution_pk = c.pk
+      and cp.pk = v.pk
+      and v.valueset_pk = vs.pk)
   AND u.language_pk = l.pk
 ORDER BY
   l.name"""
@@ -63,14 +63,14 @@ ORDER BY
   li.language_pk, i.type"""
 
 SQL_MEANING = """\
-SELECT 
+SELECT
   p.id, p.name, m.semantic_category, sf.id, sf.name
 FROM
-  parameter AS p, 
+  parameter AS p,
   meaning AS m,
-  semanticfield as sf 
+  semanticfield as sf
 WHERE
-  p.pk = m.pk 
+  p.pk = m.pk
   AND m.semantic_field_pk = sf.pk
 ORDER BY
   p.pk"""

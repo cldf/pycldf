@@ -79,3 +79,7 @@ def createdb(args):
 def main():  # pragma: no cover
     parser = ArgumentParserWithLogging('pycldf', stats, validate, createdb)
     sys.exit(parser.main())
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

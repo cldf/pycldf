@@ -50,7 +50,7 @@ class Term(object):
             name=e.attrib[qname(RDF, 'about')].split('#')[1],
             type=e.tag.split('}')[1],
             element=e,
-            references=ref.attrib[qname(RDF, 'resource')].split('#')[1] \
+            references=ref.attrib[qname(RDF, 'resource')].split('#')[1]
             if ref is not None else None)
 
     def csvw_prop(self, lname):

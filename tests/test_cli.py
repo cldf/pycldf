@@ -5,7 +5,7 @@ import pytest
 from clldutils.path import copy
 from clldutils.clilib import ParserError
 
-from pycldf.cli import validate, stats, createdb
+from pycldf.__main__ import validate, stats, createdb
 
 
 def test_stats(tmpdir, mocker):

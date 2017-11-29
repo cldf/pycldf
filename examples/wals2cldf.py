@@ -10,32 +10,32 @@ from pycldf import StructureDataset, Source
 # WALS only has one value per feature/language pair. So the query below, when parametrized
 # with a feature ID, will return one row per distinct language.
 SQL_VALUES = """\
-SELECT 
-  l.pk, 
-  l.id, 
-  l.name, 
-  vs.id, 
+SELECT
+  l.pk,
+  l.id,
+  l.name,
+  vs.id,
   de.number,
   de.name,
-  l.latitude, 
-  l.longitude, 
+  l.latitude,
+  l.longitude,
   vs.pk,
   g.name,
-  f.name 
-FROM 
-  value AS v, 
-  valueset AS vs, 
+  f.name
+FROM
+  value AS v,
+  valueset AS vs,
   language AS l,
   walslanguage AS w,
-  parameter AS p, 
+  parameter AS p,
   domainelement AS de,
   genus AS g,
   family AS f
-WHERE 
-  v.valueset_pk = vs.pk 
-  AND vs.language_pk = l.pk 
-  AND vs.parameter_pk = p.pk 
-  AND p.id = '{0}' 
+WHERE
+  v.valueset_pk = vs.pk
+  AND vs.language_pk = l.pk
+  AND vs.parameter_pk = p.pk
+  AND p.id = '{0}'
   AND v.domainelement_pk = de.pk
   AND l.pk = w.pk
   AND w.genus_pk = g.pk
@@ -59,26 +59,26 @@ SQL_SOURCES = """\
 SELECT
   vsr.valueset_pk, vsr.description, s.id, s.bibtex_type, s.author, s.year, s.title
 FROM
-  valuesetreference AS vsr, source AS s 
+  valuesetreference AS vsr, source AS s
 WHERE
   vsr.source_pk = s.pk
 ORDER BY
   vsr.valueset_pk"""
 
 SQL_FEATURE = """\
-SELECT 
+SELECT
   p.name, string_agg(c.name, ' and '), a.name
 FROM
-  parameter AS p, 
-  feature AS f, 
-  contributioncontributor AS cc, 
+  parameter AS p,
+  feature AS f,
+  contributioncontributor AS cc,
   contributor AS c,
   chapter AS ch,
   area AS a
 WHERE
   p.id = '{0}'
-  AND p.pk = f.pk 
-  AND f.contribution_pk = cc.contribution_pk 
+  AND p.pk = f.pk
+  AND f.contribution_pk = cc.contribution_pk
   AND cc.contributor_pk = c.pk
   AND f.contribution_pk = ch.pk
   AND ch.area_pk = a.pk
@@ -150,8 +150,8 @@ def make_cldf(db, out, fid):
 
     fname, fauthors, aname = list(db.execute(SQL_FEATURE.format(fid)))[0]
     ds.write(
-        ValueTable=values, 
-        LanguageTable=languages, 
+        ValueTable=values,
+        LanguageTable=languages,
         ParameterTable=[{
             'ID': fid,
             'Name': fname,

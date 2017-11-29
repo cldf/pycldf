@@ -248,7 +248,7 @@ def test_Dataset_from_scratch(tmpdir, data):
         ds = Dataset.from_data(str(tmpdir / 'values.csv'))
 
     # A known file name will determine the CLDF module of the dataset:
-    copy(str(data /'ds1.csv'), str(tmpdir / 'values.csv'))
+    copy(str(data / 'ds1.csv'), str(tmpdir / 'values.csv'))
     ds = Dataset.from_data(str(tmpdir / 'values.csv'))
     assert ds.module == 'StructureDataset'
 
