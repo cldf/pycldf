@@ -13,7 +13,7 @@ from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
 from pycldf.sources import Sources
-from pycldf.util import pkg_path, multislice, resolve_slices
+from pycldf.util import pkg_path, resolve_slices
 from pycldf.terms import term_uri, TERMS
 from pycldf.validators import VALIDATORS
 

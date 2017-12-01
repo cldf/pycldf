@@ -10,7 +10,7 @@ tox -r
 - Make sure statement coverage is at 100%
 - Make sure flake8 passes:
 ```
-flake8 --ignore=E711,E712,D100,D101,D103,D102,D301 --max-line-length=100 pycldf
+flake8
 ```
 
 - Change version to the new version number in
