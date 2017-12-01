@@ -16,7 +16,7 @@ flake8
 - Change version to the new version number in
 
   - `setup.py`
-  - `pycldf/__init__.py`
+  - `src/pycldf/__init__.py`
 
 - Bump version number:
 ```
