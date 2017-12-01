@@ -13,7 +13,7 @@ from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
 from pycldf.sources import Sources
-from pycldf.util import pkg_path, multislice
+from pycldf.util import pkg_path, multislice, resolve_slices
 from pycldf.terms import term_uri, TERMS
 from pycldf.validators import VALIDATORS
 
@@ -372,6 +372,13 @@ class Dataset(object):
 
         raise KeyError(column)
 
+    def get_row(self, table, id_):
+        id_col = self[table, TERMS['id']]
+        for row in self[table]:
+            if row[id_col.name] == id_:
+                return row
+        raise ValueError(id_)  # pragma: no cover
+
     @staticmethod
     def get_tabletype(table):
         if '#' in table.common_props.get('dc:conformsTo', ''):
@@ -423,7 +430,7 @@ class Wordlist(Dataset):
             sounds = [sounds]
         return list(chain(*[s.split() for s in sounds]))
 
-    def get_subsequence(self, partial_cognate):
+    def get_subsequence(self, cognate, form=None):
         """
         Compute the subsequence of the morphemes of a form which is specified in a partial
         cognate assignment.
@@ -431,31 +438,35 @@ class Wordlist(Dataset):
         :param partial_cognate:
         :return:
         """
-        # 1. Determine the "segmentSlice" column in the CognateTable
-        slices = self['CognateTable'].get_column(
-            "http://cldf.clld.org/v1.0/terms.rdf#segmentSlice")
-
-        # 2. Determine the "segments" column in the FormTable
-        morphemes = self['FormTable'].get_column(
-            "http://cldf.clld.org/v1.0/terms.rdf#segments")
-
-        # 3. Retrieve the matching row in FormTable
-        for row in self['FormTable']:
-            if row['ID'] == partial_cognate['Form_ID']:
-                break
-        else:
-            raise ValueError(partial_cognate['Form_ID'])  # pragma: no cover
-
-        # 4. Slice the segments
-        return list(chain(*[
-            s.split() for s in multislice(
-                row[morphemes.name], *partial_cognate[slices.name])]))
+        return resolve_slices(
+            cognate,
+            self,
+            ('CognateTable', "http://cldf.clld.org/v1.0/terms.rdf#segmentSlice"),
+            ('FormTable', "http://cldf.clld.org/v1.0/terms.rdf#segments"),
+            'Form_ID',
+            target_row=form)
 
 
 class Generic(Dataset):
     @property
     def primary_table(self):
         return None
+
+
+class ParallelText(Dataset):
+    @property
+    def primary_table(self):
+        return 'FormTable'
+
+    def get_equivalent(self, functional_equivalent, form=None):
+        return resolve_slices(
+            functional_equivalent,
+            self,
+            ('FunctionalEquivalentTable',
+             "http://cldf.clld.org/v1.0/terms.rdf#segmentSlice"),
+            ('FormTable', "http://cldf.clld.org/v1.0/terms.rdf#segments"),
+            'Form_ID',
+            target_row=form)
 
 
 class Dictionary(Dataset):

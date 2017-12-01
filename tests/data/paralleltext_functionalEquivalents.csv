@@ -1,0 +1,7 @@
+"ID","Form_ID","Segment_Slice","FunctionalEquivalentset_ID"
+"fe_1","aai_40001001","3","fes_678"
+"fe_2","aak_40001001","4:5","fes_678"
+"fe_3","aau_40001001","3:4","fes_678"
+"fe_4","aai_40001002","2:3","fes_5263"
+"fe_5","aak_40001002","3","fes_5263"
+"fe_6","aau_40001002","2 4:5","fes_5263"

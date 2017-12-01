@@ -21,6 +21,8 @@ DC = 'http://purl.org/dc/terms/'
 
 
 def term_uri(name, terms=None, ns=URL):
+    if isinstance(name, Term):
+        return name.uri
     if not name.startswith(ns):
         sep = '' if ns.endswith('#') else '#'
         name = sep.join([ns, name])
@@ -41,7 +43,7 @@ class Term(object):
 
     @property
     def uri(self):
-        return term_uri(self.name)
+        return '{0}#{1}'.format(URL, self.name)
 
     @classmethod
     def from_element(cls, e):

@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.mark.parametrize("sliceable,slices,expected", [
-    ('abcdefg', ['2:5', (1, 4)], 'bcdbcd'),
+    ('abcdefg', ['2:5', (1, 4)], 'bcdebcd'),
     ([1, 2, 3, 4], ['1:6:2'], [1, 3]),
     ((1, 2, 3, 4), ['1:6:2'], (1, 3))
 ])
