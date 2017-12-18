@@ -397,7 +397,7 @@ class Dataset(object):
             dctype = table.common_props.get('dc:conformsTo')
             if dctype.split('#')[1] in TERMS:
                 dctype = TERMS[dctype.split('#')[1]].csvw_prop('name')
-            res.append((table.url.string, dctype, len(list(table))))
+            res.append((table.url.string, dctype, sum(1 for _ in table)))
         if self.sources:
             res.append((self.bibpath.name, 'Sources', len(self.sources)))
         return res
