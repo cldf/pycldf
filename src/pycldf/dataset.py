@@ -190,11 +190,12 @@ class Dataset(object):
                     continue
             else:
                 ref = component
+            idcol = ref.get_column(term_uri('id'))
             table.tableSchema.foreignKeys.append(ForeignKey.fromdict(dict(
                 columnReference=col.name,
                 reference=dict(
                     resource=ref.url.string,
-                    columnReference='ID'))))
+                    columnReference=idcol.name if idcol is not None else 'ID'))))
 
     @property
     def bibpath(self):

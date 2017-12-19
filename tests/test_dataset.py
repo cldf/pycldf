@@ -265,8 +265,7 @@ def test_Dataset_from_scratch(tmpdir, data):
     assert len(ds.stats()) == 1
 
 
-@pytest.mark.xfail(raises=KeyError, reason='FIXME: expects columnReference "ID" instead of "lid"')
-def test_Dataset_references(tmpdir):
+def test_Dataset_auto_foreign_keys(tmpdir):
     ds = StructureDataset.in_dir(str(tmpdir), empty_tables=True)
     ds.add_component(
         {'url': 'languages.csv', 'dc:conformsTo': 'http://cldf.clld.org/v1.0/terms.rdf#LanguageTable',
