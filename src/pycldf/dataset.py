@@ -164,44 +164,37 @@ class Dataset(object):
             if idcol:
                 component.tableSchema.primaryKey = [idcol.name]
 
-        for col in component.tableSchema.columns:
-            if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
-                ref_name = TERMS.by_uri[col.propertyUrl.uri].references
-                if not ref_name:
-                    continue
-                for fkey in component.tableSchema.foreignKeys:
-                    if fkey.columnReference == [col.name]:
-                        break
-                else:
-                    # Let's see whether we have the component this column references:
-                    try:
-                        table = self[ref_name]
-                        component.tableSchema.foreignKeys.append(
-                            ForeignKey.fromdict(dict(
-                                columnReference=col.name,
-                                reference=dict(
-                                    resource=table.url.string,
-                                    columnReference='ID'))))
-                    except KeyError:
-                        continue
+        self._auto_foreign_keys(component)
 
         table_type = self.get_tabletype(component)
         if table_type:
             # auto-add foreign keys targetting the new component:
             for table in self.tables:
-                schema = table.tableSchema
-                for col in schema.columns:
-                    if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
-                        if TERMS.by_uri[col.propertyUrl.uri].references == table_type:
-                            for fkey in schema.foreignKeys:
-                                if fkey.columnReference == [col.name]:
-                                    break
-                            else:
-                                schema.foreignKeys.append(ForeignKey.fromdict(dict(
-                                    columnReference=col.name,
-                                    reference=dict(
-                                        resource=component.url.string,
-                                        columnReference='ID'))))
+                self._auto_foreign_keys(table, component=component, table_type=table_type)
+
+    def _auto_foreign_keys(self, table, component=None, table_type=None):
+        assert (component is None) == (table_type is None)
+        for col in table.tableSchema.columns:
+            if not col.propertyUrl or col.propertyUrl.uri not in TERMS.by_uri:
+                continue
+            ref_name = TERMS.by_uri[col.propertyUrl.uri].references
+            if (component is None and not ref_name) or (component is not None and ref_name != table_type):
+                continue
+            if any(fkey.columnReference == [col.name] for fkey in table.tableSchema.foreignKeys):
+                continue
+            if component is None:
+                # Let's see whether we have the component this column references:
+                try:
+                    ref = self[ref_name]
+                except KeyError:
+                    continue
+            else:
+                ref = component
+            table.tableSchema.foreignKeys.append(ForeignKey.fromdict(dict(
+                columnReference=col.name,
+                reference=dict(
+                    resource=ref.url.string,
+                    columnReference='ID'))))
 
     @property
     def bibpath(self):
