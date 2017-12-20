@@ -268,19 +268,28 @@ def test_Dataset_from_scratch(tmpdir, data):
 def test_Dataset_auto_foreign_keys(tmpdir):
     ds = StructureDataset.in_dir(str(tmpdir), empty_tables=True)
     ds.add_component(
-        {'url': 'languages.csv', 'dc:conformsTo': 'http://cldf.clld.org/v1.0/terms.rdf#LanguageTable',
-         'tableSchema': {'primaryKey': 'lid'}},
+        {
+            'url': 'languages.csv',
+            'dc:conformsTo': 'http://cldf.clld.org/v1.0/terms.rdf#LanguageTable',
+            'tableSchema': {'primaryKey': 'lid'}},
         {'name': 'lid', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#id'})
     ds.add_component(
-        {'url': 'values.csv', 'dc:conformsTo': 'http://cldf.clld.org/v1.0/terms.rdf#ValueTable',
-         'tableSchema': {'primaryKey': 'vid'}},
+        {
+            'url': 'values.csv',
+            'dc:conformsTo': 'http://cldf.clld.org/v1.0/terms.rdf#ValueTable',
+            'tableSchema': {'primaryKey': 'vid'}},
         {'name': 'vid', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#id'},
-        {'name': 'feature', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#parameterReference'},
-        {'name': 'language_lid', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#languageReference'},
+        {
+            'name': 'feature',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#parameterReference'},
+        {
+            'name': 'language_lid',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#languageReference'},
         {'name': 'value', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#value'})
     ds.write(
         LanguageTable=[{'lid': 'spam'}],
-        ValueTable=[{'vid': '1', 'feature': 'bing', 'language_lid': 'spam', 'value': 'eggs'}])
+        ValueTable=[
+            {'vid': '1', 'feature': 'bing', 'language_lid': 'spam', 'value': 'eggs'}])
     ds.validate()
 
 

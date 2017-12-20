@@ -178,9 +178,11 @@ class Dataset(object):
             if not col.propertyUrl or col.propertyUrl.uri not in TERMS.by_uri:
                 continue
             ref_name = TERMS.by_uri[col.propertyUrl.uri].references
-            if (component is None and not ref_name) or (component is not None and ref_name != table_type):
+            if (component is None and not ref_name) or \
+                    (component is not None and ref_name != table_type):
                 continue
-            if any(fkey.columnReference == [col.name] for fkey in table.tableSchema.foreignKeys):
+            if any(fkey.columnReference == [col.name]
+                   for fkey in table.tableSchema.foreignKeys):
                 continue
             if component is None:
                 # Let's see whether we have the component this column references:
