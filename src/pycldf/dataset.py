@@ -207,30 +207,30 @@ class Dataset(object):
         default_tg = TableGroup.from_file(
             pkg_path('modules', '{0}{1}'.format(self.module, MD_SUFFIX)))
         for default_table in default_tg.tables:
-            table = None
+            dtable_uri = default_table.common_props['dc:conformsTo']
             try:
-                table = self[default_table.common_props['dc:conformsTo']]
+                table = self[dtable_uri]
             except KeyError:
-                log_or_raise('{0} requires {1}'.format(
-                    self.module, default_table.common_props['dc:conformsTo']), log=log)
+                log_or_raise('{0} requires {1}'.format(self.module, dtable_uri), log=log)
+                table = None
 
             if table:
-                default_cols = set(
+                default_cols = {
                     c.propertyUrl.uri for c in default_table.tableSchema.columns
-                    if c.required or c.common_props.get('dc:isRequiredBy'))
-                cols = set(
+                    if c.required or c.common_props.get('dc:isRequiredBy')}
+                cols = {
                     c.propertyUrl.uri for c in table.tableSchema.columns
-                    if c.propertyUrl)
+                    if c.propertyUrl}
+                table_uri = table.common_props['dc:conformsTo']
                 for col in default_cols - cols:
-                    log_or_raise('{0} requires column {1}'.format(
-                        table.common_props['dc:conformsTo'], col), log=log)
+                    log_or_raise('{0} requires column {1}'.format(table_uri, col), log=log)
 
         data = {}
         for table in self.tables:
             type_uri = table.common_props.get('dc:conformsTo')
             if type_uri:
                 try:
-                    TERMS.is_cldf_uri(table.common_props.get('dc:conformsTo'))
+                    TERMS.is_cldf_uri(type_uri)
                 except ValueError:
                     log_or_raise('invalid CLDF URI: {0}'.format(type_uri), log=log)
 
@@ -238,19 +238,19 @@ class Dataset(object):
             validators = []
             for col in table.tableSchema.columns:
                 if col.propertyUrl:
+                    col_uri = col.propertyUrl.uri
                     try:
-                        TERMS.is_cldf_uri(col.propertyUrl.uri)
+                        TERMS.is_cldf_uri(col_uri)
                     except ValueError:
-                        log_or_raise(
-                            'invalid CLDF URI: {0}'.format(col.propertyUrl.uri), log=log)
-                    if col.propertyUrl.uri in VALIDATORS:
-                        validators.append((col, VALIDATORS[col.propertyUrl.uri]))
+                        log_or_raise('invalid CLDF URI: {0}'.format(col_uri), log=log)
+                    if col_uri in VALIDATORS:
+                        validators.append((col, VALIDATORS[col_uri]))
 
-            data[table.local_name] = []
+            data[table.local_name] = table_data = []
             fname = Path(table.url.resolve(table._parent.base))
             if fname.exists():
                 for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
-                    data[table.local_name].append((fname, lineno, row))
+                    table_data.append((fname, lineno, row))
                     for col, validate in validators:
                         try:
                             validate(self, table, col, row)
@@ -258,7 +258,7 @@ class Dataset(object):
                             log_or_raise(
                                 '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
                                 log=log)
-                table.check_primary_key(log=log, items=data[table.local_name])
+                table.check_primary_key(log=log, items=table_data)
 
         self._tg.check_referential_integrity(log=log, data=data)
 

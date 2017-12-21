@@ -9,9 +9,9 @@ def valid_references(dataset, table, column, row):
         dataset.sources.validate(row[column.name])
 
 
-def valid_regex(regex, name, dataset, table, column, row):
+def valid_regex(pattern, name, dataset, table, column, row):
     value = row[column.name]
-    if value is not None and not re.match(regex, value):
+    if value is not None and not pattern.match(value):
         raise ValueError('invalid {0}: {1}'.format(name, value))
 
 
@@ -27,9 +27,9 @@ def valid_igt(dataset, table, column, row):
 
 VALIDATORS = {
     'http://cldf.clld.org/v1.0/terms.rdf#iso639P3code':
-        partial(valid_regex, '[a-z]{3}$', 'ISO 639-3 code'),
+        partial(valid_regex, re.compile(r'[a-z]{3}$'), 'ISO 639-3 code'),
     'http://cldf.clld.org/v1.0/terms.rdf#glottocode':
-        partial(valid_regex, '[a-z0-9]{4}[0-9]{4}$', 'glottocode'),
+        partial(valid_regex, re.compile(r'[a-z0-9]{4}[0-9]{4}$'), 'glottocode'),
     'http://cldf.clld.org/v1.0/terms.rdf#gloss': valid_igt,
     'http://cldf.clld.org/v1.0/terms.rdf#source': valid_references,
 }

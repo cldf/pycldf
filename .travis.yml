@@ -1,14 +1,6 @@
-dist: trusty
-sudo: false
-cache:
-  directories:
-    - $HOME/.cache/pip
-
 language: python
-
 matrix:
   fast_finish: true
-
   include:
     - python: "2.7"
       env: TOXENV=py27
@@ -18,20 +10,11 @@ matrix:
       env: TOXENV=py35
     - python: "3.6"
       env: TOXENV=py36
-
-install:
-  - pip install tox
-
-
-script:
-  - tox
-
-
-before_install:
-  - pip install codecov
-
-
+cache: pip
+before_cache: rm -f $HOME/.cache/pip/log/debug.log
+before_install: pip install codecov
+install: pip install tox
+script: tox
 after_success:
   - tox -e coverage-report
   - codecov
-
