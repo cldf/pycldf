@@ -225,7 +225,6 @@ class Dataset(object):
                 for col in default_cols - cols:
                     log_or_raise('{0} requires column {1}'.format(table_uri, col), log=log)
 
-        data = {}
         for table in self.tables:
             type_uri = table.common_props.get('dc:conformsTo')
             if type_uri:
@@ -246,11 +245,9 @@ class Dataset(object):
                     if col_uri in VALIDATORS:
                         validators.append((col, VALIDATORS[col_uri]))
 
-            data[table.local_name] = table_data = []
             fname = Path(table.url.resolve(table._parent.base))
             if fname.exists():
                 for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
-                    table_data.append((fname, lineno, row))
                     for col, validate in validators:
                         try:
                             validate(self, table, col, row)
@@ -258,9 +255,9 @@ class Dataset(object):
                             log_or_raise(
                                 '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
                                 log=log)
-                table.check_primary_key(log=log, items=table_data)
+                table.check_primary_key(log=log)
 
-        self._tg.check_referential_integrity(log=log, data=data)
+        self._tg.check_referential_integrity(log=log)
 
     @property
     def directory(self):
