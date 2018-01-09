@@ -7,7 +7,8 @@ from clldutils.path import copy, write_text, Path
 
 from pycldf.terms import term_uri
 from pycldf.dataset import (
-    Generic, Wordlist, StructureDataset, Dictionary, Dataset, make_column, get_modules)
+    Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset,
+    make_column, get_modules)
 
 
 @pytest.fixture
@@ -297,6 +298,17 @@ def test_Dataset_from_data_empty_file(tmpdir):
     write_text(str(tmpdir / 'values.csv'), '')
     with pytest.raises(ValueError):
         Dataset.from_data(str(tmpdir / 'values.csv'))
+
+
+@pytest.mark.parametrize('cls, expected', [
+    (Dataset, ParallelText),
+    pytest.param(Wordlist, Wordlist, marks=pytest.mark.xfail(reason='FIXME: #55')),
+    (ParallelText, ParallelText),
+])
+def test_Dataset_from_data(tmpdir, cls, expected):
+    forms = tmpdir / 'forms.csv'
+    forms.write_text('ID,Language_ID,Parameter_ID,Form', encoding='utf-8')
+    assert type(cls.from_data(str(forms))) is expected
 
 
 def test_Dataset_validate(tmpdir):
