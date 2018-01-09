@@ -8,6 +8,7 @@ from six import string_types
 
 import attr
 from csvw.metadata import TableGroup, Table, Column, ForeignKey
+from csvw.dsv import iterrows
 from clldutils.path import Path
 from clldutils.misc import log_or_raise
 from clldutils import jsonlib
@@ -17,7 +18,7 @@ from pycldf.util import pkg_path, resolve_slices
 from pycldf.terms import term_uri, TERMS
 from pycldf.validators import VALIDATORS
 
-__all__ = ['Dataset', 'Dictionary', 'StructureDataset', 'Generic', 'Wordlist']
+__all__ = ['Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset']
 
 MD_SUFFIX = '-metadata.json'
 
@@ -44,6 +45,7 @@ _modules = []
 
 
 def get_modules():
+    global _modules
     if not _modules:
         ds = sys.modules[__name__]
         for p in pkg_path('modules').glob('*{0}'.format(MD_SUFFIX)):
@@ -53,6 +55,9 @@ def get_modules():
                 tg.tables[0].url.string if tg.tables else None)
             mod.cls = getattr(ds, mod.id)
             _modules.append(mod)
+        # prefer Wordlist over ParallelText (forms.csv)
+        sortkey = lambda m: (m.cls in (Wordlist, ParallelText), m.cls is ParallelText)
+        _modules = sorted(_modules, key=sortkey)
     return _modules
 
 
@@ -302,20 +307,23 @@ class Dataset(object):
     @classmethod
     def from_data(cls, fname):
         fname = Path(fname)
-        for mod in get_modules():
-            if mod.match(fname):
-                res = mod.cls.from_metadata(fname if fname.is_dir() else fname.parent)
-                for line in fname.open(encoding='utf8'):
-                    required_cols = [
-                        c.name for c in res[res.primary_table].tableSchema.columns
-                        if c.required]
-                    if not set(required_cols).issubset(set(line.split(','))):
-                        raise ValueError()
-                    break
-                else:
-                    raise ValueError('empty data file!')
-                return res
-        raise ValueError(fname)
+        colnames = next(iterrows(fname), [])
+        if not colnames:
+            raise ValueError('empty data file!')
+        if cls is Dataset:
+            try:
+                cls = next(mod.cls for mod in get_modules() if mod.match(fname))
+            except StopIteration:
+                raise ValueError(fname)
+            assert issubclass(cls, Dataset) and cls is not Dataset
+
+        res = cls.from_metadata(fname.parent)
+        required_cols = {
+            c.name for c in res[res.primary_table].tableSchema.columns
+            if c.required}
+        if not required_cols.issubset(colnames):
+            raise ValueError('missing columns: %r' % sorted(required_cols.difference(colnames)))
+        return res
 
     def __repr__(self):
         return '<cldf:%s:%s at %s>' % (self.version, self.module, self.directory)
@@ -410,6 +418,12 @@ class Dataset(object):
             self[table_type].write(items)
 
 
+class Generic(Dataset):
+    @property
+    def primary_table(self):
+        return None
+
+
 class Wordlist(Dataset):
     @property
     def primary_table(self):
@@ -438,12 +452,6 @@ class Wordlist(Dataset):
             ('FormTable', "http://cldf.clld.org/v1.0/terms.rdf#segments"),
             'Form_ID',
             target_row=form)
-
-
-class Generic(Dataset):
-    @property
-    def primary_table(self):
-        return None
 
 
 class ParallelText(Dataset):

@@ -245,7 +245,7 @@ def test_Dataset_from_scratch(tmpdir, data):
 
     # Known file name, but non-standard column name:
     write_text(str(tmpdir / 'values.csv'), "IDX,Language_ID,Parameter_ID,Value\n1,1,1,1")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match='missing columns'):
         ds = Dataset.from_data(str(tmpdir / 'values.csv'))
 
     # A known file name will determine the CLDF module of the dataset:
@@ -296,13 +296,13 @@ def test_Dataset_auto_foreign_keys(tmpdir):
 
 def test_Dataset_from_data_empty_file(tmpdir):
     write_text(str(tmpdir / 'values.csv'), '')
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match='empty data file'):
         Dataset.from_data(str(tmpdir / 'values.csv'))
 
 
 @pytest.mark.parametrize('cls, expected', [
-    (Dataset, ParallelText),
-    pytest.param(Wordlist, Wordlist, marks=pytest.mark.xfail(reason='FIXME: #55')),
+    (Dataset, Wordlist),
+    (Wordlist, Wordlist),
     (ParallelText, ParallelText),
 ])
 def test_Dataset_from_data(tmpdir, cls, expected):
