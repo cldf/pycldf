@@ -41,3 +41,9 @@ rm dist/*
 python setup.py sdist bdist_wheel
 twine upload dist/*
 ```
+
+- Change version for the next release cycle, i.e. incrementing and adding .dev0
+
+  - `setup.py`
+  - `src/pycldf/__init__.py`
+
