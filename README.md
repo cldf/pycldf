@@ -145,3 +145,7 @@ ID,Language_ID,Parameter_ID,Value,Segments,Comment,Source
 1,stan1295,1277,hand,,,Meier2005[3-7]
 2,stan1295,1277,hand,,,Mei2005[3-7]
 ```
+
+
+## See also
+- https://github.com/frictionlessdata/datapackage-py
