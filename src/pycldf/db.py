@@ -69,10 +69,11 @@ def insert(db, table, keys, *rows):
     if rows:
         if isinstance(keys, text_type):
             keys = [k.strip() for k in keys.split(',')]
-        db.executemany(
-            "INSERT INTO {0} ({1}) VALUES ({2})".format(
-                table, ','.join(keys), ','.join(['?' for _ in keys])),
-            rows)
+        keys = ['"{:}"'.format(k.replace('"', r'\"')) for k in keys]
+        query = "INSERT INTO \"{0}\" ({1}) VALUES ({2})".format(
+            table, ','.join(keys), ','.join(['?' for _ in keys]))
+        print(query)
+        db.executemany(query, rows)
 
 
 class Database(object):
@@ -126,7 +127,7 @@ CREATE TABLE SourceTable (
     {0}
     extra TEXT,
     FOREIGN KEY(dataset_ID) REFERENCES dataset(ID)
-)""".format('\n    '.join('`{0}` TEXT,'.format(f) for f in BIBTEX_FIELDS)))
+)""".format('\n    '.join('"{0}" TEXT,'.format(f) for f in BIBTEX_FIELDS)))
 
     def fetchone(self, sql, conn=None):
         return self._fetch(sql, 'fetchone', conn)
@@ -185,7 +186,7 @@ CREATE TABLE SourceTable (
                 if col.name not in db_cols:
                     with self.connection() as conn:
                         conn.execute(
-                            "ALTER TABLE {0} ADD COLUMN `{1.name}` {1.db_type}".format(
+                            "ALTER TABLE {0} ADD COLUMN \"{1.name}\" {1.db_type}".format(
                                 t.name, col))
                 else:
                     if db_cols[col.name] != col.db_type:
@@ -245,7 +246,7 @@ CREATE TABLE SourceTable (
                                     col.convert(vv) for vv in v)
                             else:
                                 v = col.convert(v)
-                            keys.append("`{0}`".format(k))
+                            keys.append(k)
                             values.append(v)
                     rows.append(tuple(values))
                 insert(db, t.name, keys, *rows)
@@ -258,7 +259,7 @@ CREATE TABLE SourceTable (
                         sid, context = Sources.parse(source)
                         rows.append([pk, oid, sid, context])
                 oid_col = '{0}_ID'.format(tname.replace('Source', ''))
-                insert(db, tname, ['dataset_ID', oid_col, 'Source_ID', 'Context'], *rows)
+                insert(db, tname, ['dataset_ID', '{:}'.format(oid_col), 'Source_ID', 'Context'], *rows)
             db.commit()
 
 
@@ -283,7 +284,7 @@ class ColSpec(object):
 
     @property
     def sql(self):
-        return '`{0.name}` {0.db_type}{1}'.format(
+        return '"{0.name}" {0.db_type}{1}'.format(
             self, ' PRIMARY KEY NOT NULL' if self.primary_key else '')
 
 
@@ -301,12 +302,14 @@ class TableSpec(object):
     @property
     def sql(self):
         clauses = [col.sql for col in self.columns]
-        clauses.append('dataset_ID INTEGER NOT NULL')
-        clauses.append('FOREIGN KEY(dataset_ID) REFERENCES dataset(ID)')
+        clauses.append('"dataset_ID" INTEGER NOT NULL')
+        clauses.append('FOREIGN KEY("dataset_ID") REFERENCES "dataset"("ID")')
         for fk, ref, refcols in self.foreign_keys:
-            clauses.append('FOREIGN KEY({0}) REFERENCES {1}({2})'.format(
+            clauses.append('FOREIGN KEY("{0}") REFERENCES "{1}"("{2}")'.format(
                 ','.join(fk), ref, ','.join(refcols)))
-        return "CREATE TABLE {0} (\n    {1}\n)".format(self.name, ',\n    '.join(clauses))
+        query = "CREATE TABLE \"{0}\" (\n    {1}\n)".format(self.name, ',\n    '.join(clauses))
+        print(query)
+        return query
 
 
 def schema(ds):
@@ -318,21 +321,25 @@ def schema(ds):
     :return: A pair (tables, reference_tables).
     """
     tables, ref_tables = {}, {}
-    table_lookup = {t.url.string: t for t in ds.tables if ds.get_tabletype(t)}
+    table_lookup = {t.url.string: t for t in ds.tables}
     for table in table_lookup.values():
-        spec = TableSpec(ds.get_tabletype(table))
+        try:
+            sql_table_name = ds.get_tabletype(table)
+        except ValueError:
+            sql_table_name = table.url.string # SQLite is very permissive with table names.
+        spec = TableSpec(sql_table_name)
         spec.primary_key = [
             c for c in table.tableSchema.columns if
             c.propertyUrl and c.propertyUrl.uri == term_uri('id')][0].name
         for c in table.tableSchema.columns:
             if c.propertyUrl and c.propertyUrl.uri == term_uri('source'):
                 # A column referencing sources is replaced by an association table.
-                otype = ds.get_tabletype(table).replace('Table', '')
-                ref_tables[ds.get_tabletype(table)] = TableSpec(
+                otype = sql_table_name.replace('Table', '')
+                ref_tables[sql_table_name] = TableSpec(
                     '{0}Source'.format(otype),
                     [ColSpec(otype + '_ID'), ColSpec('Source_ID'), ColSpec('Context')],
                     [
-                        ([otype + '_ID'], ds.get_tabletype(table), [spec.primary_key]),
+                        ([otype + '_ID'], sql_table_name, [spec.primary_key]),
                         (['Source_ID'], 'SourceTable', ['ID']),
                     ],
                     c.name)
@@ -343,15 +350,17 @@ def schema(ds):
                     c.separator,
                     c.header == spec.primary_key))
         for fk in table.tableSchema.foreignKeys:
-            if fk.reference.schemaReference:
+            if fk.reference.schemaReference: # pragma: no cover
                 # We only support Foreign Key references between tables!
-                continue  # pragma: no cover
-            ref = table_lookup[fk.reference.resource.string]
-            if ds.get_tabletype(ref):
-                spec.foreign_keys.append((
-                    tuple(sorted(fk.columnReference)),
-                    ds.get_tabletype(table_lookup[fk.reference.resource.string]),
-                    tuple(sorted(fk.reference.columnReference))))
+                continue
+            try:
+                ref = ds.get_tabletype(table_lookup[fk.reference.resource.string])
+            except ValueError:
+                ref = fk.reference.resource.string
+            spec.foreign_keys.append((
+                tuple(sorted(fk.columnReference)),
+                ref,
+                tuple(sorted(fk.reference.columnReference))))
         tables[spec.name] = spec
 
     # must determine the order in which tables must be created!
