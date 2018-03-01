@@ -72,7 +72,6 @@ def insert(db, table, keys, *rows):
         keys = ['"{:}"'.format(k.replace('"', r'\"')) for k in keys]
         query = "INSERT INTO \"{0}\" ({1}) VALUES ({2})".format(
             table, ','.join(keys), ','.join(['?' for _ in keys]))
-        print(query)
         db.executemany(query, rows)
 
 
@@ -308,7 +307,6 @@ class TableSpec(object):
             clauses.append('FOREIGN KEY("{0}") REFERENCES "{1}"("{2}")'.format(
                 ','.join(fk), ref, ','.join(refcols)))
         query = "CREATE TABLE \"{0}\" (\n    {1}\n)".format(self.name, ',\n    '.join(clauses))
-        print(query)
         return query
 
 
