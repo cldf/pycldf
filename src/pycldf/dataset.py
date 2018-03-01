@@ -115,9 +115,16 @@ class Dataset(object):
             component = Table.fromvalue(component)
         assert isinstance(component, Table)
         self.add_columns(component, *cols)
-        table_type = self.get_tabletype(component)
-        for table in self.tables:
-            if self.get_tabletype(table) and self.get_tabletype(table) == table_type:
+        try:
+            table_type = self.get_tabletype(component)
+        except ValueError:
+            table_type = None
+        for other_table in self.tables:
+            try:
+                other_table_type = self.get_tabletype(other_table)
+            except ValueError:
+                continue
+            if other_table_type == table_type:
                 raise ValueError('components must not be added twice')
 
         self.tables.append(component)
@@ -171,11 +178,17 @@ class Dataset(object):
 
         self._auto_foreign_keys(component)
 
-        table_type = self.get_tabletype(component)
-        if table_type:
-            # auto-add foreign keys targetting the new component:
-            for table in self.tables:
-                self._auto_foreign_keys(table, component=component, table_type=table_type)
+        try:
+            table_type = self.get_tabletype(component)
+        except ValueError:
+            # New component is not a known CLDF term, so cannot add components
+            # automatically. TODO: We might me able to infer some based on
+            # `xxxReference` column properties?
+            return
+
+        # auto-add foreign keys targetting the new component:
+        for table in self.tables:
+            self._auto_foreign_keys(table, component=component, table_type=table_type)
 
     def _auto_foreign_keys(self, table, component=None, table_type=None):
         assert (component is None) == (table_type is None)
@@ -386,11 +399,17 @@ class Dataset(object):
             res = table.common_props['dc:conformsTo'].split('#')[1]
             if res in TERMS:
                 return res
+        raise ValueError("Type {:} of table {:} is not a valid term.".format(
+            table.common_props.get('dc:conformsTo'),
+            table.url))
 
     @property
     def primary_table(self):
         if self.tables:
-            return self.get_tabletype(self.tables[0])
+            try:
+                return self.get_tabletype(self.tables[0])
+            except ValueError:
+                return None
 
     def stats(self):
         res = []
