@@ -54,7 +54,8 @@ def test_update(tmpdir, db):
 def test_newcol(tmpdir, db):
     ds = StructureDataset.in_dir(str(tmpdir / 'd'))
 
-    # We rename the ID column of the ValueTable:
+    # We rename the ID column of the ValueTable. Note that the propertyUrl
+    # remains the same:
     ds['ValueTable', 'ID'].name = 'idx'
     ds['ValueTable'].tableSchema.columns.extend([
         Column(name='col1', datatype='anyURI'),
@@ -80,6 +81,6 @@ select
 from
   SourceTable as s, ValueSource as vs, ValueTable as v
 where
-  s.id = vs.source_id and vs.value_id = v.idx and v.idx = 1""")[0] == 'title'
+  s.ID = vs.Source_ID and vs.Value_ID = v.id and v.id = 1""")[0] == 'title'
     assert db.fetchone("select col1 from valuetable")[0] == 'http://example.org'
     assert db.fetchone("select col2 from valuetable")[0] == 5

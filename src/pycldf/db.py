@@ -20,7 +20,7 @@ import attr
 from csvw.datatypes import DATATYPES
 from clldutils.path import Path, remove
 
-from pycldf.terms import term_uri
+from pycldf.terms import TERMS, term_uri
 from pycldf.sources import Sources
 
 __all__ = ['Database']
@@ -175,20 +175,23 @@ CREATE TABLE SourceTable (
         """
         tables, ref_tables = schema(dataset)
 
+        column_mapping = {}
         # update the DB schema:
         for t in tables:
+            column_mapping[t.name] = {col.name: col.sql_name
+                                      for col in t.columns}
             if self._create_table_if_not_exists(t):
                 continue
             db_cols = {r[1]: r[2] for r in self.fetchall(
                 "PRAGMA table_info({0})".format(t.name))}
             for col in t.columns:
-                if col.name not in db_cols:
+                if col.sql_name not in db_cols:
                     with self.connection() as conn:
                         conn.execute(
                             "ALTER TABLE {0} ADD COLUMN \"{1.name}\" {1.db_type}".format(
                                 t.name, col))
                 else:
-                    if db_cols[col.name] != col.db_type:
+                    if db_cols[col.sql_name] != col.db_type:
                         raise ValueError(
                             'column {0}:{1} {2} redefined with new type {3}'.format(
                                 t.name, col.name, db_cols[col.name], col.db_type))
@@ -248,7 +251,7 @@ CREATE TABLE SourceTable (
                             keys.append(k)
                             values.append(v)
                     rows.append(tuple(values))
-                insert(db, t.name, keys, *rows)
+                insert(db, t.name, [column_mapping[t.name].get(k, k) for k in keys], *rows)
 
             # Now insert the references, i.e. the associations with sources:
             for tname, items in refs.items():
@@ -273,6 +276,7 @@ class ColSpec(object):
     primary_key = attr.ib(default=None)
     db_type = attr.ib(default=None)
     convert = attr.ib(default=None)
+    _sql_name = attr.ib(default=None)
 
     def __attrs_post_init__(self):
         if self.csvw_type in TYPE_MAP:
@@ -282,8 +286,12 @@ class ColSpec(object):
             self.convert = DATATYPES[self.csvw_type].to_string
 
     @property
+    def sql_name(self):
+        return self._sql_name or self.name
+
+    @property
     def sql(self):
-        return '"{0.name}" {0.db_type}{1}'.format(
+        return '"{0.sql_name}" {0.db_type}{1}'.format(
             self, ' PRIMARY KEY NOT NULL' if self.primary_key else '')
 
 
@@ -305,7 +313,7 @@ class TableSpec(object):
         clauses.append('FOREIGN KEY("dataset_ID") REFERENCES "dataset"("ID")')
         for fk, ref, refcols in self.foreign_keys:
             clauses.append('FOREIGN KEY("{0}") REFERENCES "{1}"("{2}")'.format(
-                ','.join(fk), ref, ','.join(refcols)))
+                ','.join(c.sql_name for c in fk), ref, ','.join(r.sql_name for r in refcols)))
         query = "CREATE TABLE \"{0}\" (\n    {1}\n)".format(self.name, ',\n    '.join(clauses))
         return query
 
@@ -333,12 +341,21 @@ def schema(ds):
             if c.propertyUrl and c.propertyUrl.uri == term_uri('source'):
                 # A column referencing sources is replaced by an association table.
                 otype = sql_table_name.replace('Table', '')
+                ocolumn = ColSpec(otype + '_ID')
+                scolumn = ColSpec('Source_ID')
                 ref_tables[sql_table_name] = TableSpec(
                     '{0}Source'.format(otype),
-                    [ColSpec(otype + '_ID'), ColSpec('Source_ID'), ColSpec('Context')],
+                    [ocolumn, scolumn, ColSpec('Context')],
                     [
-                        ([otype + '_ID'], sql_table_name, [spec.primary_key]),
-                        (['Source_ID'], 'SourceTable', ['ID']),
+                        ([ocolumn], sql_table_name, [ColSpec("id")]),
+                        # TODO: This is a cheat: We suppose, as per the CLDF
+                        # standard, that there *is* a primary key for a table
+                        # like this, and that it is given the `#id` property it
+                        # should have.
+                        ([scolumn], 'SourceTable', [ColSpec("ID")]),
+                        # TODO: This should actually either use the proper
+                        # specs of SourceTable and its ID column, or be
+                        # separated out.
                     ],
                     c.name)
             else:
@@ -347,6 +364,9 @@ def schema(ds):
                     c.datatype.base if c.datatype else c.datatype,
                     c.separator,
                     c.header == spec.primary_key))
+                if c.propertyUrl and term_uri(c.propertyUrl.uri, TERMS.by_uri):
+                    spec.columns[-1]._sql_name = term_uri(
+                        c.propertyUrl.uri, TERMS.by_uri).rsplit("#")[1]
         for fk in table.tableSchema.foreignKeys:
             if fk.reference.schemaReference: # pragma: no cover
                 # We only support Foreign Key references between tables!
@@ -355,10 +375,11 @@ def schema(ds):
                 ref = ds.get_tabletype(table_lookup[fk.reference.resource.string])
             except ValueError:
                 ref = fk.reference.resource.string
+            columns = [[s for s in spec.columns if s.name == c][0]
+                       for c in fk.columnReference]
+            foreign_columns = fk.reference.columnReference
             spec.foreign_keys.append((
-                tuple(sorted(fk.columnReference)),
-                ref,
-                tuple(sorted(fk.reference.columnReference))))
+                columns, ref, foreign_columns))
         tables[spec.name] = spec
 
     # must determine the order in which tables must be created!
@@ -377,5 +398,16 @@ def schema(ds):
                 break
     if tables:  # pragma: no cover
         raise ValueError('there seem to be cyclic dependencies between the tables')
+
+    for spec in ordered.values():
+        for i in range(len(spec.foreign_keys)):
+            columns, ref, foreign_columns = spec.foreign_keys[i]
+            try:
+                foreign_columns = [[s for s in ordered[ref].columns if s.name == c][0]
+                                   for c in foreign_columns]
+            except IndexError:
+                raise ValueError("Foreign key of table {:} points to columns {:}({:}), which does not exist.".format(
+                    spec.name, ref, ", ".join(foreign_columns)))
+            spec.foreign_keys[i] = columns, ref, foreign_columns
 
     return list(ordered.values()), ref_tables
