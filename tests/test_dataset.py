@@ -261,7 +261,7 @@ def test_Dataset_from_scratch(tmpdir, data):
     md = ds.write_metadata()
     Dataset.from_metadata(md)
     repr(ds)
-    del ds._tg.common_props['dc:conformsTo']
+    del ds.tablegroup.common_props['dc:conformsTo']
     Dataset.from_metadata(ds.write_metadata())
     assert len(ds.stats()) == 1
 
