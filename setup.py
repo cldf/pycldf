@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
     name='pycldf',
-    version='1.1.0',
+    version='1.1.1',
     author='Robert Forkel',
     author_email='forkel@shh.mpg.de',
     description='A python library to read and write CLDF datasets',
@@ -30,7 +30,7 @@ setup(
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
     install_requires=[
         'clldutils>=1.13.10',
-        'csvw>=0.1',
+        'csvw>=1.1.0',
         'uritemplate>=3.0',
         'python-dateutil',
         'pybtex',
