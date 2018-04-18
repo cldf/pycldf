@@ -25,11 +25,21 @@ def valid_igt(dataset, table, column, row):
         raise ValueError('number of morphemes and glosses does not match')
 
 
-VALIDATORS = {
-    'http://cldf.clld.org/v1.0/terms.rdf#iso639P3code':
-        partial(valid_regex, re.compile(r'[a-z]{3}$'), 'ISO 639-3 code'),
-    'http://cldf.clld.org/v1.0/terms.rdf#glottocode':
-        partial(valid_regex, re.compile(r'[a-z0-9]{4}[0-9]{4}$'), 'glottocode'),
-    'http://cldf.clld.org/v1.0/terms.rdf#gloss': valid_igt,
-    'http://cldf.clld.org/v1.0/terms.rdf#source': valid_references,
-}
+VALIDATORS = [
+    (
+        None,
+        'http://cldf.clld.org/v1.0/terms.rdf#iso639P3code',
+        partial(valid_regex, re.compile(r'[a-z]{3}$'), 'ISO 639-3 code')),
+    (
+        None,
+        'http://cldf.clld.org/v1.0/terms.rdf#glottocode',
+        partial(valid_regex, re.compile(r'[a-z0-9]{4}[0-9]{4}$'), 'glottocode')),
+    (
+        None,
+        'http://cldf.clld.org/v1.0/terms.rdf#gloss',
+        valid_igt),
+    (
+        None,
+        'http://cldf.clld.org/v1.0/terms.rdf#source',
+        valid_references)
+]

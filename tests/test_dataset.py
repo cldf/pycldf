@@ -338,6 +338,21 @@ def test_Dataset_validate(tmpdir, mocker):
         ds.validate()
 
 
+def test_Dataset_validate_custom_validator(tmpdir, mocker):
+    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+    ds.write(ValueTable=[
+        {'ID': '1', 'Value': 'x', 'Language_ID': 'l', 'Parameter_ID': 'p'}])
+    assert ds.validate()
+
+    def v(tg, t, c, r):
+        if r[c.name] == 'x':
+            raise ValueError()
+
+    mocker.patch('pycldf.dataset.VALIDATORS', [('ValueTable', 'Value', v)])
+    with pytest.raises(ValueError):
+        ds.validate()
+
+
 def test_Dataset_validate_missing_table(tmpdir, mocker):
     ds = StructureDataset.from_metadata(str(tmpdir))
     ds.tablegroup.tables = []

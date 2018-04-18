@@ -261,8 +261,9 @@ class Dataset(object):
                     except ValueError:
                         success = False
                         log_or_raise('invalid CLDF URI: {0}'.format(col_uri), log=log)
-                    if col_uri in VALIDATORS:
-                        validators.append((col, VALIDATORS[col_uri]))
+                for table_, col_, v_ in VALIDATORS:
+                    if (not table_ or table is self.get(table_)) and col is self.get((table, col_)):
+                        validators.append((col, v_))
 
             fname = Path(table.url.resolve(table._parent.base))
             if fname.exists():
@@ -391,6 +392,12 @@ class Dataset(object):
                 return c
 
         raise KeyError(column)
+
+    def get(self, item, default=None):
+        try:
+            return self[item]
+        except KeyError:
+            return default
 
     def get_row(self, table, id_):
         id_col = self[table, TERMS['id']]
