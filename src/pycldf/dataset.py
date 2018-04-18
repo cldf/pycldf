@@ -56,8 +56,9 @@ def get_modules():
             mod.cls = getattr(ds, mod.id)
             _modules.append(mod)
         # prefer Wordlist over ParallelText (forms.csv)
-        sortkey = lambda m: (m.cls in (Wordlist, ParallelText), m.cls is ParallelText)
-        _modules = sorted(_modules, key=sortkey)
+        _modules = sorted(
+            _modules,
+            key=lambda m: (m.cls in (Wordlist, ParallelText), m.cls is ParallelText))
     return _modules
 
 
@@ -189,35 +190,35 @@ class Dataset(object):
     def _auto_foreign_keys(self, table, component=None, table_type=None):
         assert (component is None) == (table_type is None)
         for col in table.tableSchema.columns:
-            if not col.propertyUrl or col.propertyUrl.uri not in TERMS.by_uri:
-                continue
-            ref_name = TERMS.by_uri[col.propertyUrl.uri].references
-            if (component is None and not ref_name) or \
-                    (component is not None and ref_name != table_type):
-                continue
-            if any(fkey.columnReference == [col.name]
-                   for fkey in table.tableSchema.foreignKeys):
-                continue
-            if component is None:
-                # Let's see whether we have the component this column references:
-                try:
-                    ref = self[ref_name]
-                except KeyError:
+            if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
+                ref_name = TERMS.by_uri[col.propertyUrl.uri].references
+                if (component is None and not ref_name) or \
+                        (component is not None and ref_name != table_type):
                     continue
-            else:
-                ref = component
-            idcol = ref.get_column(term_uri('id'))
-            table.tableSchema.foreignKeys.append(ForeignKey.fromdict(dict(
-                columnReference=col.name,
-                reference=dict(
-                    resource=ref.url.string,
-                    columnReference=idcol.name if idcol is not None else 'ID'))))
+                if any(fkey.columnReference == [col.name]
+                       for fkey in table.tableSchema.foreignKeys):
+                    continue
+                if component is None:
+                    # Let's see whether we have the component this column references:
+                    try:
+                        ref = self[ref_name]
+                    except KeyError:
+                        continue
+                else:
+                    ref = component
+                idcol = ref.get_column(term_uri('id'))
+                table.tableSchema.foreignKeys.append(ForeignKey.fromdict(dict(
+                    columnReference=col.name,
+                    reference=dict(
+                        resource=ref.url.string,
+                        columnReference=idcol.name if idcol is not None else 'ID'))))
 
     @property
     def bibpath(self):
         return self.directory.joinpath(self.properties.get('dc:source', 'sources.bib'))
 
     def validate(self, log=None):
+        success = True
         default_tg = TableGroup.from_file(
             pkg_path('modules', '{0}{1}'.format(self.module, MD_SUFFIX)))
         for default_table in default_tg.tables:
@@ -226,6 +227,7 @@ class Dataset(object):
                 table = self[dtable_uri]
             except KeyError:
                 log_or_raise('{0} requires {1}'.format(self.module, dtable_uri), log=log)
+                success = False
                 table = None
 
             if table:
@@ -238,6 +240,7 @@ class Dataset(object):
                 table_uri = table.common_props['dc:conformsTo']
                 for col in default_cols - cols:
                     log_or_raise('{0} requires column {1}'.format(table_uri, col), log=log)
+                    success = False
 
         for table in self.tables:
             type_uri = table.common_props.get('dc:conformsTo')
@@ -245,6 +248,7 @@ class Dataset(object):
                 try:
                     TERMS.is_cldf_uri(type_uri)
                 except ValueError:
+                    success = False
                     log_or_raise('invalid CLDF URI: {0}'.format(type_uri), log=log)
 
             # FIXME: check whether table.common_props['dc:conformsTo'] is in validators!
@@ -255,6 +259,7 @@ class Dataset(object):
                     try:
                         TERMS.is_cldf_uri(col_uri)
                     except ValueError:
+                        success = False
                         log_or_raise('invalid CLDF URI: {0}'.format(col_uri), log=log)
                     if col_uri in VALIDATORS:
                         validators.append((col, VALIDATORS[col_uri]))
@@ -269,9 +274,14 @@ class Dataset(object):
                             log_or_raise(
                                 '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
                                 log=log)
-                table.check_primary_key(log=log)
+                            success = False
+                if not table.check_primary_key(log=log):
+                    success = False
 
-        self.tablegroup.check_referential_integrity(log=log)
+        if not self.tablegroup.check_referential_integrity(log=log):
+            success = False
+
+        return success
 
     @property
     def directory(self):

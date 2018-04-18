@@ -12,6 +12,8 @@ setup(
     author='Robert Forkel',
     author_email='forkel@shh.mpg.de',
     description='A python library to read and write CLDF datasets',
+    long_description=read('README.md'),
+    long_description_content_type='text/markdown',
     keywords='',
     license='Apache 2.0',
     url='https://github.com/cldf/pycldf',
@@ -44,7 +46,6 @@ setup(
             'coverage>=4.2',
         ],
     },
-    long_description=read('README.rst'),
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',

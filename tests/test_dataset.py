@@ -311,13 +311,14 @@ def test_Dataset_from_data(tmpdir, cls, expected):
     assert type(cls.from_data(str(forms))) is expected
 
 
-def test_Dataset_validate(tmpdir):
+def test_Dataset_validate(tmpdir, mocker):
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.write(ValueTable=[])
-    ds.validate()
+    assert ds.validate()
     ds['ValueTable'].tableSchema.columns = []
     with pytest.raises(ValueError):
         ds.validate()
+    assert not ds.validate(log=mocker.Mock())
     ds.tablegroup.tables = []
     with pytest.raises(ValueError):
         ds.validate()

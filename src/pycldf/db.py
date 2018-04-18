@@ -258,7 +258,11 @@ CREATE TABLE SourceTable (
                         sid, context = Sources.parse(source)
                         rows.append([pk, oid, sid, context])
                 oid_col = '{0}_ID'.format(tname.replace('Source', ''))
-                insert(db, tname, ['dataset_ID', '{:}'.format(oid_col), 'Source_ID', 'Context'], *rows)
+                insert(
+                    db,
+                    tname,
+                    ['dataset_ID', '{:}'.format(oid_col), 'Source_ID', 'Context'],
+                    *rows)
             db.commit()
 
 
@@ -306,7 +310,8 @@ class TableSpec(object):
         for fk, ref, refcols in self.foreign_keys:
             clauses.append('FOREIGN KEY("{0}") REFERENCES "{1}"("{2}")'.format(
                 ','.join(fk), ref, ','.join(refcols)))
-        query = "CREATE TABLE \"{0}\" (\n    {1}\n)".format(self.name, ',\n    '.join(clauses))
+        query = "CREATE TABLE \"{0}\" (\n    {1}\n)".format(
+            self.name, ',\n    '.join(clauses))
         return query
 
 
@@ -324,7 +329,8 @@ def schema(ds):
         try:
             sql_table_name = ds.get_tabletype(table)
         except ValueError:
-            sql_table_name = table.url.string # SQLite is very permissive with table names.
+            # SQLite is very permissive with table names.
+            sql_table_name = table.url.string
         spec = TableSpec(sql_table_name)
         spec.primary_key = [
             c for c in table.tableSchema.columns if
@@ -348,7 +354,7 @@ def schema(ds):
                     c.separator,
                     c.header == spec.primary_key))
         for fk in table.tableSchema.foreignKeys:
-            if fk.reference.schemaReference: # pragma: no cover
+            if fk.reference.schemaReference:  # pragma: no cover
                 # We only support Foreign Key references between tables!
                 continue
             try:
