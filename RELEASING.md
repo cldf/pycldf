@@ -28,18 +28,20 @@ git commit -a -m"bumped version number"
 git tag -a v<version> -m"first version to be released on pypi"
 ```
 
+- Release to PyPI (see https://github.com/di/markdown-description-example/issues/1#issuecomment-374474296):
+```shell
+rm dist/*
+python setup.py sdist
+twine upload dist/*
+rm dist/*
+python setup.py bdist_wheel
+twine upload dist/*
+```
+
 - Push to github:
 ```
 git push origin
 git push --tags
-```
-
-- Make sure your system Python has ``setuptools-git`` installed and release to PyPI:
-```
-git checkout tags/v$1
-rm dist/*
-python setup.py sdist bdist_wheel
-twine upload dist/*
 ```
 
 - Change version for the next release cycle, i.e. incrementing and adding .dev0
@@ -47,3 +49,8 @@ twine upload dist/*
   - `setup.py`
   - `src/pycldf/__init__.py`
 
+- Commit/push the version change:
+```shell
+git commit -a -m "bump version for development"
+git push origin
+```
