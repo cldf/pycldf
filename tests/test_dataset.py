@@ -261,7 +261,7 @@ def test_Dataset_from_scratch(tmpdir, data):
     md = ds.write_metadata()
     Dataset.from_metadata(md)
     repr(ds)
-    del ds._tg.common_props['dc:conformsTo']
+    del ds.tablegroup.common_props['dc:conformsTo']
     Dataset.from_metadata(ds.write_metadata())
     assert len(ds.stats()) == 1
 
@@ -318,7 +318,7 @@ def test_Dataset_validate(tmpdir):
     ds['ValueTable'].tableSchema.columns = []
     with pytest.raises(ValueError):
         ds.validate()
-    ds._tg.tables = []
+    ds.tablegroup.tables = []
     with pytest.raises(ValueError):
         ds.validate()
 
@@ -416,7 +416,7 @@ def test_validators(tmpdir, mocker, data):
     ds.validate(log=log)
     assert log.warn.call_count == 2
 
-    for col in ds._tg.tables[0].tableSchema.columns:
+    for col in ds.tablegroup.tables[0].tableSchema.columns:
         if col.name == 'Language_ID':
             col.propertyUrl.uri = 'http://cldf.clld.org/v1.0/terms.rdf#glottocode'
 

@@ -79,13 +79,9 @@ class Dataset(object):
     """
 
     def __init__(self, tablegroup):
-        self._tg = tablegroup
+        self.tablegroup = tablegroup
         self.auto_constraints()
         self.sources = Sources.from_file(self.bibpath)
-
-    @property
-    def tablegroup(self):
-        return self._tg
 
     @property
     def metadata_dict(self):
@@ -128,7 +124,7 @@ class Dataset(object):
                 raise ValueError('components must not be added twice')
 
         self.tables.append(component)
-        component._parent = self._tg
+        component._parent = self.tablegroup
         self.auto_constraints(component)
 
     def add_columns(self, table, *cols):
@@ -275,11 +271,11 @@ class Dataset(object):
                                 log=log)
                 table.check_primary_key(log=log)
 
-        self._tg.check_referential_integrity(log=log)
+        self.tablegroup.check_referential_integrity(log=log)
 
     @property
     def directory(self):
-        return self._tg._fname.parent
+        return self.tablegroup._fname.parent
 
     @property
     def module(self):
@@ -423,7 +419,7 @@ class Dataset(object):
         return res
 
     def write_metadata(self, fname=None):
-        return self._tg.to_file(fname or self._tg._fname)
+        return self.tablegroup.to_file(fname or self.tablegroup._fname)
 
     def write_sources(self):
         return self.sources.write(self.bibpath)
