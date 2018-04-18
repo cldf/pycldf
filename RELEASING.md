@@ -7,25 +7,24 @@ Releasing pycldf
 tox -r
 ```
 
-- Make sure statement coverage is at 100%
+- Make sure statement coverage >= 99%
 - Make sure flake8 passes:
 ```
-flake8
+flake8 src
 ```
 
-- Change version to the new version number in
-
+- Update the version number, by removing the trailing `.dev0` in:
   - `setup.py`
   - `src/pycldf/__init__.py`
 
-- Bump version number:
-```
-git commit -a -m"bumped version number"
+- Create the release commit:
+```shell
+git commit -a -m "release <VERSION>"
 ```
 
 - Create a release tag:
 ```
-git tag -a v<version> -m"first version to be released on pypi"
+git tag -a v<VERSION> -m"<VERSION> release"
 ```
 
 - Release to PyPI (see https://github.com/di/markdown-description-example/issues/1#issuecomment-374474296):
