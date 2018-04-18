@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
     name='pycldf',
-    version='1.1.1',
+    version='1.1.2.dev0',
     author='Robert Forkel',
     author_email='forkel@shh.mpg.de',
     description='A python library to read and write CLDF datasets',
