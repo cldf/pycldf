@@ -77,7 +77,7 @@ def test_Sources_roundtrip_latex(tmpdir, bibtex, expected):
     src = Sources()
     src.add(bibtex)
     bib = tmpdir / 'test.bib'
-    src.write(bib)
+    src.write(str(bib))
     assert expected in bib.read_text('utf8')
 
 
