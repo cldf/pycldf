@@ -20,6 +20,12 @@ class Writer(BaseWriter):
         self.check_braces(s)
         return '{%s}' % s
 
+    def _encode(self, text):
+        #
+        # FIXME: We overwrite a private method here!
+        #
+        return text
+
 
 class Source(BaseSource, UnicodeMixin):
     @property

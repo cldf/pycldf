@@ -62,7 +62,23 @@ def test_Source_from_bibtex():
 def test_Sources_with_None_values(tmpdir):
     src = Sources()
     src.add(Source('book', 'huber2005', title=None))
-    src.write(str(tmpdir / 'test.bib'))
+    bib = tmpdir / 'test.bib'
+    src.write(str(bib))
+
+
+@pytest.mark.parametrize(
+    "bibtex,expected",
+    [
+        ('@book{1,\ntitle={Something about \\& and \\_}}', 'Something about \\& and \\_'),
+        ('@book{1,\ntitle={Something about & and _}}', 'Something about & and _'),
+    ]
+)
+def test_Sources_roundtrip_latex(tmpdir, bibtex, expected):
+    src = Sources()
+    src.add(bibtex)
+    bib = tmpdir / 'test.bib'
+    src.write(bib)
+    assert expected in bib.read_text('utf8')
 
 
 def test_Source_expand_refs():
