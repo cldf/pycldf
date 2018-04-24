@@ -217,7 +217,9 @@ class Dataset(object):
     def bibpath(self):
         return self.directory.joinpath(self.properties.get('dc:source', 'sources.bib'))
 
-    def validate(self, log=None):
+    def validate(self, log=None, validators=None):
+        validators = validators or []
+        validators.extend(VALIDATORS)
         success = True
         default_tg = TableGroup.from_file(
             pkg_path('modules', '{0}{1}'.format(self.module, MD_SUFFIX)))
@@ -252,7 +254,7 @@ class Dataset(object):
                     log_or_raise('invalid CLDF URI: {0}'.format(type_uri), log=log)
 
             # FIXME: check whether table.common_props['dc:conformsTo'] is in validators!
-            validators = []
+            validators_ = []
             for col in table.tableSchema.columns:
                 if col.propertyUrl:
                     col_uri = col.propertyUrl.uri
@@ -261,14 +263,14 @@ class Dataset(object):
                     except ValueError:
                         success = False
                         log_or_raise('invalid CLDF URI: {0}'.format(col_uri), log=log)
-                for table_, col_, v_ in VALIDATORS:
+                for table_, col_, v_ in validators:
                     if (not table_ or table is self.get(table_)) and col is self.get((table, col_)):
-                        validators.append((col, v_))
+                        validators_.append((col, v_))
 
             fname = Path(table.url.resolve(table._parent.base))
             if fname.exists():
                 for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
-                    for col, validate in validators:
+                    for col, validate in validators_:
                         try:
                             validate(self, table, col, row)
                         except ValueError as e:
