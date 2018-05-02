@@ -375,6 +375,9 @@ def test_Dataset_write(tmpdir):
             'Value': 'yes',
             'Source': ['key[1-20]', 'ky'],
         }])
+    ds2 = StructureDataset.from_metadata(
+        str(tmpdir.join('StructureDataset-metadata.json')))
+    assert ds2['ValueTable'].common_props['dc:extent'] == 1
     assert {s[1]: s[2] for s in ds.stats()}['ValueTable'] == 1
     ds['ValueTable'].common_props['dc:extent'] = 3
     assert {s[1]: s[2] for s in ds.stats()}['ValueTable'] == 3

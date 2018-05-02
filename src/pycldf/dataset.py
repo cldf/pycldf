@@ -449,11 +449,11 @@ class Dataset(object):
     def write(self, fname=None, **table_items):
         if self.sources and not self.properties.get('dc:source'):
             self.properties['dc:source'] = 'sources.bib'
-        self.write_metadata(fname)
         self.write_sources()
         for table_type, items in table_items.items():
             table = self[table_type]
             table.common_props['dc:extent'] = table.write(items)
+        self.write_metadata(fname)
 
 
 class Generic(Dataset):
