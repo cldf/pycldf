@@ -375,17 +375,20 @@ def test_Dataset_write(tmpdir):
             'Value': 'yes',
             'Source': ['key[1-20]', 'ky'],
         }])
+    assert {s[1]: s[2] for s in ds.stats()}['ValueTable'] == 1
+    ds['ValueTable'].common_props['dc:extent'] = 3
+    assert {s[1]: s[2] for s in ds.stats()}['ValueTable'] == 3
     with pytest.raises(ValueError):
         ds.validate()
     ds.sources.add("@misc{key,\ntitle={the title}\n}")
-    ds.write(ValueTable=[
+    ds.write(ValueTable=(
         {
             'ID': '1',
             'Language_ID': 'abcd1234',
             'Parameter_ID': 'f1',
             'Value': 'yes',
             'Source': ['key[1-20]'],
-        }])
+        } for _ in range(1)))
     ds.validate()
     ds.add_component('ExampleTable')
     ds.write(

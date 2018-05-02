@@ -432,7 +432,10 @@ class Dataset(object):
             dctype = table.common_props.get('dc:conformsTo')
             if dctype.split('#')[1] in TERMS:
                 dctype = TERMS[dctype.split('#')[1]].csvw_prop('name')
-            res.append((table.url.string, dctype, sum(1 for _ in table)))
+            res.append((
+                table.url.string,
+                dctype,
+                table.common_props.get('dc:extent') or sum(1 for _ in table)))
         if self.sources:
             res.append((self.bibpath.name, 'Sources', len(self.sources)))
         return res
@@ -449,7 +452,12 @@ class Dataset(object):
         self.write_metadata(fname)
         self.write_sources()
         for table_type, items in table_items.items():
-            self[table_type].write(items)
+            table = self[table_type]
+            table.write(items)
+            try:
+                table.common_props['dc:extent'] = len(items)
+            except TypeError:
+                table.common_props.pop('dc:extent', None)
 
 
 class Generic(Dataset):
