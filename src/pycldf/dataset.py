@@ -453,11 +453,7 @@ class Dataset(object):
         self.write_sources()
         for table_type, items in table_items.items():
             table = self[table_type]
-            table.write(items)
-            try:
-                table.common_props['dc:extent'] = len(items)
-            except TypeError:
-                table.common_props.pop('dc:extent', None)
+            table.common_props['dc:extent'] = table.write(items)
 
 
 class Generic(Dataset):
