@@ -3,6 +3,7 @@ from __future__ import unicode_literals, print_function, division
 
 import sys
 from itertools import chain
+from collections import Counter
 
 from six import string_types
 
@@ -280,6 +281,9 @@ class Dataset(object):
                             success = False
                 if not table.check_primary_key(log=log):
                     success = False
+            else:
+                log_or_raise('{0} does not exist'.format(fname), log=log)
+                success = False
 
         if not self.tablegroup.check_referential_integrity(log=log):
             success = False
@@ -321,6 +325,15 @@ class Dataset(object):
         else:
             tablegroup = TableGroup.from_file(fname)
 
+        comps = Counter()
+        for table in tablegroup.tables:
+            try:
+                comps.update([Dataset.get_tabletype(table)])
+            except ValueError:
+                pass
+        if comps and comps.most_common(1)[0][1] > 1:
+            raise ValueError('{0}: duplicate components!'.format(fname))
+
         for mod in get_modules():
             if mod.match(tablegroup):
                 return mod.cls(tablegroup)
@@ -336,7 +349,7 @@ class Dataset(object):
             try:
                 cls = next(mod.cls for mod in get_modules() if mod.match(fname))
             except StopIteration:
-                raise ValueError(fname)
+                raise ValueError('{0} does not match a CLDF module spec'.format(fname))
             assert issubclass(cls, Dataset) and cls is not Dataset
 
         res = cls.from_metadata(fname.parent)

@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import pytest
 
 from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table
-from clldutils.path import copy, write_text, Path
+from clldutils.path import copy, write_text, Path, remove
 
 from pycldf.terms import term_uri
 from pycldf.dataset import (
@@ -58,6 +58,59 @@ def test_column_access(ds):
 
     assert ds['ValueTable', 'Language_ID'] == ds['values.csv', 'languageReference']
 
+
+def test_duplicate_component(ds, tmpdir):
+    # adding a component twice is not possible:
+    ds.add_component('ValueTable')
+    with pytest.raises(ValueError):
+        ds.add_component('ValueTable')
+
+    # JSON descriptions with duplicate components cannot be read:
+    md = tmpdir / 'md.json'
+    json = """\
+{
+    "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#StructureDataset",
+    "tables": [
+        {"url": "values.csv"},
+        COMPS 
+    ]
+}"""
+    comp = """
+{
+    "url": "values.csv",
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable",
+    "tableSchema": {
+        "columns": [
+            {
+                "name": "ID",
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id"
+            },
+            {
+                "name": "Language_ID",
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference"
+            },
+            {
+                "name": "Parameter_ID",
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference"
+            },
+            {
+                "name": "Value",
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#value"
+            }
+        ]
+    }
+}"""
+    md.write_text(json.replace('COMPS', comp), encoding='utf8')
+    (tmpdir / 'values.csv').write_text(
+        "ID,Language_ID,Parameter_ID,Value\n1,1,1,1", encoding='utf8')
+    ds = Dataset.from_metadata(str(md))
+    assert ds.validate()
+
+    md.write_text(json.replace('COMPS', ', '.join([comp, comp])), encoding='utf8')
+    with pytest.raises(ValueError) as excinfo:
+        Dataset.from_metadata(str(md))
+    assert 'duplicate component' in excinfo.exconly()
 
 def test_foreign_key_creation(ds):
     ds.add_component('ValueTable')
@@ -314,7 +367,16 @@ def test_Dataset_from_data(tmpdir, cls, expected):
 def test_Dataset_validate(tmpdir, mocker):
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.write(ValueTable=[])
+    values = tmpdir / 'new' / 'values.csv'
+    assert values.check()
+    remove(str(values))
+    log = mocker.Mock()
+    assert not ds.validate(log=log)
+    assert log.warn.called
+
+    ds.write(ValueTable=[])
     assert ds.validate()
+
     ds['ValueTable'].tableSchema.columns = []
     with pytest.raises(ValueError):
         ds.validate()
@@ -325,7 +387,14 @@ def test_Dataset_validate(tmpdir, mocker):
 
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.add_component('LanguageTable')
-    ds.write(ValueTable=[])
+    ds.write(ValueTable=[], LanguageTable=[])
+    assert ds.validate()
+
+    # test violation of referential integrity:
+    ds.write(ValueTable=[{'ID': '1', 'Value': '1', 'Language_ID': 'lid', 'Parameter_ID': 'pid'}], LanguageTable=[])
+    assert not ds.validate(log=mocker.Mock())
+
+    # test an invalid CLDF URL:
     ds['LanguageTable'].common_props['dc:conformsTo'] = 'http://cldf.clld.org/404'
     with pytest.raises(ValueError):
         ds.validate()
