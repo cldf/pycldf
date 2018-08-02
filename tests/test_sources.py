@@ -17,6 +17,19 @@ BIB = """@BOOK{Obrazy,
 """
 
 
+def test_field_order(tmpdir):
+    srcs = Sources()
+    src = Source('misc', 'x')  # src is an OrderedDict and we add title *after* year.
+    src['year'] = '2018'
+    src['title'] = 'The Title'
+    srcs.add(src)
+    bib = tmpdir / 'test.bib'
+    srcs.write(str(bib))
+    res = bib.read_text(encoding='utf8')
+    # Still, title should be printed in the BibTeX before year:
+    assert res.index('title =') < res.index('year =')
+
+
 def test_Sources(tmpdir):
     src = Sources()
     src.add(BIB, Source(
