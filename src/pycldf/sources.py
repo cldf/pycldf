@@ -37,8 +37,8 @@ class Source(BaseSource, UnicodeMixin):
         ])
         return database.Entry(
             self.genre,
-            fields=OrderedDict([
-                (k, v) for k, v in sorted(self.items()) if v and k not in ['author', 'editor']]),
+            fields=OrderedDict(
+                (k, v) for k, v in sorted(self.items()) if v and k not in ['author', 'editor']),
             persons=persons)
 
     def __unicode__(self):
