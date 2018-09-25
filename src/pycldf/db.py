@@ -272,7 +272,7 @@ class ColSpec(object):
     A `ColSpec` captures sufficient information about a `Column` for the DB schema.
     """
     name = attr.ib()
-    csvw_type = attr.ib(default='string', convert=lambda s: s if s else 'string')
+    csvw_type = attr.ib(default='string', converter=lambda s: s if s else 'string')
     separator = attr.ib(default=None)
     primary_key = attr.ib(default=None)
     db_type = attr.ib(default=None)

@@ -57,7 +57,7 @@ class Source(BaseSource, UnicodeMixin):
 
     @staticmethod
     def persons(s):
-        for name in re.split('\s+&\s+|\s+and\s+', s.strip()):
+        for name in re.split(r'\s+&\s+|\s+and\s+', s.strip()):
             if name:
                 parts = name.split(',')
                 if len(parts) > 2:
