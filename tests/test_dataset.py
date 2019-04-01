@@ -318,6 +318,11 @@ def test_Dataset_from_scratch(tmpdir, data):
     Dataset.from_metadata(ds.write_metadata())
     assert len(ds.stats()) == 1
 
+    ds.add_table('extra.csv', 'ID')
+    ds.write(**{'ValueTable': [], 'extra.csv': []})
+    counts = {r[0]: r[2] for r in ds.stats()}
+    assert counts['extra.csv'] == 0
+
 
 def test_Dataset_auto_foreign_keys(tmpdir):
     ds = StructureDataset.in_dir(str(tmpdir), empty_tables=True)

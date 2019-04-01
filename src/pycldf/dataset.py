@@ -443,7 +443,7 @@ class Dataset(object):
         res = []
         for table in self.tables:
             dctype = table.common_props.get('dc:conformsTo')
-            if dctype.split('#')[1] in TERMS:
+            if dctype and '#' in dctype and dctype.split('#')[1] in TERMS:
                 dctype = TERMS[dctype.split('#')[1]].csvw_prop('name')
             res.append((
                 table.url.string,
