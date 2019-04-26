@@ -77,10 +77,9 @@ def createdb(args):
     """
     if len(args.args) < 2:
         raise ParserError('not enough arguments')
-    db = Database(args.args[1])
-    db.create()
     ds = _get_dataset(args)
-    db.load(ds)
+    db = Database(ds, fname=args.args[1])
+    db.write_from_tg()
     args.log.info('{0} loaded in {1}'.format(ds, db.fname))
 
 

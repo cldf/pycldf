@@ -75,7 +75,7 @@ class Reference(UnicodeMixin):
         self.description = desc
 
     def __unicode__(self):
-        res = self.source.id
+        res = self.source.id if hasattr(self.source, 'id') else self.source
         if self.description:
             res += '[%s]' % self.description
         return res
