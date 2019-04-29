@@ -209,4 +209,4 @@ FROM `{2}` GROUP BY `{0}`""".format(
                     base=dest)
             except KeyError:
                 assert table_type == self.source_table_name, table_type
-        return self.dataset.write_metadata(dest / 'cldf-metadata.json')
+        return self.dataset.write_metadata(dest / mdname)
