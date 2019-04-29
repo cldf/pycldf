@@ -59,6 +59,30 @@ def test_column_access(ds):
     assert ds['ValueTable', 'Language_ID'] == ds['values.csv', 'languageReference']
 
 
+def test_tabletype_none(ds):
+    ds.add_table('url', {'name': 'col'})
+    ds['url'].common_props['dc:conformsTo'] = None
+    assert ds.get_tabletype(ds['url']) is None
+
+
+def test_example_validators(ds, tmpdir):
+    ds.add_table(
+        'examples',
+        {
+            'name': 'morphemes',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#analyzedWord',
+            'separator': '\t'},
+        {
+            'name': 'gloss',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#gloss',
+            'separator': '\t'},
+    )
+    ds.write(examples=[{'morphemes': ['a'], 'gloss': ['a', 'b']}])
+    with pytest.raises(ValueError) as e:
+        ds.validate()
+        assert 'number of morphemes' in str(e)
+
+
 def test_duplicate_component(ds, tmpdir):
     # adding a component twice is not possible:
     ds.add_component('ValueTable')
