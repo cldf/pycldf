@@ -16,7 +16,7 @@ from __future__ import unicode_literals, print_function
 import sys
 
 from clldutils.path import Path
-from clldutils.clilib import ArgumentParserWithLogging, ParserError
+from clldutils.clilib import ArgumentParserWithLogging, ParserError, command
 from clldutils.markup import Table
 
 from pycldf.dataset import Dataset
@@ -34,6 +34,7 @@ def _get_dataset(args):
     return Dataset.from_data(fname)
 
 
+@command()
 def validate(args):
     """
     cldf validate <DATASET>
@@ -47,6 +48,7 @@ def validate(args):
     ds.validate(log=args.log)
 
 
+@command()
 def stats(args):
     """
     cldf stats <DATASET>
@@ -67,6 +69,7 @@ def stats(args):
     print(t.render(condensed=False, tablefmt=None))
 
 
+@command()
 def createdb(args):
     """
     cldf createdb <DATASET> <SQLITE_DB_PATH>
@@ -85,6 +88,7 @@ def createdb(args):
     args.log.info('{0} loaded in {1}'.format(ds, db.fname))
 
 
+@command()
 def dumpdb(args):
     """
     cldf dumpdb <DATASET> <SQLITE_DB_PATH> [<METADATA_PATH>]
@@ -98,7 +102,7 @@ def dumpdb(args):
 
 
 def main():  # pragma: no cover
-    parser = ArgumentParserWithLogging('pycldf', stats, validate, createdb)
+    parser = ArgumentParserWithLogging('pycldf')
     sys.exit(parser.main())
 
 
