@@ -158,6 +158,14 @@ FROM `{2}` GROUP BY `{0}`""".format(
             return res
         return csvw.db.Database.select_many_to_many(self, db, table, context)  # pragma: no cover
 
+    def write(self, _force=False, _exists_ok=False, **items):
+        if self.fname and self.fname.exists():
+            if _force:
+                self.fname.unlink()
+            elif _exists_ok:
+                raise NotImplementedError()
+        return csvw.db.Database.write(self, _force=False, _exists_ok=False, **items)
+
     def write_from_tg(self, _force=False, _exists_ok=False):
         items = {
             tname: list(t.iterdicts())
@@ -168,7 +176,7 @@ FROM `{2}` GROUP BY `{0}`""".format(
             item.update(src)
             item.update({'id': src.id, 'genre': src.genre})
             items[self.source_table_name].append(item)
-        return csvw.db.Database.write(self, _force=False, _exists_ok=False, **items)
+        return self.write(_force=_force, _exists_ok=_exists_ok, **items)
 
     def query(self, sql, params=None):
         with self.connection() as conn:

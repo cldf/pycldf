@@ -77,6 +77,8 @@ def createdb(args):
     """
     if len(args.args) < 2:
         raise ParserError('not enough arguments')
+    if Path(args.args[1]).exists():
+        raise ParserError('The database file already exists!')
     ds = _get_dataset(args)
     db = Database(ds, fname=args.args[1])
     db.write_from_tg()

@@ -41,3 +41,6 @@ def test_all(capsys, tmpdir, mocker, data):
     createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
     assert log.info.called
     dumpdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
+
+    with pytest.raises(ParserError):
+        createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))

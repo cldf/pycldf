@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import pytest
+
 from pycldf.dataset import Dataset
 from pycldf.db import Database
 
@@ -18,3 +20,11 @@ def test_db_write(tmpdir, data):
     db.to_cldf(str(tmpdir.join('cldf')))
     assert tmpdir.join('cldf', 'ds1.bib').check()
     assert '80086;meier2015[2-5]' in tmpdir.join('cldf', 'ds1.csv').read_text('utf8')
+
+    with pytest.raises(ValueError):
+        db.write_from_tg()
+
+    with pytest.raises(NotImplementedError):
+        db.write_from_tg(_exists_ok=True)
+
+    db.write_from_tg(_force=True)
