@@ -197,9 +197,9 @@ FROM `{2}` GROUP BY `{0}`""".format(
         :param precision:
         :return: item
         """
-        for attr in ['cldf_latitude', 'cldf_longitude']:
-            if item.get(attr):
-                item[attr] = round(item[attr], precision)
+        for attr_ in ['cldf_latitude', 'cldf_longitude']:
+            if item.get(attr_):
+                item[attr_] = round(item[attr_], precision)
         return item
 
     def to_cldf(self, dest, mdname='cldf-metadata.json', coordinate_precision=4):
