@@ -1,9 +1,17 @@
 from __future__ import unicode_literals
+import decimal
 
 import pytest
 
 from pycldf.dataset import Dataset
 from pycldf.db import Database
+
+
+def test_db_geocoords():
+    item = dict(cldf_latitude=decimal.Decimal(3.123456))
+    assert pytest.approx(
+        Database.round_geocoordinates(item)['cldf_latitude'],
+        decimal.Decimal(3.1235))
 
 
 def test_db_write(tmpdir, data):

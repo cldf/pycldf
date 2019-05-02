@@ -186,7 +186,23 @@ FROM `{2}` GROUP BY `{0}`""".format(
     def retranslate(self, table, item):
         return {self._retranslate.get(table.local_name, {}).get(k, k): v for k, v in item.items()}
 
-    def to_cldf(self, dest, mdname='cldf-metadata.json'):
+    @staticmethod
+    def round_geocoordinates(item, precision=4):
+        """
+        We round geo coordinates to `precision` decimal places.
+
+        See https://en.wikipedia.org/wiki/Decimal_degrees
+
+        :param item:
+        :param precision:
+        :return: item
+        """
+        for attr in ['cldf_latitude', 'cldf_longitude']:
+            if item.get(attr):
+                item[attr] = round(item[attr], precision)
+        return item
+
+    def to_cldf(self, dest, mdname='cldf-metadata.json', coordinate_precision=4):
         """
         Write the data from the db to a CLDF dataset according to the metadata in `self.dataset`.
 
@@ -212,6 +228,9 @@ FROM `{2}` GROUP BY `{0}`""".format(
         for table_type, items in data.items():
             try:
                 table = self.dataset[table_type]
+                items = [
+                    self.round_geocoordinates(item, precision=coordinate_precision)
+                    for item in items]
                 table.common_props['dc:extent'] = table.write(
                     [self.retranslate(table, item) for item in items],
                     base=dest)
