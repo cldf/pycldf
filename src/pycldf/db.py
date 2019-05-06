@@ -65,6 +65,10 @@ def translate(d, table, col=None):
     return table
 
 
+def clean_bibtex_key(s):
+    return s.replace('-', '_')
+
+
 class Database(csvw.db.Database):
     source_table_name = 'SourceTable'
 
@@ -98,6 +102,7 @@ class Database(csvw.db.Database):
         # Add source table:
         for src in self.dataset.sources:
             for key in src:
+                key = clean_bibtex_key(key)
                 if key not in self._source_cols:
                     self._source_cols.append(key)
 
@@ -173,7 +178,7 @@ FROM `{2}` GROUP BY `{0}`""".format(
         items[self.source_table_name] = []
         for src in self.dataset.sources:
             item = {k: '' for k in self._source_cols}
-            item.update(src)
+            item.update({clean_bibtex_key(k): v for k, v in src.items()})
             item.update({'id': src.id, 'genre': src.genre})
             items[self.source_table_name].append(item)
         return self.write(_force=_force, _exists_ok=_exists_ok, **items)
