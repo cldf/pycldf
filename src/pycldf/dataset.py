@@ -101,7 +101,7 @@ class Dataset(object):
         self.sources.add(*sources)
 
     def add_table(self, url, *cols):
-        self.add_component(
+        return self.add_component(
             {"url": url, "tableSchema": {"columns": []}},
             *cols)
 
@@ -112,22 +112,29 @@ class Dataset(object):
         if isinstance(component, dict):
             component = Table.fromvalue(component)
         assert isinstance(component, Table)
+
+        for other_table in self.tables:
+            if other_table.url == component.url:
+                raise ValueError('tables must have distinct url properties')
+
         self.add_columns(component, *cols)
         try:
             table_type = self.get_tabletype(component)
         except ValueError:
             table_type = None
-        for other_table in self.tables:
-            try:
-                other_table_type = self.get_tabletype(other_table)
-            except ValueError:
-                continue
-            if other_table_type == table_type:
-                raise ValueError('components must not be added twice')
+        if table_type:
+            for other_table in self.tables:
+                try:
+                    other_table_type = self.get_tabletype(other_table)
+                except ValueError:  # pragma: no cover
+                    continue
+                if other_table_type == table_type:
+                    raise ValueError('components must not be added twice')
 
         self.tables.append(component)
         component._parent = self.tablegroup
         self.auto_constraints(component)
+        return component
 
     def add_columns(self, table, *cols):
         table = self[table]
@@ -179,6 +186,9 @@ class Dataset(object):
         try:
             table_type = self.get_tabletype(component)
         except ValueError:
+            table_type = None
+
+        if table_type is None:
             # New component is not a known CLDF term, so cannot add components
             # automatically. TODO: We might me able to infer some based on
             # `xxxReference` column properties?
@@ -328,7 +338,9 @@ class Dataset(object):
         comps = Counter()
         for table in tablegroup.tables:
             try:
-                comps.update([Dataset.get_tabletype(table)])
+                dt = Dataset.get_tabletype(table)
+                if dt:
+                    comps.update([dt])
             except ValueError:
                 pass
         if comps and comps.most_common(1)[0][1] > 1:

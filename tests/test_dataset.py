@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import pytest
 
-from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table
+from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Link
 from clldutils.path import copy, write_text, Path, remove
 
 from pycldf.terms import term_uri
@@ -64,6 +64,13 @@ def test_tabletype_none(ds):
     ds['url'].common_props['dc:conformsTo'] = None
     assert ds.get_tabletype(ds['url']) is None
 
+    with pytest.raises(ValueError):
+        ds.add_table('url')
+
+    # Make sure we can add another table with:
+    t = ds.add_component({'url': 'other', 'dc:conformsTo': None})
+    assert ds.get_tabletype(t) is None
+
 
 def test_example_validators(ds, tmpdir):
     ds.add_table(
@@ -85,7 +92,8 @@ def test_example_validators(ds, tmpdir):
 
 def test_duplicate_component(ds, tmpdir):
     # adding a component twice is not possible:
-    ds.add_component('ValueTable')
+    t = ds.add_component('ValueTable')
+    t.url = Link('other.csv')
     with pytest.raises(ValueError):
         ds.add_component('ValueTable')
 
