@@ -159,11 +159,7 @@ class Dataset(object):
         else:
             primary_c = self[primary_t, primary_c].name
             primary_t = self[primary_t]
-        foreign_t.tableSchema.foreignKeys.append(ForeignKey.fromdict(dict(
-            columnReference=foreign_c,
-            reference=dict(
-                resource=primary_t.url.string,
-                columnReference=primary_c))))
+        foreign_t.add_foreign_key(foreign_c, primary_t.url.string, primary_c)
 
     def auto_constraints(self, component=None):
         """
@@ -218,11 +214,8 @@ class Dataset(object):
                 else:
                     ref = component
                 idcol = ref.get_column(term_uri('id'))
-                table.tableSchema.foreignKeys.append(ForeignKey.fromdict(dict(
-                    columnReference=col.name,
-                    reference=dict(
-                        resource=ref.url.string,
-                        columnReference=idcol.name if idcol is not None else 'ID'))))
+                table.add_foreign_key(
+                    col.name, ref.url.string, idcol.name if idcol is not None else 'ID')
 
     @property
     def bibpath(self):
