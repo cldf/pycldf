@@ -7,7 +7,7 @@ from clldutils.path import copy, write_text, Path, remove
 
 from pycldf.terms import term_uri
 from pycldf.dataset import (
-    Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset,
+    Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, GitRepository,
     make_column, get_modules)
 
 
@@ -40,6 +40,26 @@ def test_make_column():
     assert make_column(Column('name')).datatype is None
     with pytest.raises(TypeError):
         make_column(5)
+
+
+def test_provenance(ds, tmpdir):
+    ds.add_provenance(wasDerivedFrom=[GitRepository('http://example.org'), 'other'])
+    assert ds.properties['prov:wasDerivedFrom'][0]['rdf:about'] == 'http://example.org'
+
+    with pytest.raises(ValueError):
+        ds.add_provenance(wasDerivedFrom=[])
+
+    ds.tablegroup.common_props = {}
+    ds.add_provenance(wasDerivedFrom=GitRepository('http://example.org'))
+    assert ds.properties['prov:wasDerivedFrom']['rdf:about'] == 'http://example.org'
+
+    ds.tablegroup.common_props = {}
+    ds.add_provenance(wasDerivedFrom=GitRepository('http://example.org', version='v1'))
+    assert ds.properties['prov:wasDerivedFrom']['dc:created'] == 'v1'
+
+    ds.tablegroup.common_props = {}
+    ds.add_provenance(wasDerivedFrom=GitRepository('http://example.org', clone=str(tmpdir)))
+    assert ds.properties['prov:wasDerivedFrom']['dc:created']
 
 
 def test_primary_table(ds):

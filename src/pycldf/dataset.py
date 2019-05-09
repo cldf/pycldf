@@ -8,9 +8,9 @@ from collections import Counter
 from six import string_types
 
 import attr
-from csvw.metadata import TableGroup, Table, Column, ForeignKey
+from csvw.metadata import TableGroup, Table, Column
 from csvw.dsv import iterrows
-from clldutils.path import Path
+from clldutils.path import Path, git_describe
 from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
@@ -75,6 +75,26 @@ def make_column(spec):
     raise TypeError(spec)
 
 
+class GitRepository(object):
+    def __init__(self, url, clone=None, version=None, **dc):
+        self.url = url
+        self.clone = clone
+        self.version = version
+        self.dc = dc
+
+    def json_ld(self):
+        res = {
+            'rdf:about': self.url,
+            'rdf:type': 'prov:Entity',
+        }
+        if self.version:
+            res['dc:created'] = self.version
+        elif self.clone:
+            res['dc:created'] = git_describe(self.clone)
+        res.update({'dc:{0}'.format(k): v for k, v in self.dc.items()})
+        return res
+
+
 class Dataset(object):
     """
     API to access a CLDF dataset.
@@ -96,6 +116,29 @@ class Dataset(object):
     @property
     def tables(self):
         return self.tablegroup.tables
+
+    def add_provenance(self, **kw):
+        """
+        Add metadata about the dataset's provenance.
+
+        :param kw: Key-value pairs, where keys are local names of properties in the PROV ontology \
+        for describing entities (see https://www.w3.org/TR/2013/REC-prov-o-20130430/#Entity).
+        """
+        def to_json(obj):
+            if isinstance(obj, GitRepository):
+                return obj.json_ld()
+            return obj
+
+        for k, v in kw.items():
+            if not k.startswith('prov:'):
+                k = 'prov:{0}'.format(k)
+            if isinstance(v, (tuple, list)):
+                v = [to_json(vv) for vv in v]
+            else:
+                v = to_json(v)
+            if k in self.tablegroup.common_props:
+                raise ValueError('Property {0} already specified'.format(k))
+            self.tablegroup.common_props[k] = v
 
     def add_sources(self, *sources):
         self.sources.add(*sources)
