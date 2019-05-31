@@ -3,7 +3,7 @@ from __future__ import unicode_literals, print_function, division
 
 import sys
 from itertools import chain
-from collections import Counter
+from collections import Counter, OrderedDict
 
 from six import string_types
 
@@ -83,15 +83,15 @@ class GitRepository(object):
         self.dc = dc
 
     def json_ld(self):
-        res = {
-            'rdf:about': self.url,
-            'rdf:type': 'prov:Entity',
-        }
+        res = OrderedDict([
+            ('rdf:about', self.url),
+            ('rdf:type', 'prov:Entity'),
+        ])
         if self.version:
             res['dc:created'] = self.version
         elif self.clone:
             res['dc:created'] = git_describe(self.clone)
-        res.update({'dc:{0}'.format(k): v for k, v in self.dc.items()})
+        res.update({'dc:{0}'.format(k): self.dc[k] for k in sorted(self.dc)})
         return res
 
 
