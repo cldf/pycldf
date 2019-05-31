@@ -1,17 +1,14 @@
 from setuptools import setup, find_packages
 
 
-def read(fname):
-    with open(fname) as fp:
-        return fp.read().split('\n\n\n')[0]
-
-
 setup(
     name='pycldf',
-    version='1.1.0.dev0',
+    version='1.6.3.dev0',
     author='Robert Forkel',
     author_email='forkel@shh.mpg.de',
     description='A python library to read and write CLDF datasets',
+    long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     keywords='',
     license='Apache 2.0',
     url='https://github.com/cldf/pycldf',
@@ -22,13 +19,13 @@ setup(
     entry_points={
         'console_scripts': [
             'cldf=pycldf.__main__:main',
-        ]
+        ],
     },
     platforms='any',
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
     install_requires=[
+        'csvw>=1.5.4',
         'clldutils>=1.13.10',
-        'csvw>=0.1',
         'uritemplate>=3.0',
         'python-dateutil',
         'pybtex',
@@ -38,13 +35,12 @@ setup(
         'dev': ['flake8', 'wheel', 'twine'],
         'test': [
             'mock',
-            'pytest>=3.1',
+            'pytest>=3.6',
             'pytest-mock',
             'pytest-cov',
             'coverage>=4.2',
         ],
     },
-    long_description=read('README.rst'),
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',

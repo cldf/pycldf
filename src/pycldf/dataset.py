@@ -3,13 +3,14 @@ from __future__ import unicode_literals, print_function, division
 
 import sys
 from itertools import chain
+from collections import Counter
 
 from six import string_types
 
 import attr
-from csvw.metadata import TableGroup, Table, Column, ForeignKey
+from csvw.metadata import TableGroup, Table, Column
 from csvw.dsv import iterrows
-from clldutils.path import Path
+from clldutils.path import Path, git_describe
 from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
@@ -56,8 +57,9 @@ def get_modules():
             mod.cls = getattr(ds, mod.id)
             _modules.append(mod)
         # prefer Wordlist over ParallelText (forms.csv)
-        sortkey = lambda m: (m.cls in (Wordlist, ParallelText), m.cls is ParallelText)
-        _modules = sorted(_modules, key=sortkey)
+        _modules = sorted(
+            _modules,
+            key=lambda m: (m.cls in (Wordlist, ParallelText), m.cls is ParallelText))
     return _modules
 
 
@@ -73,19 +75,35 @@ def make_column(spec):
     raise TypeError(spec)
 
 
+class GitRepository(object):
+    def __init__(self, url, clone=None, version=None, **dc):
+        self.url = url
+        self.clone = clone
+        self.version = version
+        self.dc = dc
+
+    def json_ld(self):
+        res = {
+            'rdf:about': self.url,
+            'rdf:type': 'prov:Entity',
+        }
+        if self.version:
+            res['dc:created'] = self.version
+        elif self.clone:
+            res['dc:created'] = git_describe(self.clone)
+        res.update({'dc:{0}'.format(k): v for k, v in self.dc.items()})
+        return res
+
+
 class Dataset(object):
     """
     API to access a CLDF dataset.
     """
 
     def __init__(self, tablegroup):
-        self._tg = tablegroup
+        self.tablegroup = tablegroup
         self.auto_constraints()
         self.sources = Sources.from_file(self.bibpath)
-
-    @property
-    def tablegroup(self):
-        return self._tg
 
     @property
     def metadata_dict(self):
@@ -99,11 +117,34 @@ class Dataset(object):
     def tables(self):
         return self.tablegroup.tables
 
+    def add_provenance(self, **kw):
+        """
+        Add metadata about the dataset's provenance.
+
+        :param kw: Key-value pairs, where keys are local names of properties in the PROV ontology \
+        for describing entities (see https://www.w3.org/TR/2013/REC-prov-o-20130430/#Entity).
+        """
+        def to_json(obj):
+            if isinstance(obj, GitRepository):
+                return obj.json_ld()
+            return obj
+
+        for k, v in kw.items():
+            if not k.startswith('prov:'):
+                k = 'prov:{0}'.format(k)
+            if isinstance(v, (tuple, list)):
+                v = [to_json(vv) for vv in v]
+            else:
+                v = to_json(v)
+            if k in self.tablegroup.common_props:
+                raise ValueError('Property {0} already specified'.format(k))
+            self.tablegroup.common_props[k] = v
+
     def add_sources(self, *sources):
         self.sources.add(*sources)
 
     def add_table(self, url, *cols):
-        self.add_component(
+        return self.add_component(
             {"url": url, "tableSchema": {"columns": []}},
             *cols)
 
@@ -114,22 +155,29 @@ class Dataset(object):
         if isinstance(component, dict):
             component = Table.fromvalue(component)
         assert isinstance(component, Table)
+
+        for other_table in self.tables:
+            if other_table.url == component.url:
+                raise ValueError('tables must have distinct url properties')
+
         self.add_columns(component, *cols)
         try:
             table_type = self.get_tabletype(component)
         except ValueError:
             table_type = None
-        for other_table in self.tables:
-            try:
-                other_table_type = self.get_tabletype(other_table)
-            except ValueError:
-                continue
-            if other_table_type == table_type:
-                raise ValueError('components must not be added twice')
+        if table_type:
+            for other_table in self.tables:
+                try:
+                    other_table_type = self.get_tabletype(other_table)
+                except ValueError:  # pragma: no cover
+                    continue
+                if other_table_type == table_type:
+                    raise ValueError('components must not be added twice')
 
         self.tables.append(component)
-        component._parent = self._tg
+        component._parent = self.tablegroup
         self.auto_constraints(component)
+        return component
 
     def add_columns(self, table, *cols):
         table = self[table]
@@ -154,11 +202,7 @@ class Dataset(object):
         else:
             primary_c = self[primary_t, primary_c].name
             primary_t = self[primary_t]
-        foreign_t.tableSchema.foreignKeys.append(ForeignKey.fromdict(dict(
-            columnReference=foreign_c,
-            reference=dict(
-                resource=primary_t.url.string,
-                columnReference=primary_c))))
+        foreign_t.add_foreign_key(foreign_c, primary_t.url.string, primary_c)
 
     def auto_constraints(self, component=None):
         """
@@ -181,6 +225,9 @@ class Dataset(object):
         try:
             table_type = self.get_tabletype(component)
         except ValueError:
+            table_type = None
+
+        if table_type is None:
             # New component is not a known CLDF term, so cannot add components
             # automatically. TODO: We might me able to infer some based on
             # `xxxReference` column properties?
@@ -193,35 +240,34 @@ class Dataset(object):
     def _auto_foreign_keys(self, table, component=None, table_type=None):
         assert (component is None) == (table_type is None)
         for col in table.tableSchema.columns:
-            if not col.propertyUrl or col.propertyUrl.uri not in TERMS.by_uri:
-                continue
-            ref_name = TERMS.by_uri[col.propertyUrl.uri].references
-            if (component is None and not ref_name) or \
-                    (component is not None and ref_name != table_type):
-                continue
-            if any(fkey.columnReference == [col.name]
-                   for fkey in table.tableSchema.foreignKeys):
-                continue
-            if component is None:
-                # Let's see whether we have the component this column references:
-                try:
-                    ref = self[ref_name]
-                except KeyError:
+            if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
+                ref_name = TERMS.by_uri[col.propertyUrl.uri].references
+                if (component is None and not ref_name) or \
+                        (component is not None and ref_name != table_type):
                     continue
-            else:
-                ref = component
-            idcol = ref.get_column(term_uri('id'))
-            table.tableSchema.foreignKeys.append(ForeignKey.fromdict(dict(
-                columnReference=col.name,
-                reference=dict(
-                    resource=ref.url.string,
-                    columnReference=idcol.name if idcol is not None else 'ID'))))
+                if any(fkey.columnReference == [col.name]
+                       for fkey in table.tableSchema.foreignKeys):
+                    continue
+                if component is None:
+                    # Let's see whether we have the component this column references:
+                    try:
+                        ref = self[ref_name]
+                    except KeyError:
+                        continue
+                else:
+                    ref = component
+                idcol = ref.get_column(term_uri('id'))
+                table.add_foreign_key(
+                    col.name, ref.url.string, idcol.name if idcol is not None else 'ID')
 
     @property
     def bibpath(self):
         return self.directory.joinpath(self.properties.get('dc:source', 'sources.bib'))
 
-    def validate(self, log=None):
+    def validate(self, log=None, validators=None):
+        validators = validators or []
+        validators.extend(VALIDATORS)
+        success = True
         default_tg = TableGroup.from_file(
             pkg_path('modules', '{0}{1}'.format(self.module, MD_SUFFIX)))
         for default_table in default_tg.tables:
@@ -230,6 +276,7 @@ class Dataset(object):
                 table = self[dtable_uri]
             except KeyError:
                 log_or_raise('{0} requires {1}'.format(self.module, dtable_uri), log=log)
+                success = False
                 table = None
 
             if table:
@@ -242,6 +289,7 @@ class Dataset(object):
                 table_uri = table.common_props['dc:conformsTo']
                 for col in default_cols - cols:
                     log_or_raise('{0} requires column {1}'.format(table_uri, col), log=log)
+                    success = False
 
         for table in self.tables:
             type_uri = table.common_props.get('dc:conformsTo')
@@ -249,37 +297,48 @@ class Dataset(object):
                 try:
                     TERMS.is_cldf_uri(type_uri)
                 except ValueError:
+                    success = False
                     log_or_raise('invalid CLDF URI: {0}'.format(type_uri), log=log)
 
             # FIXME: check whether table.common_props['dc:conformsTo'] is in validators!
-            validators = []
+            validators_ = []
             for col in table.tableSchema.columns:
                 if col.propertyUrl:
                     col_uri = col.propertyUrl.uri
                     try:
                         TERMS.is_cldf_uri(col_uri)
                     except ValueError:
+                        success = False
                         log_or_raise('invalid CLDF URI: {0}'.format(col_uri), log=log)
-                    if col_uri in VALIDATORS:
-                        validators.append((col, VALIDATORS[col_uri]))
+                for table_, col_, v_ in validators:
+                    if (not table_ or table is self.get(table_)) and col is self.get((table, col_)):
+                        validators_.append((col, v_))
 
             fname = Path(table.url.resolve(table._parent.base))
             if fname.exists():
                 for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
-                    for col, validate in validators:
+                    for col, validate in validators_:
                         try:
                             validate(self, table, col, row)
                         except ValueError as e:
                             log_or_raise(
                                 '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
                                 log=log)
-                table.check_primary_key(log=log)
+                            success = False
+                if not table.check_primary_key(log=log):
+                    success = False
+            else:
+                log_or_raise('{0} does not exist'.format(fname), log=log)
+                success = False
 
-        self._tg.check_referential_integrity(log=log)
+        if not self.tablegroup.check_referential_integrity(log=log):
+            success = False
+
+        return success
 
     @property
     def directory(self):
-        return self._tg._fname.parent
+        return self.tablegroup._fname.parent
 
     @property
     def module(self):
@@ -312,6 +371,17 @@ class Dataset(object):
         else:
             tablegroup = TableGroup.from_file(fname)
 
+        comps = Counter()
+        for table in tablegroup.tables:
+            try:
+                dt = Dataset.get_tabletype(table)
+                if dt:
+                    comps.update([dt])
+            except ValueError:
+                pass
+        if comps and comps.most_common(1)[0][1] > 1:
+            raise ValueError('{0}: duplicate components!'.format(fname))
+
         for mod in get_modules():
             if mod.match(tablegroup):
                 return mod.cls(tablegroup)
@@ -327,7 +397,7 @@ class Dataset(object):
             try:
                 cls = next(mod.cls for mod in get_modules() if mod.match(fname))
             except StopIteration:
-                raise ValueError(fname)
+                raise ValueError('{0} does not match a CLDF module spec'.format(fname))
             assert issubclass(cls, Dataset) and cls is not Dataset
 
         res = cls.from_metadata(fname.parent)
@@ -386,6 +456,12 @@ class Dataset(object):
 
         raise KeyError(column)
 
+    def get(self, item, default=None):
+        try:
+            return self[item]
+        except KeyError:
+            return default
+
     def get_row(self, table, id_):
         id_col = self[table, TERMS['id']]
         for row in self[table]:
@@ -395,6 +471,8 @@ class Dataset(object):
 
     @staticmethod
     def get_tabletype(table):
+        if table.common_props.get('dc:conformsTo', '') is None:
+            return None
         if '#' in table.common_props.get('dc:conformsTo', ''):
             res = table.common_props['dc:conformsTo'].split('#')[1]
             if res in TERMS:
@@ -415,15 +493,18 @@ class Dataset(object):
         res = []
         for table in self.tables:
             dctype = table.common_props.get('dc:conformsTo')
-            if dctype.split('#')[1] in TERMS:
+            if dctype and '#' in dctype and dctype.split('#')[1] in TERMS:
                 dctype = TERMS[dctype.split('#')[1]].csvw_prop('name')
-            res.append((table.url.string, dctype, sum(1 for _ in table)))
+            res.append((
+                table.url.string,
+                dctype,
+                table.common_props.get('dc:extent') or sum(1 for _ in table)))
         if self.sources:
             res.append((self.bibpath.name, 'Sources', len(self.sources)))
         return res
 
     def write_metadata(self, fname=None):
-        return self._tg.to_file(fname or self._tg._fname)
+        return self.tablegroup.to_file(fname or self.tablegroup._fname)
 
     def write_sources(self):
         return self.sources.write(self.bibpath)
@@ -431,10 +512,11 @@ class Dataset(object):
     def write(self, fname=None, **table_items):
         if self.sources and not self.properties.get('dc:source'):
             self.properties['dc:source'] = 'sources.bib'
-        self.write_metadata(fname)
         self.write_sources()
         for table_type, items in table_items.items():
-            self[table_type].write(items)
+            table = self[table_type]
+            table.common_props['dc:extent'] = table.write(items)
+        self.write_metadata(fname)
 
 
 class Generic(Dataset):

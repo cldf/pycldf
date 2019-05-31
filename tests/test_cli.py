@@ -5,7 +5,7 @@ import pytest
 from clldutils.path import copy
 from clldutils.clilib import ParserError
 
-from pycldf.__main__ import validate, stats, createdb
+from pycldf.__main__ import validate, stats, createdb, dumpdb
 
 
 def test_stats(tmpdir, mocker):
@@ -40,3 +40,7 @@ def test_all(capsys, tmpdir, mocker, data):
     log = mocker.MagicMock()
     createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
     assert log.info.called
+    dumpdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
+
+    with pytest.raises(ParserError):
+        createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))

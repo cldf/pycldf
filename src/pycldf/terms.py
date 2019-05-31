@@ -30,6 +30,7 @@ def term_uri(name, terms=None, ns=URL):
         return name
     return None
 
+
 def qname(ns, lname):
     return '{%s}%s' % (ns, lname)
 

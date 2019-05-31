@@ -16,7 +16,7 @@ from __future__ import unicode_literals, print_function
 import sys
 
 from clldutils.path import Path
-from clldutils.clilib import ArgumentParserWithLogging, ParserError
+from clldutils.clilib import ArgumentParserWithLogging, ParserError, command
 from clldutils.markup import Table
 
 from pycldf.dataset import Dataset
@@ -34,11 +34,21 @@ def _get_dataset(args):
     return Dataset.from_data(fname)
 
 
+@command()
 def validate(args):
+    """
+    cldf validate <DATASET>
+
+    Validate a dataset against the CLDF specification, i.e. check
+    - whether required tables and columns are present
+    - whether values for required columns are present
+    - the referential integrity of the dataset
+    """
     ds = _get_dataset(args)
     ds.validate(log=args.log)
 
 
+@command()
 def stats(args):
     """
     cldf stats <DATASET>
@@ -59,6 +69,7 @@ def stats(args):
     print(t.render(condensed=False, tablefmt=None))
 
 
+@command()
 def createdb(args):
     """
     cldf createdb <DATASET> <SQLITE_DB_PATH>
@@ -69,15 +80,29 @@ def createdb(args):
     """
     if len(args.args) < 2:
         raise ParserError('not enough arguments')
-    db = Database(args.args[1])
-    db.create()
+    if Path(args.args[1]).exists():
+        raise ParserError('The database file already exists!')
     ds = _get_dataset(args)
-    db.load(ds)
+    db = Database(ds, fname=args.args[1])
+    db.write_from_tg()
     args.log.info('{0} loaded in {1}'.format(ds, db.fname))
 
 
+@command()
+def dumpdb(args):
+    """
+    cldf dumpdb <DATASET> <SQLITE_DB_PATH> [<METADATA_PATH>]
+    """
+    if len(args.args) < 2:
+        raise ParserError('not enough arguments')  # pragma: no cover
+    ds = _get_dataset(args)
+    db = Database(ds, fname=args.args[1])
+    mdpath = Path(args.args[2]) if len(args.args) > 2 else ds.tablegroup._fname
+    args.log.info('dumped db to {0}'.format(db.to_cldf(mdpath.parent, mdname=mdpath.name)))
+
+
 def main():  # pragma: no cover
-    parser = ArgumentParserWithLogging('pycldf', stats, validate, createdb)
+    parser = ArgumentParserWithLogging('pycldf')
     sys.exit(parser.main())
 
 

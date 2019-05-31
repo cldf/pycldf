@@ -1,5 +1,6 @@
 # coding: utf8
 from __future__ import unicode_literals, print_function, division
+from collections import OrderedDict
 import re
 
 from six import string_types
@@ -20,16 +21,24 @@ class Writer(BaseWriter):
         self.check_braces(s)
         return '{%s}' % s
 
+    def _encode(self, text):
+        #
+        # FIXME: We overwrite a private method here!
+        #
+        return text
+
 
 class Source(BaseSource, UnicodeMixin):
     @property
     def entry(self):
-        persons = dict(
-            author=list(self.persons(self.get('author', ''))),
-            editor=list(self.persons(self.get('editor', ''))))
+        persons = OrderedDict([
+            ('author', list(self.persons(self.get('author', '')))),
+            ('editor', list(self.persons(self.get('editor', '')))),
+        ])
         return database.Entry(
             self.genre,
-            fields={k: v for k, v in self.items() if v and k not in ['author', 'editor']},
+            fields=OrderedDict(
+                (k, v) for k, v in sorted(self.items()) if v and k not in ['author', 'editor']),
             persons=persons)
 
     def __unicode__(self):
@@ -48,7 +57,7 @@ class Source(BaseSource, UnicodeMixin):
 
     @staticmethod
     def persons(s):
-        for name in re.split('\s+&\s+|\s+and\s+', s.strip()):
+        for name in re.split(r'\s+&\s+|\s+and\s+', s.strip()):
             if name:
                 parts = name.split(',')
                 if len(parts) > 2:
@@ -66,7 +75,7 @@ class Reference(UnicodeMixin):
         self.description = desc
 
     def __unicode__(self):
-        res = self.source.id
+        res = self.source.id if hasattr(self.source, 'id') else self.source
         if self.description:
             res += '[%s]' % self.description
         return res

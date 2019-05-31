@@ -2,12 +2,12 @@ from __future__ import unicode_literals
 
 import pytest
 
-from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table
-from clldutils.path import copy, write_text, Path
+from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Link
+from clldutils.path import copy, write_text, Path, remove
 
 from pycldf.terms import term_uri
 from pycldf.dataset import (
-    Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset,
+    Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, GitRepository,
     make_column, get_modules)
 
 
@@ -42,6 +42,26 @@ def test_make_column():
         make_column(5)
 
 
+def test_provenance(ds, tmpdir):
+    ds.add_provenance(wasDerivedFrom=[GitRepository('http://example.org'), 'other'])
+    assert ds.properties['prov:wasDerivedFrom'][0]['rdf:about'] == 'http://example.org'
+
+    with pytest.raises(ValueError):
+        ds.add_provenance(wasDerivedFrom=[])
+
+    ds.tablegroup.common_props = {}
+    ds.add_provenance(wasDerivedFrom=GitRepository('http://example.org'))
+    assert ds.properties['prov:wasDerivedFrom']['rdf:about'] == 'http://example.org'
+
+    ds.tablegroup.common_props = {}
+    ds.add_provenance(wasDerivedFrom=GitRepository('http://example.org', version='v1'))
+    assert ds.properties['prov:wasDerivedFrom']['dc:created'] == 'v1'
+
+    ds.tablegroup.common_props = {}
+    ds.add_provenance(wasDerivedFrom=GitRepository('http://example.org', clone=str(tmpdir)))
+    assert ds.properties['prov:wasDerivedFrom']['dc:created']
+
+
 def test_primary_table(ds):
     assert ds.primary_table is None
 
@@ -58,6 +78,91 @@ def test_column_access(ds):
 
     assert ds['ValueTable', 'Language_ID'] == ds['values.csv', 'languageReference']
 
+
+def test_tabletype_none(ds):
+    ds.add_table('url', {'name': 'col'})
+    ds['url'].common_props['dc:conformsTo'] = None
+    assert ds.get_tabletype(ds['url']) is None
+
+    with pytest.raises(ValueError):
+        ds.add_table('url')
+
+    # Make sure we can add another table with:
+    t = ds.add_component({'url': 'other', 'dc:conformsTo': None})
+    assert ds.get_tabletype(t) is None
+
+
+def test_example_validators(ds, tmpdir):
+    ds.add_table(
+        'examples',
+        {
+            'name': 'morphemes',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#analyzedWord',
+            'separator': '\t'},
+        {
+            'name': 'gloss',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#gloss',
+            'separator': '\t'},
+    )
+    ds.write(examples=[{'morphemes': ['a'], 'gloss': ['a', 'b']}])
+    with pytest.raises(ValueError) as e:
+        ds.validate()
+        assert 'number of morphemes' in str(e)
+
+
+def test_duplicate_component(ds, tmpdir):
+    # adding a component twice is not possible:
+    t = ds.add_component('ValueTable')
+    t.url = Link('other.csv')
+    with pytest.raises(ValueError):
+        ds.add_component('ValueTable')
+
+    # JSON descriptions with duplicate components cannot be read:
+    md = tmpdir / 'md.json'
+    json = """\
+{
+    "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#StructureDataset",
+    "tables": [
+        {"url": "values.csv"},
+        COMPS 
+    ]
+}"""
+    comp = """
+{
+    "url": "values.csv",
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable",
+    "tableSchema": {
+        "columns": [
+            {
+                "name": "ID",
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id"
+            },
+            {
+                "name": "Language_ID",
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference"
+            },
+            {
+                "name": "Parameter_ID",
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference"
+            },
+            {
+                "name": "Value",
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#value"
+            }
+        ]
+    }
+}"""
+    md.write_text(json.replace('COMPS', comp), encoding='utf8')
+    (tmpdir / 'values.csv').write_text(
+        "ID,Language_ID,Parameter_ID,Value\n1,1,1,1", encoding='utf8')
+    ds = Dataset.from_metadata(str(md))
+    assert ds.validate()
+
+    md.write_text(json.replace('COMPS', ', '.join([comp, comp])), encoding='utf8')
+    with pytest.raises(ValueError) as excinfo:
+        Dataset.from_metadata(str(md))
+    assert 'duplicate component' in excinfo.exconly()
 
 def test_foreign_key_creation(ds):
     ds.add_component('ValueTable')
@@ -261,9 +366,14 @@ def test_Dataset_from_scratch(tmpdir, data):
     md = ds.write_metadata()
     Dataset.from_metadata(md)
     repr(ds)
-    del ds._tg.common_props['dc:conformsTo']
+    del ds.tablegroup.common_props['dc:conformsTo']
     Dataset.from_metadata(ds.write_metadata())
     assert len(ds.stats()) == 1
+
+    ds.add_table('extra.csv', 'ID')
+    ds.write(**{'ValueTable': [], 'extra.csv': []})
+    counts = {r[0]: r[2] for r in ds.stats()}
+    assert counts['extra.csv'] == 0
 
 
 def test_Dataset_auto_foreign_keys(tmpdir):
@@ -311,20 +421,37 @@ def test_Dataset_from_data(tmpdir, cls, expected):
     assert type(cls.from_data(str(forms))) is expected
 
 
-def test_Dataset_validate(tmpdir):
+def test_Dataset_validate(tmpdir, mocker):
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.write(ValueTable=[])
-    ds.validate()
+    values = tmpdir / 'new' / 'values.csv'
+    assert values.check()
+    remove(str(values))
+    log = mocker.Mock()
+    assert not ds.validate(log=log)
+    assert log.warn.called
+
+    ds.write(ValueTable=[])
+    assert ds.validate()
+
     ds['ValueTable'].tableSchema.columns = []
     with pytest.raises(ValueError):
         ds.validate()
-    ds._tg.tables = []
+    assert not ds.validate(log=mocker.Mock())
+    ds.tablegroup.tables = []
     with pytest.raises(ValueError):
         ds.validate()
 
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.add_component('LanguageTable')
-    ds.write(ValueTable=[])
+    ds.write(ValueTable=[], LanguageTable=[])
+    assert ds.validate()
+
+    # test violation of referential integrity:
+    ds.write(ValueTable=[{'ID': '1', 'Value': '1', 'Language_ID': 'lid', 'Parameter_ID': 'pid'}], LanguageTable=[])
+    assert not ds.validate(log=mocker.Mock())
+
+    # test an invalid CLDF URL:
     ds['LanguageTable'].common_props['dc:conformsTo'] = 'http://cldf.clld.org/404'
     with pytest.raises(ValueError):
         ds.validate()
@@ -335,6 +462,20 @@ def test_Dataset_validate(tmpdir):
     ds.write(ValueTable=[])
     with pytest.raises(ValueError):
         ds.validate()
+
+
+def test_Dataset_validate_custom_validator(tmpdir):
+    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+    ds.write(ValueTable=[
+        {'ID': '1', 'Value': 'x', 'Language_ID': 'l', 'Parameter_ID': 'p'}])
+    assert ds.validate()
+
+    def v(tg, t, c, r):
+        if r[c.name] == 'x':
+            raise ValueError()
+
+    with pytest.raises(ValueError):
+        ds.validate(validators=[('ValueTable', 'Value', v)])
 
 
 def test_Dataset_validate_missing_table(tmpdir, mocker):
@@ -360,17 +501,23 @@ def test_Dataset_write(tmpdir):
             'Value': 'yes',
             'Source': ['key[1-20]', 'ky'],
         }])
+    ds2 = StructureDataset.from_metadata(
+        str(tmpdir.join('StructureDataset-metadata.json')))
+    assert ds2['ValueTable'].common_props['dc:extent'] == 1
+    assert {s[1]: s[2] for s in ds.stats()}['ValueTable'] == 1
+    ds['ValueTable'].common_props['dc:extent'] = 3
+    assert {s[1]: s[2] for s in ds.stats()}['ValueTable'] == 3
     with pytest.raises(ValueError):
         ds.validate()
     ds.sources.add("@misc{key,\ntitle={the title}\n}")
-    ds.write(ValueTable=[
+    ds.write(ValueTable=(
         {
             'ID': '1',
             'Language_ID': 'abcd1234',
             'Parameter_ID': 'f1',
             'Value': 'yes',
             'Source': ['key[1-20]'],
-        }])
+        } for _ in range(1)))
     ds.validate()
     ds.add_component('ExampleTable')
     ds.write(
@@ -416,7 +563,7 @@ def test_validators(tmpdir, mocker, data):
     ds.validate(log=log)
     assert log.warn.call_count == 2
 
-    for col in ds._tg.tables[0].tableSchema.columns:
+    for col in ds.tablegroup.tables[0].tableSchema.columns:
         if col.name == 'Language_ID':
             col.propertyUrl.uri = 'http://cldf.clld.org/v1.0/terms.rdf#glottocode'
 

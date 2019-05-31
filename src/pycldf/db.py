@@ -8,33 +8,17 @@ Notes:
 """
 
 from __future__ import unicode_literals, print_function, division
-
-from collections import OrderedDict, defaultdict
-import sqlite3
-from contextlib import closing
-from json import dumps
-
-from six import text_type
+import functools
+import collections
 
 import attr
-from csvw.datatypes import DATATYPES
-from clldutils.path import Path, remove
+import csvw
+import csvw.db
+from clldutils.path import Path
 
-from pycldf.terms import term_uri
-from pycldf.sources import Sources
+from pycldf.terms import TERMS
+from pycldf.sources import Reference, Sources, Source
 
-__all__ = ['Database']
-
-
-def identity(s):
-    return s
-
-
-TYPE_MAP = {
-    'string': ('TEXT', identity),
-    'integer': ('INTEGER', identity),
-    'boolean': ('INTEGER', lambda s: s if s is None else int(s)),
-}
 BIBTEX_FIELDS = [
     'address',  # Publisher's address
     'annote',  # An annotation for annotated bibliography styles (not typical)
@@ -65,317 +49,196 @@ BIBTEX_FIELDS = [
 ]
 
 
-def insert(db, table, keys, *rows):
-    if rows:
-        if isinstance(keys, text_type):
-            keys = [k.strip() for k in keys.split(',')]
-        keys = ['"{:}"'.format(k.replace('"', r'\"')) for k in keys]
-        query = "INSERT INTO \"{0}\" ({1}) VALUES ({2})".format(
-            table, ','.join(keys), ','.join(['?' for _ in keys]))
-        db.executemany(query, rows)
-
-
-class Database(object):
-    def __init__(self, fname):
-        """
-        A `Database` instance is initialized with a file path.
-
-        :param fname: Path to a file in the file system where the db is to be stored.
-        """
-        self.fname = Path(fname)
-
-    def drop(self):
-        if self.fname.exists():
-            remove(self.fname)
-
-    def connection(self):
-        return closing(sqlite3.connect(self.fname.as_posix()))
-
-    def create(self, force=False):
-        """
-        Creates a db file with the core schema.
-
-        :param force: If `True` an existing db file will be overwritten.
-        """
-        if self.fname and self.fname.exists():
-            if force:
-                self.drop()
-            else:
-                raise ValueError('db file already exists, use force=True to overwrite')
-        with self.connection() as db:
-            db.execute(
-                """\
-CREATE TABLE dataset (
-    ID INTEGER PRIMARY KEY NOT NULL,
-    name TEXT,
-    module TEXT,
-    metadata_json TEXT
-)""")
-            db.execute("""\
-CREATE TABLE datasetmeta (
-    dataset_ID INT ,
-    key TEXT,
-    value TEXT,
-    FOREIGN KEY(dataset_ID) REFERENCES dataset(ID)
-)""")
-            db.execute("""\
-CREATE TABLE SourceTable (
-    dataset_ID INT ,
-    ID TEXT PRIMARY KEY NOT NULL,
-    bibtex_type TEXT,
-    {0}
-    extra TEXT,
-    FOREIGN KEY(dataset_ID) REFERENCES dataset(ID)
-)""".format('\n    '.join('"{0}" TEXT,'.format(f) for f in BIBTEX_FIELDS)))
-
-    def fetchone(self, sql, conn=None):
-        return self._fetch(sql, 'fetchone', conn)
-
-    def fetchall(self, sql, conn=None):
-        return self._fetch(sql, 'fetchall', conn)
-
-    def _fetch(self, sql, method, conn):
-        def _do(conn, sql, method):
-            cu = conn.cursor()
-            cu.execute(sql)
-            return getattr(cu, method)()
-
-        if not conn:
-            with self.connection() as conn:
-                return _do(conn, sql, method)
-        else:
-            return _do(conn, sql, method)
-
-    def delete(self, dataset_id):
-        with self.connection() as db:
-            for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'"):
-                table = row[0]
-                if table != 'dataset':
-                    db.execute(
-                        "DELETE FROM {0} WHERE dataset_ID = ?".format(table),
-                        (dataset_id,))
-            db.execute("DELETE FROM dataset WHERE ID = ?", (dataset_id,))
-            db.commit()
-
-    def _create_table_if_not_exists(self, table):
-        if table.name in [r[0] for r in self.fetchall(
-                "SELECT name FROM sqlite_master WHERE type='table'")]:
-            return False
-
-        with self.connection() as conn:
-            conn.execute(table.sql)
-        return True
-
-    def load(self, dataset):
-        """
-        Load a CLDF dataset into the database.
-
-        :param dataset:
-        :return:
-        """
-        tables, ref_tables = schema(dataset)
-
-        # update the DB schema:
-        for t in tables:
-            if self._create_table_if_not_exists(t):
-                continue
-            db_cols = {r[1]: r[2] for r in self.fetchall(
-                "PRAGMA table_info({0})".format(t.name))}
-            for col in t.columns:
-                if col.name not in db_cols:
-                    with self.connection() as conn:
-                        conn.execute(
-                            "ALTER TABLE {0} ADD COLUMN \"{1.name}\" {1.db_type}".format(
-                                t.name, col))
-                else:
-                    if db_cols[col.name] != col.db_type:
-                        raise ValueError(
-                            'column {0}:{1} {2} redefined with new type {3}'.format(
-                                t.name, col.name, db_cols[col.name], col.db_type))
-
-        for t in ref_tables.values():
-            self._create_table_if_not_exists(t)
-
-        # then load the data:
-        with self.connection() as db:
-            db.execute('PRAGMA foreign_keys = ON;')
-            pk = max(
-                [r[0] for r in self.fetchall("SELECT ID FROM dataset", conn=db)] or
-                [0]) + 1
-            insert(
-                db,
-                'dataset',
-                'ID,name,module,metadata_json',
-                (pk, '{0}'.format(dataset), dataset.module, dumps(dataset.metadata_dict)))
-            insert(
-                db,
-                'datasetmeta',
-                'dataset_ID,key,value',
-                *[(pk, k, '{0}'.format(v)) for k, v in dataset.properties.items()])
-
-            # load sources:
-            rows = []
-            for src in dataset.sources.items():
-                values = [pk, src.id, src.genre] + [src.get(k) for k in BIBTEX_FIELDS]
-                values.append(
-                    dumps({k: v for k, v in src.items() if k not in BIBTEX_FIELDS}))
-                rows.append(tuple(values))
-            insert(
-                db,
-                'SourceTable',
-                ['dataset_ID', 'ID', 'bibtex_type'] + BIBTEX_FIELDS + ['extra'],
-                *rows)
-
-            # For regular tables, we extract and keep references to sources.
-            refs = defaultdict(list)
-
-            for t in tables:
-                cols = {col.name: col for col in t.columns}
-                ref_table = ref_tables.get(t.name)
-                rows, keys = [], []
-                for row in dataset[t.name]:
-                    keys, values = ['dataset_ID'], [pk]
-                    for k, v in row.items():
-                        if ref_table and k == ref_table.consumes:
-                            refs[ref_table.name].append((row[t.primary_key], v))
-                        else:
-                            col = cols[k]
-                            if isinstance(v, list):
-                                v = (col.separator or ';').join(
-                                    col.convert(vv) for vv in v)
-                            else:
-                                v = col.convert(v)
-                            keys.append(k)
-                            values.append(v)
-                    rows.append(tuple(values))
-                insert(db, t.name, keys, *rows)
-
-            # Now insert the references, i.e. the associations with sources:
-            for tname, items in refs.items():
-                rows = []
-                for oid, sources in items:
-                    for source in sources:
-                        sid, context = Sources.parse(source)
-                        rows.append([pk, oid, sid, context])
-                oid_col = '{0}_ID'.format(tname.replace('Source', ''))
-                insert(db, tname, ['dataset_ID', '{:}'.format(oid_col), 'Source_ID', 'Context'], *rows)
-            db.commit()
-
-
 @attr.s
-class ColSpec(object):
-    """
-    A `ColSpec` captures sufficient information about a `Column` for the DB schema.
-    """
-    name = attr.ib()
-    csvw_type = attr.ib(default='string', convert=lambda s: s if s else 'string')
-    separator = attr.ib(default=None)
-    primary_key = attr.ib(default=None)
-    db_type = attr.ib(default=None)
-    convert = attr.ib(default=None)
-
-    def __attrs_post_init__(self):
-        if self.csvw_type in TYPE_MAP:
-            self.db_type, self.convert = TYPE_MAP[self.csvw_type]
-        else:
-            self.db_type = 'TEXT'
-            self.convert = DATATYPES[self.csvw_type].to_string
-
-    @property
-    def sql(self):
-        return '"{0.name}" {0.db_type}{1}'.format(
-            self, ' PRIMARY KEY NOT NULL' if self.primary_key else '')
+class TableTranslation(object):
+    name = attr.ib(default=None)
+    columns = attr.ib(default={})
 
 
-@attr.s
-class TableSpec(object):
-    """
-    A `TableSpec` captures sufficient information about a `Table` for the DB schema.
-    """
-    name = attr.ib()
-    columns = attr.ib(default=attr.Factory(list))
-    foreign_keys = attr.ib(default=attr.Factory(list))
-    consumes = attr.ib(default=None)
-    primary_key = attr.ib(default=None)
-
-    @property
-    def sql(self):
-        clauses = [col.sql for col in self.columns]
-        clauses.append('"dataset_ID" INTEGER NOT NULL')
-        clauses.append('FOREIGN KEY("dataset_ID") REFERENCES "dataset"("ID")')
-        for fk, ref, refcols in self.foreign_keys:
-            clauses.append('FOREIGN KEY("{0}") REFERENCES "{1}"("{2}")'.format(
-                ','.join(fk), ref, ','.join(refcols)))
-        query = "CREATE TABLE \"{0}\" (\n    {1}\n)".format(self.name, ',\n    '.join(clauses))
-        return query
+def translate(d, table, col=None):
+    if col:
+        if table in d and col in d[table].columns:
+            return d[table].columns[col]
+        return col
+    if table in d and d[table].name:
+        return d[table].name
+    return table
 
 
-def schema(ds):
-    """
-    Convert the table and column descriptions of a `Dataset` into specifications for the
-    DB schema.
+def clean_bibtex_key(s):
+    return s.replace('-', '_')
 
-    :param ds:
-    :return: A pair (tables, reference_tables).
-    """
-    tables, ref_tables = {}, {}
-    table_lookup = {t.url.string: t for t in ds.tables}
-    for table in table_lookup.values():
-        try:
-            sql_table_name = ds.get_tabletype(table)
-        except ValueError:
-            sql_table_name = table.url.string # SQLite is very permissive with table names.
-        spec = TableSpec(sql_table_name)
-        spec.primary_key = [
-            c for c in table.tableSchema.columns if
-            c.propertyUrl and c.propertyUrl.uri == term_uri('id')][0].name
-        for c in table.tableSchema.columns:
-            if c.propertyUrl and c.propertyUrl.uri == term_uri('source'):
-                # A column referencing sources is replaced by an association table.
-                otype = sql_table_name.replace('Table', '')
-                ref_tables[sql_table_name] = TableSpec(
-                    '{0}Source'.format(otype),
-                    [ColSpec(otype + '_ID'), ColSpec('Source_ID'), ColSpec('Context')],
-                    [
-                        ([otype + '_ID'], sql_table_name, [spec.primary_key]),
-                        (['Source_ID'], 'SourceTable', ['ID']),
-                    ],
-                    c.name)
-            else:
-                spec.columns.append(ColSpec(
-                    c.header,
-                    c.datatype.base if c.datatype else c.datatype,
-                    c.separator,
-                    c.header == spec.primary_key))
-        for fk in table.tableSchema.foreignKeys:
-            if fk.reference.schemaReference: # pragma: no cover
-                # We only support Foreign Key references between tables!
-                continue
+
+class Database(csvw.db.Database):
+    source_table_name = 'SourceTable'
+
+    def __init__(self, dataset, **kw):
+        self.dataset = dataset
+        self._retranslate = collections.defaultdict(dict)
+        self._source_cols = ['id', 'genre'] + BIBTEX_FIELDS
+
+        # We create a derived TableGroup, adding a table for the sources.
+        tg = csvw.TableGroup.fromvalue(dataset.metadata_dict)
+
+        # Assemble the translation function:
+        translations = {}
+        for table in dataset.tables:
+            translations[table.local_name] = TableTranslation()
             try:
-                ref = ds.get_tabletype(table_lookup[fk.reference.resource.string])
-            except ValueError:
-                ref = fk.reference.resource.string
-            spec.foreign_keys.append((
-                tuple(sorted(fk.columnReference)),
-                ref,
-                tuple(sorted(fk.reference.columnReference))))
-        tables[spec.name] = spec
+                tt = dataset.get_tabletype(table)
+                if tt:
+                    # Translate table URLs to CLDF component names:
+                    translations[table.local_name].name = tt
+            except KeyError:  # pragma: no cover
+                pass
+            for col in table.tableSchema.columns:
+                if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
+                    # Translate local column names to local names of CLDF Ontology terms, prefixed
+                    # with `cldf_`:
+                    col_name = 'cldf_{0.name}'.format(TERMS.by_uri[col.propertyUrl.uri])
+                    translations[table.local_name].columns[col.header] = col_name
+                    self._retranslate[table.local_name][col_name] = col.header
 
-    # must determine the order in which tables must be created!
-    ordered = OrderedDict()
-    i = 0
-    #
-    # We loop through the tables repeatedly, and whenever we find one, which has all
-    # referenced tables already in ordered, we move it from tables to ordered.
-    #
-    while tables and i < 100:
-        i += 1
-        for table in list(tables.keys()):
-            if all(ref[1] in ordered for ref in tables[table].foreign_keys):
-                # All referenced tables are already created.
-                ordered[table] = tables.pop(table)
-                break
-    if tables:  # pragma: no cover
-        raise ValueError('there seem to be cyclic dependencies between the tables')
+        # Add source table:
+        for src in self.dataset.sources:
+            for key in src:
+                key = clean_bibtex_key(key)
+                if key not in self._source_cols:
+                    self._source_cols.append(key)
 
-    return list(ordered.values()), ref_tables
+        tg.tables.append(csvw.Table.fromvalue({
+            'url': self.source_table_name,
+            'tableSchema': {
+                'columns': [dict(name=n) for n in self._source_cols],
+                'primaryKey': 'id'
+            }
+        }))
+        tg.tables[-1]._parent = tg
+
+        # Add foreign keys to source table:
+        for table in tg.tables[:-1]:
+            for col in table.tableSchema.columns:
+                if col.propertyUrl and col.propertyUrl.uri == TERMS['source'].uri:
+                    table.tableSchema.foreignKeys.append(csvw.ForeignKey.fromdict({
+                        'columnReference': [col.header],
+                        'reference': {
+                            'resource': self.source_table_name,
+                            'columnReference': 'id'
+                        }
+                    }))
+                    if translations[table.local_name].name:
+                        translations['{0}_{1}'.format(table.local_name, self.source_table_name)] = \
+                            TableTranslation(name='{0}_{1}'.format(
+                                translations[table.local_name].name, self.source_table_name))
+                    break
+
+        # Make sure `base` directory can be resolved:
+        tg._fname = dataset.tablegroup._fname
+        csvw.db.Database.__init__(
+            self, tg, translate=functools.partial(translate, translations), **kw)
+
+    def association_table_context(self, table, column, fkey):
+        if self.translate(table.name, column) == 'cldf_source':
+            if '[' in fkey:
+                assert fkey.endswith(']')
+                fkey, _, rem = fkey.partition('[')
+                return fkey, rem[:-1]
+            return fkey, None
+        return csvw.db.Database.association_table_context(
+            self, table, column, fkey)  # pragma: no cover
+
+    def select_many_to_many(self, db, table, context):
+        if self.translate(table.name, context) == 'cldf_source':
+            cu = db.execute(
+                """\
+SELECT `{0}`, group_concat(`{1}`, '|'), group_concat(coalesce(context, ''), '|')
+FROM `{2}` GROUP BY `{0}`""".format(
+                    table.columns[0].name,
+                    table.columns[1].name,
+                    self.translate(table.name)))
+            res = {}
+            for r in cu.fetchall():
+                res[r[0]] = [
+                    '{0}'.format(Reference(*p)) for p in zip(r[1].split('|'), r[2].split('|'))]
+            return res
+        return csvw.db.Database.select_many_to_many(self, db, table, context)  # pragma: no cover
+
+    def write(self, _force=False, _exists_ok=False, **items):
+        if self.fname and self.fname.exists():
+            if _force:
+                self.fname.unlink()
+            elif _exists_ok:
+                raise NotImplementedError()
+        return csvw.db.Database.write(self, _force=False, _exists_ok=False, **items)
+
+    def write_from_tg(self, _force=False, _exists_ok=False):
+        items = {
+            tname: list(t.iterdicts())
+            for tname, t in self.tg.tabledict.items() if tname != self.source_table_name}
+        items[self.source_table_name] = []
+        for src in self.dataset.sources:
+            item = {k: '' for k in self._source_cols}
+            item.update({clean_bibtex_key(k): v for k, v in src.items()})
+            item.update({'id': src.id, 'genre': src.genre})
+            items[self.source_table_name].append(item)
+        return self.write(_force=_force, _exists_ok=_exists_ok, **items)
+
+    def query(self, sql, params=None):
+        with self.connection() as conn:
+            cu = conn.execute(sql, params or ())
+            return list(cu.fetchall())
+
+    def retranslate(self, table, item):
+        return {self._retranslate.get(table.local_name, {}).get(k, k): v for k, v in item.items()}
+
+    @staticmethod
+    def round_geocoordinates(item, precision=4):
+        """
+        We round geo coordinates to `precision` decimal places.
+
+        See https://en.wikipedia.org/wiki/Decimal_degrees
+
+        :param item:
+        :param precision:
+        :return: item
+        """
+        for attr_ in ['cldf_latitude', 'cldf_longitude']:
+            if item.get(attr_):
+                item[attr_] = round(item[attr_], precision)
+        return item
+
+    def to_cldf(self, dest, mdname='cldf-metadata.json', coordinate_precision=4):
+        """
+        Write the data from the db to a CLDF dataset according to the metadata in `self.dataset`.
+
+        :param dest:
+        :param mdname:
+        :return: path of the metadata file
+        """
+        dest = Path(dest)
+        if not dest.exists():
+            dest.mkdir()
+
+        data = self.read()
+
+        if data[self.source_table_name]:
+            sources = Sources()
+            for src in data[self.source_table_name]:
+                sources.add(Source(
+                    src['genre'],
+                    src['id'],
+                    **{k: v for k, v in src.items() if k not in ['id', 'genre']}))
+            sources.write(dest / self.dataset.properties.get('dc:source', 'sources.bib'))
+
+        for table_type, items in data.items():
+            try:
+                table = self.dataset[table_type]
+                items = [
+                    self.round_geocoordinates(item, precision=coordinate_precision)
+                    for item in items]
+                table.common_props['dc:extent'] = table.write(
+                    [self.retranslate(table, item) for item in items],
+                    base=dest)
+            except KeyError:
+                assert table_type == self.source_table_name, table_type
+        return self.dataset.write_metadata(dest / mdname)
