@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import warnings
 
 import pytest
 
@@ -17,30 +18,39 @@ def test_stats(tmpdir, mocker):
 
 
 def test_all(capsys, tmpdir, mocker, data):
-    md = str(tmpdir / 'md.json')
-    copy(str(data / 'ds1.csv-metadata.json'), md)
-    copy(str(data / 'ds1.bib'), str(tmpdir / 'ds1.bib'))
-    copy(str(data / 'ds1.csv'), str(tmpdir / 'ds1.csv'))
-    pdata = str(tmpdir / 'values.csv')
-    copy(str(data / 'ds1.csv'), pdata)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
 
-    validate(mocker.MagicMock(args=[md]))
-    out, err = capsys.readouterr()
-    assert not out
+        md = str(tmpdir / 'md.json')
+        copy(str(data / 'ds1.csv-metadata.json'), md)
+        copy(str(data / 'ds1.bib'), str(tmpdir / 'ds1.bib'))
+        copy(str(data / 'ds1.csv'), str(tmpdir / 'ds1.csv'))
+        pdata = str(tmpdir / 'values.csv')
+        copy(str(data / 'ds1.csv'), pdata)
 
-    stats(mocker.MagicMock(args=[pdata]))
-    out, err = capsys.readouterr()
-    assert 'StructureDataset' in out
+        validate(mocker.MagicMock(args=[md]))
+        out, err = capsys.readouterr()
+        assert not out
 
-    stats(mocker.MagicMock(args=[md]))
+        stats(mocker.MagicMock(args=[pdata]))
+        out, err = capsys.readouterr()
+        assert 'StructureDataset' in out
 
-    with pytest.raises(ParserError):
-        createdb(mocker.MagicMock(args=[md]))
+        stats(mocker.MagicMock(args=[md]))
 
-    log = mocker.MagicMock()
-    createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
-    assert log.info.called
-    dumpdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
+        with pytest.raises(ParserError):
+            createdb(mocker.MagicMock(args=[md]))
+
+        log = mocker.MagicMock()
+        createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
+        assert log.info.called
+        dumpdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
+
+        uc = [
+            w_ for w_ in w
+            if issubclass(w_.category, UserWarning) and
+               str(w_.message).startswith('Unspecified column')]
+        assert uc
 
     with pytest.raises(ParserError):
         createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))

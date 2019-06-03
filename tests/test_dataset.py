@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import warnings
 
 import pytest
 
@@ -153,16 +154,20 @@ def test_duplicate_component(ds, tmpdir):
         ]
     }
 }"""
-    md.write_text(json.replace('COMPS', comp), encoding='utf8')
-    (tmpdir / 'values.csv').write_text(
-        "ID,Language_ID,Parameter_ID,Value\n1,1,1,1", encoding='utf8')
-    ds = Dataset.from_metadata(str(md))
-    assert ds.validate()
 
-    md.write_text(json.replace('COMPS', ', '.join([comp, comp])), encoding='utf8')
-    with pytest.raises(ValueError) as excinfo:
-        Dataset.from_metadata(str(md))
-    assert 'duplicate component' in excinfo.exconly()
+    with warnings.catch_warnings(record=True):
+        warnings.simplefilter("always")
+
+        md.write_text(json.replace('COMPS', comp), encoding='utf8')
+        (tmpdir / 'values.csv').write_text(
+            "ID,Language_ID,Parameter_ID,Value\n1,1,1,1", encoding='utf8')
+        ds = Dataset.from_metadata(str(md))
+        assert ds.validate()
+
+        md.write_text(json.replace('COMPS', ', '.join([comp, comp])), encoding='utf8')
+        with pytest.raises(ValueError) as excinfo:
+            Dataset.from_metadata(str(md))
+        assert 'duplicate component' in excinfo.exconly()
 
 def test_foreign_key_creation(ds):
     ds.add_component('ValueTable')
@@ -355,20 +360,22 @@ def test_Dataset_from_scratch(tmpdir, data):
 
     # A known file name will determine the CLDF module of the dataset:
     copy(str(data / 'ds1.csv'), str(tmpdir / 'values.csv'))
-    ds = Dataset.from_data(str(tmpdir / 'values.csv'))
-    assert ds.module == 'StructureDataset'
+    with warnings.catch_warnings(record=True):
+        warnings.simplefilter("always")
+        ds = Dataset.from_data(str(tmpdir / 'values.csv'))
+        assert ds.module == 'StructureDataset'
 
-    assert len(list(ds['ValueTable'])) == 2
-    ds.validate()
-    ds['ValueTable'].write(2 * list(ds['ValueTable']))
-    with pytest.raises(ValueError):
+        assert len(list(ds['ValueTable'])) == 2
         ds.validate()
-    md = ds.write_metadata()
-    Dataset.from_metadata(md)
-    repr(ds)
-    del ds.tablegroup.common_props['dc:conformsTo']
-    Dataset.from_metadata(ds.write_metadata())
-    assert len(ds.stats()) == 1
+        ds['ValueTable'].write(2 * list(ds['ValueTable']))
+        with pytest.raises(ValueError):
+            ds.validate()
+        md = ds.write_metadata()
+        Dataset.from_metadata(md)
+        repr(ds)
+        del ds.tablegroup.common_props['dc:conformsTo']
+        Dataset.from_metadata(ds.write_metadata())
+        assert len(ds.stats()) == 1
 
     ds.add_table('extra.csv', 'ID')
     ds.write(**{'ValueTable': [], 'extra.csv': []})
