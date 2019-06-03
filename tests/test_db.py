@@ -22,7 +22,8 @@ def test_db_write(tmpdir, data):
     #shutil.copy(str(tmpdir.join('db.sqlite')), 'db.sqlite')
     assert len(db.query("select * from ValueTable where cldf_parameterReference = 'fid1'")) == 1
     assert len(db.query('select * from SourceTable')) == 2
-    assert len(db.query("select * from ValueTable_SourceTable where context = '2-5'")) == 1
+    assert len(db.query(
+        "select valuetable_cldf_id from ValueTable_SourceTable where context = '2-5'")) == 1
 
     assert db.read()['ValueTable'][0]['cldf_source'] == ['80086', 'meier2015[2-5]']
     db.to_cldf(str(tmpdir.join('cldf')))

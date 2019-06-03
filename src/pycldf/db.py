@@ -127,9 +127,15 @@ class Database(csvw.db.Database):
                         }
                     }))
                     if translations[table.local_name].name:
+                        tl = translations[table.local_name]
                         translations['{0}_{1}'.format(table.local_name, self.source_table_name)] = \
-                            TableTranslation(name='{0}_{1}'.format(
-                                translations[table.local_name].name, self.source_table_name))
+                            TableTranslation(
+                                name='{0}_{1}'.format(tl.name, self.source_table_name),
+                                columns={'{0}_{1}'.format(
+                                    table.local_name, table.tableSchema.primaryKey[0],
+                                ): '{0}_{1}'.format(
+                                    tl.name, tl.columns[table.tableSchema.primaryKey[0]],
+                                )})
                     break
 
         # Make sure `base` directory can be resolved:
@@ -139,6 +145,8 @@ class Database(csvw.db.Database):
 
     def association_table_context(self, table, column, fkey):
         if self.translate(table.name, column) == 'cldf_source':
+            # We decompose references into the source ID and optional pages. Pages are stored as
+            # `context` of the association table and composed again in `select_many_to_many`.
             if '[' in fkey:
                 assert fkey.endswith(']')
                 fkey, _, rem = fkey.partition('[')
@@ -148,19 +156,12 @@ class Database(csvw.db.Database):
             self, table, column, fkey)  # pragma: no cover
 
     def select_many_to_many(self, db, table, context):
-        if self.translate(table.name, context) == 'cldf_source':
-            cu = db.execute(
-                """\
-SELECT `{0}`, group_concat(`{1}`, '|'), group_concat(coalesce(context, ''), '|')
-FROM `{2}` GROUP BY `{0}`""".format(
-                    table.columns[0].name,
-                    table.columns[1].name,
-                    self.translate(table.name)))
-            res = {}
-            for r in cu.fetchall():
-                res[r[0]] = [
-                    '{0}'.format(Reference(*p)) for p in zip(r[1].split('|'), r[2].split('|'))]
-            return res
+        if table.name.endswith('_' + self.source_table_name):
+            atable = table.name.partition('_' + self.source_table_name)[0]
+            if self.translate(atable, context) == 'cldf_source':
+                # Compose references:
+                res = csvw.db.Database.select_many_to_many(self, db, table, None)
+                return {k: ['{0}'.format(Reference(*vv)) for vv in v] for k, v in res.items()}
         return csvw.db.Database.select_many_to_many(self, db, table, context)  # pragma: no cover
 
     def write(self, _force=False, _exists_ok=False, **items):
