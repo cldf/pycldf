@@ -44,8 +44,7 @@ def test_Sources(tmpdir):
     assert '%s' % src['huber2005'] == 'Huber, Herrmann. 2005. y.'
     with pytest.raises(ValueError):
         src.add(5)
-    with pytest.raises(ValueError):
-        src.add('@misc{a.b,\n  author="a.b"\n}')
+
     with pytest.raises(ValueError):
         _ = src['unknown']
         assert _  # pragma: no cover
@@ -65,6 +64,11 @@ def test_Sources(tmpdir):
     src2.write(bib, ids=['huber2005'])
     src = Sources.from_file(bib)
     assert len(src) == 1
+
+    # Guard against possibly invalid ID:
+    with pytest.raises(ValueError):
+        src.add('@misc{a.b,\n  author="a.b"\n}', _check_id=True)
+    src.add('@misc{a.b,\n  author="a.b"\n}')
 
 
 def test_Source_from_bibtex():

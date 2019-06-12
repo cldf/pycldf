@@ -140,8 +140,8 @@ class Dataset(object):
                 raise ValueError('Property {0} already specified'.format(k))
             self.tablegroup.common_props[k] = v
 
-    def add_sources(self, *sources):
-        self.sources.add(*sources)
+    def add_sources(self, *sources, **kw):
+        self.sources.add(*sources, **kw)
 
     def add_table(self, url, *cols):
         return self.add_component(

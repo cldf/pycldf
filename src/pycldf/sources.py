@@ -142,14 +142,14 @@ class Sources(object):
             if sid not in self:
                 raise ValueError('missing source key: {0}'.format(sid))
 
-    def expand_refs(self, refs):
+    def expand_refs(self, refs, **kw):
         for sid, pages in map(
                 self.parse, [refs] if isinstance(refs, string_types) else refs):
             if sid not in self and GLOTTOLOG_ID_PATTERN.match(sid):
-                self._add_entries(Source('misc', sid, glottolog_id=sid))
+                self._add_entries(Source('misc', sid, glottolog_id=sid), **kw)
             yield Reference(self[sid], pages)
 
-    def _add_entries(self, data):
+    def _add_entries(self, data, **kw):
         if isinstance(data, Source):
             entries = [(data.id, data.entry)]
         elif isinstance(data, database.BibliographyData):
@@ -158,7 +158,7 @@ class Sources(object):
             raise ValueError(data)
 
         for key, entry in entries:
-            if not ID_PATTERN.match(key):
+            if kw.get('_check_id', False) and not ID_PATTERN.match(key):
                 raise ValueError('invalid source ID: %s' % key)
             if key not in self._bibdata.entries:
                 try:
@@ -166,8 +166,8 @@ class Sources(object):
                 except database.BibliographyDataError as e:  # pragma: no cover
                     raise ValueError('%s' % e)
 
-    def read(self, fname):
-        self._add_entries(database.parse_string(read_text(fname), bib_format='bibtex'))
+    def read(self, fname, **kw):
+        self._add_entries(database.parse_string(read_text(fname), bib_format='bibtex'), **kw)
 
     def write(self, fname, ids=None, **kw):
         if ids:
@@ -182,12 +182,12 @@ class Sources(object):
                 Writer().write_stream(bibdata, fp)
             return fname
 
-    def add(self, *entries):
+    def add(self, *entries, **kw):
         """
         Add a source, either specified by glottolog reference id, or as bibtex record.
         """
         for entry in entries:
             if isinstance(entry, string_types):
-                self._add_entries(database.parse_string(entry, bib_format='bibtex'))
+                self._add_entries(database.parse_string(entry, bib_format='bibtex'), **kw)
             else:
-                self._add_entries(entry)
+                self._add_entries(entry, **kw)
