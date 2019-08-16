@@ -16,7 +16,7 @@ from clldutils import jsonlib
 
 from pycldf.sources import Sources
 from pycldf.util import pkg_path, resolve_slices
-from pycldf.terms import term_uri, TERMS
+from pycldf.terms import term_uri, TERMS, get_column_names
 from pycldf.validators import VALIDATORS
 
 __all__ = ['Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset']
@@ -117,6 +117,23 @@ class Dataset(object):
     def tables(self):
         return self.tablegroup.tables
 
+    @property
+    def column_names(self):
+        """
+        In-direction layer, mapping ontology terms to local column names (or `None`).
+
+        Note that this property is computed each time it is accessed (because the dataset
+        schema may have changed). So when accessing a dataset for reading only, calling code
+        should retrieve `column_names` once, and then work with the local reference.
+
+        :return: an `argparse.Namespace` object, with attributes `<object>s` for each component \
+        `<Object>Table` defined in the ontology. Each such attribute evaluates to `None` if the \
+        dataset does not contain the component. Otherwise, it's an `argparse.Namespace` object \
+        mapping each property defined in the ontology to `None` - if no such column is specified \
+        in the component - and the local column name if it is.
+        """
+        return get_column_names(self)
+
     def add_provenance(self, **kw):
         """
         Add metadata about the dataset's provenance.
@@ -144,14 +161,11 @@ class Dataset(object):
         self.sources.add(*sources, **kw)
 
     def add_table(self, url, *cols):
-        return self.add_component(
-            {"url": url, "tableSchema": {"columns": []}},
-            *cols)
+        return self.add_component({"url": url, "tableSchema": {"columns": []}}, *cols)
 
     def add_component(self, component, *cols):
         if isinstance(component, string_types):
-            component = jsonlib.load(
-                pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
+            component = jsonlib.load(pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
         if isinstance(component, dict):
             component = Table.fromvalue(component)
         assert isinstance(component, Table)

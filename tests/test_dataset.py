@@ -43,6 +43,20 @@ def test_make_column():
         make_column(5)
 
 
+def test_column_names(ds_wl):
+    cn = ds_wl.column_names
+    assert cn.values is None
+    assert cn.forms
+    assert cn.forms.id == 'ID'
+    assert cn.forms.cognatesetReference is None
+
+    with pytest.raises(AttributeError):
+        cn.unknown_component
+
+    with pytest.raises(AttributeError):
+        cn.forms.unknown_property
+
+
 def test_provenance(ds, tmpdir):
     ds.add_provenance(wasDerivedFrom=[GitRepository('http://example.org'), 'other'])
     assert ds.properties['prov:wasDerivedFrom'][0]['rdf:about'] == 'http://example.org'
