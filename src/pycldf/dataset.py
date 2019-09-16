@@ -1,16 +1,12 @@
-# coding: utf8
-from __future__ import unicode_literals, print_function, division
-
 import sys
 from itertools import chain
 from collections import Counter, OrderedDict
-
-from six import string_types
+from pathlib import Path
 
 import attr
 from csvw.metadata import TableGroup, Table, Column
 from csvw.dsv import iterrows
-from clldutils.path import Path, git_describe
+from clldutils.path import git_describe
 from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
@@ -64,7 +60,7 @@ def get_modules():
 
 
 def make_column(spec):
-    if isinstance(spec, string_types):
+    if isinstance(spec, str):
         if spec in TERMS.by_uri:
             return TERMS.by_uri[spec].to_column()
         return Column(name=spec, datatype='string')
@@ -164,7 +160,7 @@ class Dataset(object):
         return self.add_component({"url": url, "tableSchema": {"columns": []}}, *cols)
 
     def add_component(self, component, *cols):
-        if isinstance(component, string_types):
+        if isinstance(component, str):
             component = jsonlib.load(pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
         if isinstance(component, dict):
             component = Table.fromvalue(component)
@@ -547,7 +543,7 @@ class Wordlist(Dataset):
     def get_segments(self, row, table='FormTable'):
         col = self[table].get_column("http://cldf.clld.org/v1.0/terms.rdf#segments")
         sounds = row[col.name]
-        if isinstance(sounds, string_types):
+        if isinstance(sounds, str):
             # This may be the case when no morpheme boundaries are provided.
             sounds = [sounds]
         return list(chain(*[s.split() for s in sounds]))

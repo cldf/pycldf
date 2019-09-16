@@ -1,4 +1,3 @@
-# coding: utf8
 """Functionality to load a set of CLDF datasets into a sqlite db.
 
 Notes:
@@ -7,14 +6,13 @@ Notes:
   preferred labels for the corresponding CLDF properties.
 """
 
-from __future__ import unicode_literals, print_function, division
 import functools
 import collections
+from pathlib import Path
 
 import attr
 import csvw
 import csvw.db
-from clldutils.path import Path
 
 from pycldf.terms import TERMS
 from pycldf.sources import Reference, Sources, Source

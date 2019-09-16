@@ -1,8 +1,6 @@
-# coding: utf8
-from __future__ import unicode_literals, print_function, division
+from pathlib import Path
 
 import pytest
-from clldutils.path import Path, read_text
 
 from pycldf.dataset import ParallelText
 
@@ -19,7 +17,7 @@ def ds(tmpdir):
     ]:
         src = Path(__file__).parent / 'data' / 'paralleltext_{0}'.format(fname)
         target = tmpdir.join(fname)
-        target.write(read_text(src).encode('utf8'), mode='wb')
+        target.write(src.read_text(encoding='utf-8').encode('utf8'), mode='wb')
     return ds
 
 
@@ -33,7 +31,7 @@ def test_get_equivalent(ds):
         if fes['Description'] == 'Jesus Christ':
             break
     else:
-        raise ValueError
+        raise ValueError  # pragma: no cover
 
     equiv = [
         ds.get_equivalent(r) for r in ds['FunctionalEquivalentTable']

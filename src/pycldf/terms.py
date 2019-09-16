@@ -1,11 +1,7 @@
-# coding: utf8
-from __future__ import unicode_literals, print_function, division
-
 from xml.etree import ElementTree
 from json import loads
 from argparse import Namespace
-
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 
 import attr
 from csvw.metadata import Column

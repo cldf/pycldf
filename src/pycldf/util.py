@@ -1,9 +1,5 @@
-# coding: utf8
-from __future__ import unicode_literals, print_function, division
 import itertools
-
-from clldutils.path import Path
-from six import string_types
+from pathlib import Path
 
 import pycldf
 
@@ -15,7 +11,7 @@ def pkg_path(*comps):
 def multislice(sliceable, *slices):
     res = type(sliceable)()
     for sl in slices:
-        if isinstance(sl, string_types):
+        if isinstance(sl, str):
             if ':' in sl:
                 sl = [int(s) - (1 if i == 0 else 0) for i, s in enumerate(sl.split(':'))]
             else:

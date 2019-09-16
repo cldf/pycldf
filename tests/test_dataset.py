@@ -1,10 +1,10 @@
-from __future__ import unicode_literals
 import warnings
+from pathlib import Path
 
 import pytest
 
 from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Link
-from clldutils.path import copy, write_text, Path, remove
+from clldutils.path import copy
 
 from pycldf.terms import term_uri
 from pycldf.dataset import (
@@ -122,7 +122,7 @@ def test_example_validators(ds, tmpdir):
     ds.write(examples=[{'morphemes': ['a'], 'gloss': ['a', 'b']}])
     with pytest.raises(ValueError) as e:
         ds.validate()
-        assert 'number of morphemes' in str(e)
+    assert 'number of morphemes' in str(e.value)
 
 
 def test_duplicate_component(ds, tmpdir):
@@ -368,7 +368,8 @@ def test_Dataset_from_scratch(tmpdir, data):
         Dataset.from_data(str(tmpdir / 'xyz.csv'))
 
     # Known file name, but non-standard column name:
-    write_text(str(tmpdir / 'values.csv'), "IDX,Language_ID,Parameter_ID,Value\n1,1,1,1")
+    Path(str(tmpdir / 'values.csv')).write_text(
+        "IDX,Language_ID,Parameter_ID,Value\n1,1,1,1", encoding='utf-8')
     with pytest.raises(ValueError, match='missing columns'):
         ds = Dataset.from_data(str(tmpdir / 'values.csv'))
 
@@ -426,7 +427,7 @@ def test_Dataset_auto_foreign_keys(tmpdir):
 
 
 def test_Dataset_from_data_empty_file(tmpdir):
-    write_text(str(tmpdir / 'values.csv'), '')
+    Path(str(tmpdir / 'values.csv')).write_text('', encoding='utf-8')
     with pytest.raises(ValueError, match='empty data file'):
         Dataset.from_data(str(tmpdir / 'values.csv'))
 
@@ -447,7 +448,7 @@ def test_Dataset_validate(tmpdir, mocker):
     ds.write(ValueTable=[])
     values = tmpdir / 'new' / 'values.csv'
     assert values.check()
-    remove(str(values))
+    Path(str(values)).unlink()
     log = mocker.Mock()
     assert not ds.validate(log=log)
     assert log.warn.called

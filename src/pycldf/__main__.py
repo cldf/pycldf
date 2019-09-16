@@ -1,4 +1,3 @@
-# coding: utf8
 """
 Main command line interface of the pycldf package.
 
@@ -12,10 +11,9 @@ The basic invocation looks like
     cldf [OPTIONS] <command> [args]
 
 """
-from __future__ import unicode_literals, print_function
 import sys
+from pathlib import Path
 
-from clldutils.path import Path
 from clldutils.clilib import ArgumentParserWithLogging, ParserError, command
 from clldutils.markup import Table
 

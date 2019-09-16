@@ -1,13 +1,9 @@
-# coding: utf8
-from __future__ import unicode_literals, print_function, division
 from collections import OrderedDict
 import re
+from pathlib import Path
 
-from six import string_types
 from pybtex import database
 from pybtex.database.output.bibtex import Writer as BaseWriter
-from clldutils.path import Path, read_text
-from clldutils.misc import UnicodeMixin
 from clldutils.source import Source as BaseSource
 from clldutils.source import ID_PATTERN
 
@@ -28,7 +24,7 @@ class Writer(BaseWriter):
         return text
 
 
-class Source(BaseSource, UnicodeMixin):
+class Source(BaseSource):
     @property
     def entry(self):
         persons = OrderedDict([
@@ -41,7 +37,7 @@ class Source(BaseSource, UnicodeMixin):
                 (k, v) for k, v in sorted(self.items()) if v and k not in ['author', 'editor']),
             persons=persons)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.text()
 
     def __repr__(self):
@@ -67,21 +63,21 @@ class Source(BaseSource, UnicodeMixin):
                     yield database.Person(name)
 
 
-class Reference(UnicodeMixin):
+class Reference(object):
     def __init__(self, source, desc):
         if desc and ('[' in desc or ']' in desc or ';' in desc):
             raise ValueError('invalid ref description: %s' % desc)
         self.source = source
         self.description = desc
 
-    def __unicode__(self):
+    def __str__(self):
         res = self.source.id if hasattr(self.source, 'id') else self.source
         if self.description:
             res += '[%s]' % self.description
         return res
 
     def __repr__(self):
-        return '<%s %s>' % (self.__class__.__name__, self.__unicode__())
+        return '<%s %s>' % (self.__class__.__name__, self)
 
 
 class Sources(object):
@@ -138,13 +134,13 @@ class Sources(object):
         return sid, pages
 
     def validate(self, refs):
-        for sid, _ in map(self.parse, [refs] if isinstance(refs, string_types) else refs):
+        for sid, _ in map(self.parse, [refs] if isinstance(refs, str) else refs):
             if sid not in self:
                 raise ValueError('missing source key: {0}'.format(sid))
 
     def expand_refs(self, refs, **kw):
         for sid, pages in map(
-                self.parse, [refs] if isinstance(refs, string_types) else refs):
+                self.parse, [refs] if isinstance(refs, str) else refs):
             if sid not in self and GLOTTOLOG_ID_PATTERN.match(sid):
                 self._add_entries(Source('misc', sid, glottolog_id=sid), **kw)
             yield Reference(self[sid], pages)
@@ -167,7 +163,11 @@ class Sources(object):
                     raise ValueError('%s' % e)
 
     def read(self, fname, **kw):
-        self._add_entries(database.parse_string(read_text(fname), bib_format='bibtex'), **kw)
+        self._add_entries(
+            database.parse_string(
+                Path(fname).read_text(encoding='utf-8'),
+                bib_format='bibtex'),
+            **kw)
 
     def write(self, fname, ids=None, **kw):
         if ids:
@@ -187,7 +187,7 @@ class Sources(object):
         Add a source, either specified by glottolog reference id, or as bibtex record.
         """
         for entry in entries:
-            if isinstance(entry, string_types):
+            if isinstance(entry, str):
                 self._add_entries(database.parse_string(entry, bib_format='bibtex'), **kw)
             else:
                 self._add_entries(entry, **kw)
