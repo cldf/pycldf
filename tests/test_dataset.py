@@ -61,8 +61,15 @@ def test_provenance(ds, tmpdir):
     ds.add_provenance(wasDerivedFrom=[GitRepository('http://example.org'), 'other'])
     assert ds.properties['prov:wasDerivedFrom'][0]['rdf:about'] == 'http://example.org'
 
-    with pytest.raises(ValueError):
-        ds.add_provenance(wasDerivedFrom=[])
+    ds.add_provenance(wasDerivedFrom='abc')
+    assert len(ds.properties['prov:wasDerivedFrom']) == 3
+    
+    ds.tablegroup.common_props = {}
+    ds.add_provenance(wasDerivedFrom='abc')
+    ds.add_provenance(wasDerivedFrom='abc')
+    assert len(ds.properties['prov:wasDerivedFrom']) == 1
+    ds.add_provenance(wasDerivedFrom='xyz')
+    assert len(ds.properties['prov:wasDerivedFrom']) == 2
 
     ds.tablegroup.common_props = {}
     ds.add_provenance(wasDerivedFrom=GitRepository('http://example.org'))

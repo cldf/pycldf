@@ -150,7 +150,13 @@ class Dataset(object):
             else:
                 v = to_json(v)
             if k in self.tablegroup.common_props:
-                raise ValueError('Property {0} already specified'.format(k))
+                old = self.tablegroup.common_props.pop(k)
+                if not isinstance(old, list):
+                    old = [old]
+                for vv in (v if isinstance(v, list) else [v]):
+                    if vv not in old:
+                        old.append(vv)
+                v = old
             self.tablegroup.common_props[k] = v
 
     def add_sources(self, *sources, **kw):
