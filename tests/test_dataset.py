@@ -92,13 +92,13 @@ def test_column_access(ds):
     with pytest.raises(KeyError):
         assert ds['']
 
-    ds.add_component('ValueTable')
-    assert ds['ValueTable'] == ds['values.csv']
+    ds.add_component('ValueTable', url='datapoints.csv')
+    assert ds['ValueTable'] == ds['datapoints.csv']
 
     with pytest.raises(KeyError):
         assert ds['ValueTable', 'colx']
 
-    assert ds['ValueTable', 'Language_ID'] == ds['values.csv', 'languageReference']
+    assert ds['ValueTable', 'Language_ID'] == ds['datapoints.csv', 'languageReference']
 
 
 def test_tabletype_none(ds):

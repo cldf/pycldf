@@ -4,7 +4,7 @@ from collections import Counter, OrderedDict
 from pathlib import Path
 
 import attr
-from csvw.metadata import TableGroup, Table, Column
+from csvw.metadata import TableGroup, Table, Column, Link
 from csvw.dsv import iterrows
 from clldutils.path import git_describe
 from clldutils.misc import log_or_raise
@@ -165,12 +165,15 @@ class Dataset(object):
     def add_table(self, url, *cols):
         return self.add_component({"url": url, "tableSchema": {"columns": []}}, *cols)
 
-    def add_component(self, component, *cols):
+    def add_component(self, component, *cols, **kw):
         if isinstance(component, str):
             component = jsonlib.load(pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
         if isinstance(component, dict):
             component = Table.fromvalue(component)
         assert isinstance(component, Table)
+
+        if kw.get('url'):
+            component.url = Link(kw['url'])
 
         for other_table in self.tables:
             if other_table.url == component.url:
