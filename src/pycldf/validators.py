@@ -1,5 +1,5 @@
 import re
-from functools import partial
+import functools
 
 
 def valid_references(dataset, table, column, row):
@@ -27,11 +27,11 @@ VALIDATORS = [
     (
         None,
         'http://cldf.clld.org/v1.0/terms.rdf#iso639P3code',
-        partial(valid_regex, re.compile(r'[a-z]{3}$'), 'ISO 639-3 code')),
+        functools.partial(valid_regex, re.compile(r'[a-z]{3}$'), 'ISO 639-3 code')),
     (
         None,
         'http://cldf.clld.org/v1.0/terms.rdf#glottocode',
-        partial(valid_regex, re.compile(r'[a-z0-9]{4}[0-9]{4}$'), 'glottocode')),
+        functools.partial(valid_regex, re.compile(r'[a-z0-9]{4}[0-9]{4}$'), 'glottocode')),
     (
         None,
         'http://cldf.clld.org/v1.0/terms.rdf#gloss',

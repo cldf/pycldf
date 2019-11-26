@@ -1,7 +1,7 @@
+import json
+import argparse
+import urllib.parse
 from xml.etree import ElementTree
-from json import loads
-from argparse import Namespace
-from urllib.parse import urlparse
 
 import attr
 from csvw.metadata import Column
@@ -63,7 +63,7 @@ class Term(object):
 
     def csvw_prop(self, lname):
         if self.element.find(qname(CSVW, lname)) is not None:
-            return loads(self.element.find(qname(CSVW, lname)).text)
+            return json.loads(self.element.find(qname(CSVW, lname)).text)
 
     def to_column(self):
         col = Column(
@@ -87,7 +87,7 @@ class Terms(dict):
         self.by_uri = {t.uri: t for t in terms}
 
     def is_cldf_uri(self, uri):
-        if uri and urlparse(uri).netloc == 'cldf.clld.org':
+        if uri and urllib.parse.urlparse(uri).netloc == 'cldf.clld.org':
             if uri not in self.by_uri:
                 raise ValueError(uri)
             return True
@@ -115,7 +115,7 @@ TERMS = Terms()
 
 def get_column_names(dataset):
     comp_names = {k: k.replace('Table', '').lower() + 's' for k in TERMS.components}
-    name_map = Namespace(**{k: None for k in comp_names.values()})
+    name_map = argparse.Namespace(**{k: None for k in comp_names.values()})
     for term, attr_ in comp_names.items():
         try:
             table = dataset[term]
@@ -125,7 +125,7 @@ def get_column_names(dataset):
                     props[k] = dataset[table, k].name
                 except KeyError:
                     props[k] = None
-            setattr(name_map, attr_, Namespace(**props))
+            setattr(name_map, attr_, argparse.Namespace(**props))
         except KeyError:
             pass
     return name_map

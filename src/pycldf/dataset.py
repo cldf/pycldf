@@ -1,7 +1,7 @@
 import sys
-from itertools import chain
-from collections import Counter, OrderedDict
-from pathlib import Path
+import pathlib
+import itertools
+import collections
 
 import attr
 from csvw.metadata import TableGroup, Table, Column, Link
@@ -79,7 +79,7 @@ class GitRepository(object):
         self.dc = dc
 
     def json_ld(self):
-        res = OrderedDict([
+        res = collections.OrderedDict([
             ('rdf:about', self.url),
             ('rdf:type', 'prov:Entity'),
         ])
@@ -333,7 +333,7 @@ class Dataset(object):
                     if (not table_ or table is self.get(table_)) and col is self.get((table, col_)):
                         validators_.append((col, v_))
 
-            fname = Path(table.url.resolve(table._parent.base))
+            fname = pathlib.Path(table.url.resolve(table._parent.base))
             if fname.exists():
                 for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
                     for col, validate in validators_:
@@ -369,7 +369,7 @@ class Dataset(object):
 
     @classmethod
     def in_dir(cls, d, empty_tables=False):
-        fname = Path(d)
+        fname = pathlib.Path(d)
         if not fname.exists():
             fname.mkdir()
         assert fname.is_dir()
@@ -380,7 +380,7 @@ class Dataset(object):
 
     @classmethod
     def from_metadata(cls, fname):
-        fname = Path(fname)
+        fname = pathlib.Path(fname)
         if fname.is_dir():
             name = '{0}{1}'.format(cls.__name__, MD_SUFFIX)
             tablegroup = TableGroup.from_file(pkg_path('modules', name))
@@ -390,7 +390,7 @@ class Dataset(object):
         else:
             tablegroup = TableGroup.from_file(fname)
 
-        comps = Counter()
+        comps = collections.Counter()
         for table in tablegroup.tables:
             try:
                 dt = Dataset.get_tabletype(table)
@@ -408,7 +408,7 @@ class Dataset(object):
 
     @classmethod
     def from_data(cls, fname):
-        fname = Path(fname)
+        fname = pathlib.Path(fname)
         colnames = next(iterrows(fname), [])
         if not colnames:
             raise ValueError('empty data file!')
@@ -556,7 +556,7 @@ class Wordlist(Dataset):
         if isinstance(sounds, str):
             # This may be the case when no morpheme boundaries are provided.
             sounds = [sounds]
-        return list(chain(*[s.split() for s in sounds]))
+        return list(itertools.chain(*[s.split() for s in sounds]))
 
     def get_subsequence(self, cognate, form=None):
         """

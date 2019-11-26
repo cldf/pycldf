@@ -1,6 +1,6 @@
-from collections import OrderedDict
 import re
-from pathlib import Path
+import pathlib
+import collections
 
 from pybtex import database
 from pybtex.database.output.bibtex import Writer as BaseWriter
@@ -27,13 +27,13 @@ class Writer(BaseWriter):
 class Source(BaseSource):
     @property
     def entry(self):
-        persons = OrderedDict([
+        persons = collections.OrderedDict([
             ('author', list(self.persons(self.get('author', '')))),
             ('editor', list(self.persons(self.get('editor', '')))),
         ])
         return database.Entry(
             self.genre,
-            fields=OrderedDict(
+            fields=collections.OrderedDict(
                 (k, v) for k, v in sorted(self.items()) if v and k not in ['author', 'editor']),
             persons=persons)
 
@@ -87,7 +87,7 @@ class Sources(object):
     @classmethod
     def from_file(cls, fname):
         res = cls()
-        fname = Path(fname)
+        fname = pathlib.Path(fname)
         if fname.exists():
             res.read(fname)
         return res
@@ -165,7 +165,7 @@ class Sources(object):
     def read(self, fname, **kw):
         self._add_entries(
             database.parse_string(
-                Path(fname).read_text(encoding='utf-8'),
+                pathlib.Path(fname).read_text(encoding='utf-8'),
                 bib_format='bibtex'),
             **kw)
 
@@ -178,7 +178,7 @@ class Sources(object):
         else:
             bibdata = self._bibdata
         if bibdata.entries:
-            with Path(fname).open('w', encoding='utf8') as fp:
+            with pathlib.Path(fname).open('w', encoding='utf8') as fp:
                 Writer().write_stream(bibdata, fp)
             return fname
 

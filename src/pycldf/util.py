@@ -1,11 +1,11 @@
+import pathlib
 import itertools
-from pathlib import Path
 
 import pycldf
 
 
 def pkg_path(*comps):
-    return Path(pycldf.__file__).resolve().parent.joinpath(*comps)
+    return pathlib.Path(pycldf.__file__).resolve().parent.joinpath(*comps)
 
 
 def multislice(sliceable, *slices):

@@ -5,10 +5,9 @@ Notes:
 - The names of the columns in the database are the names from the CSV files, not the
   preferred labels for the corresponding CLDF properties.
 """
-
+import pathlib
 import functools
 import collections
-from pathlib import Path
 
 import attr
 import csvw
@@ -214,7 +213,7 @@ class Database(csvw.db.Database):
         :param mdname:
         :return: path of the metadata file
         """
-        dest = Path(dest)
+        dest = pathlib.Path(dest)
         if not dest.exists():
             dest.mkdir()
 
