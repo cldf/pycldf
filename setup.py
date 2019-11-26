@@ -25,7 +25,7 @@ setup(
     python_requires='>=3.5',
     install_requires=[
         'csvw>=1.5.5',
-        'clldutils>=1.13.10',
+        'clldutils>=3.5',
         'uritemplate>=3.0',
         'python-dateutil',
         'pybtex',

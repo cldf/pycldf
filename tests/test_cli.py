@@ -3,17 +3,22 @@ import warnings
 import pytest
 
 from clldutils.path import copy
-from clldutils.clilib import ParserError
 
-from pycldf.__main__ import validate, stats, createdb, dumpdb
+from pycldf.__main__ import main
 
 
-def test_stats(tmpdir, mocker):
-    with pytest.raises(ParserError):
-        stats(mocker.MagicMock(args=mocker.MagicMock()))
+def test_help(capsys):
+    main([])
+    out, _ = capsys.readouterr()
+    assert 'usage' in out
 
-    with pytest.raises(ParserError):
-        stats(mocker.MagicMock(args=[str(tmpdir / 'new')]))
+
+def test_stats(tmpdir):
+    with pytest.raises(SystemExit):
+        main(['stats'])
+
+    with pytest.raises(SystemExit):
+        main(['stats', str(tmpdir / 'new')])
 
 
 def test_all(capsys, tmpdir, mocker, data):
@@ -27,23 +32,23 @@ def test_all(capsys, tmpdir, mocker, data):
         pdata = str(tmpdir / 'values.csv')
         copy(str(data / 'ds1.csv'), pdata)
 
-        validate(mocker.MagicMock(args=[md]))
+        main(['validate', md])
         out, err = capsys.readouterr()
         assert not out
 
-        stats(mocker.MagicMock(args=[pdata]))
+        main(['stats', pdata])
         out, err = capsys.readouterr()
         assert 'StructureDataset' in out
 
-        stats(mocker.MagicMock(args=[md]))
+        main(['stats', md])
 
-        with pytest.raises(ParserError):
-            createdb(mocker.MagicMock(args=[md]))
+        with pytest.raises(SystemExit):
+            main(['createdb', md])
 
         log = mocker.MagicMock()
-        createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
+        main(['createdb', md, str(tmpdir / 'test.sqlite')], log=log)
         assert log.info.called
-        dumpdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
+        main(['dumpdb', md, str(tmpdir / 'test.sqlite')], log=log)
 
         uc = [
             w_ for w_ in w
@@ -51,5 +56,5 @@ def test_all(capsys, tmpdir, mocker, data):
                str(w_.message).startswith('Unspecified column')]
         assert uc
 
-    with pytest.raises(ParserError):
-        createdb(mocker.MagicMock(log=log, args=[md, str(tmpdir / 'test.sqlite')]))
+    with pytest.raises(SystemExit):
+        main(['createdb', md, str(tmpdir / 'test.sqlite')], log=log)
