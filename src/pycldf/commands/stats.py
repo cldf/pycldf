@@ -11,6 +11,12 @@ from pycldf.cli_util import add_dataset, get_dataset
 def register(parser):
     add_dataset(parser)
     add_format(parser, default=None)
+    parser.add_argument(
+        '--exact',
+        help="List exact numbers of rows per table (requiring a re-count)",
+        action='store_true',
+        default=False,
+    )
 
 
 def run(args):

@@ -516,6 +516,11 @@ def test_Dataset_validate_missing_table(tmpdir, mocker):
     assert log.warn.called
 
 
+def test_stats(dataset):
+    assert dict([(r[0], r[2]) for r in dataset.stats()])['ds1.csv'] == 5
+    assert dict([(r[0], r[2]) for r in dataset.stats(exact=True)])['ds1.csv'] == 2
+
+
 def test_Dataset_write(tmpdir):
     ds = StructureDataset.from_metadata(str(tmpdir))
     ds.write(ValueTable=[])

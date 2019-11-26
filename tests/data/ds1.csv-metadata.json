@@ -8,6 +8,7 @@
   "tables": [
     {
       "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable",
+      "dc:extent": 5,
       "url": "ds1.csv",
       "tableSchema": {
         "columns": [

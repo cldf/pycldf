@@ -508,7 +508,7 @@ class Dataset(object):
             except ValueError:
                 return None
 
-    def stats(self):
+    def stats(self, exact=False):
         res = []
         for table in self.tables:
             dctype = table.common_props.get('dc:conformsTo')
@@ -517,7 +517,8 @@ class Dataset(object):
             res.append((
                 table.url.string,
                 dctype,
-                table.common_props.get('dc:extent') or sum(1 for _ in table)))
+                sum(1 for _ in table) if (exact or 'dc:extent' not in table.common_props)
+                else int(table.common_props.get('dc:extent'))))
         if self.sources:
             res.append((self.bibpath.name, 'Sources', len(self.sources)))
         return res
