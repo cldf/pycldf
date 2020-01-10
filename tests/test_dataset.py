@@ -257,6 +257,9 @@ def test_add_foreign_key(ds):
     ds.write(**{'primary.csv': [{'ID': 'ab'}], 'foreign.csv': [{'fk_id': 'xy'}]})
     ds.validate()
 
+    with pytest.raises(NotImplementedError):
+        ds.add_foreign_key('foreign.csv', ['fk_id', 'fk_id'], 'primary.csv')
+
     ds.add_foreign_key('foreign.csv', 'fk_id', 'primary.csv')
     ds.write(**{'primary.csv': [{'ID': 'ab'}], 'foreign.csv': [{'fk_id': 'xy'}]})
     with pytest.raises(ValueError):
@@ -450,17 +453,52 @@ def test_Dataset_from_data(tmpdir, cls, expected):
     assert type(cls.from_data(str(forms))) is expected
 
 
+def test_Dataset_remove_columns(tmpdir):
+    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+    ds.add_component('LanguageTable')
+    ds.add_foreign_key('ValueTable', 'Value', 'LanguageTable', 'Name')
+    ds.remove_columns('languages.csv', 'ID')
+
+    ds.write(
+        ValueTable=[{'ID': '1', 'Language_ID': '1', 'Parameter_ID': '1', 'Value': '1'}],
+        LanguageTable=[{'Name': 'x'}]
+    )
+    with pytest.raises(ValueError):
+        ds.validate()
+
+    ds.write(
+        ValueTable=[{'ID': '1', 'Language_ID': '1', 'Parameter_ID': '1', 'Value': '1'}],
+        LanguageTable=[{'Name': '1'}]
+    )
+    assert ds.validate()
+
+
 def test_Dataset_remove_table(tmpdir):
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.add_component('LanguageTable')
+    ds.add_component('ParameterTable')
     ds.write(
         ValueTable=[{'ID': '1', 'Language_ID': '1', 'Parameter_ID': 1, 'Value': 1}],
-        LanguageTable=[{'ID': '1', 'Name': 'l'}]
+        LanguageTable=[{'ID': '1', 'Name': 'l'}],
+        ParameterTable=[{'ID': '1', 'Name': 'l'}],
     )
     assert ds.validate()
 
     ds.remove_table('LanguageTable')
-    ds.write(ValueTable=[{'ID': '1', 'Language_ID': '1', 'Parameter_ID': 1, 'Value': 1}])
+
+    # Make sure other foreign key constraints are still enforced:
+    ds.write(
+        ValueTable=[{'ID': '1', 'Language_ID': '1', 'Parameter_ID': 1, 'Value': 1}],
+        ParameterTable=[{'ID': 'x', 'Name': 'l'}],
+    )
+    with pytest.raises(ValueError):
+        ds.validate()
+
+    # But foreign keys into the removed table are not:
+    ds.write(
+        ValueTable=[{'ID': '1', 'Language_ID': '1', 'Parameter_ID': 1, 'Value': 1}],
+        ParameterTable=[{'ID': '1', 'Name': 'l'}],
+    )
     assert ds.validate()
 
 

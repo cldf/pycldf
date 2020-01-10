@@ -223,16 +223,51 @@ class Dataset(object):
             table.tableSchema.columns.append(make_column(col))
         self.auto_constraints()
 
+    def remove_columns(self, table, *cols):
+        """
+        Remove `cols` from `table`'s schema.
+
+        Note: Foreign keys pointing to any of the removed columns are removed as well.
+        """
+        table = self[table]
+        cols = [str(self[table, col]) for col in cols]
+
+        # First remove foreign keys:
+        for t in self.tables:
+            t.tableSchema.foreignKeys = [
+                fk for fk in t.tableSchema.foreignKeys
+                if (fk.reference.resource != table.url or
+                    (not set(str(c) for c in fk.reference.columnReference).intersection(cols)))]
+
+        # Remove primary key constraints:
+        if table.tableSchema.primaryKey:
+            if set(str(c) for c in table.tableSchema.primaryKey).intersection(cols):
+                table.tableSchema.primaryKey = None
+
+        table.tableSchema.columns = [c for c in table.tableSchema.columns if str(c) not in cols]
+
     def add_foreign_key(self, foreign_t, foreign_c, primary_t, primary_c=None):
-        foreign_c = self[foreign_t, foreign_c].name
+        """
+        Add a foreign key constraint.
+
+        Note: Composite keys are not supported yet.
+
+        :param foreign_t: Table reference for the linking table.
+        :param foreign_c: Column reference for the link.
+        :param primary_t: Table reference for the linked table.
+        :param primary_c: Column reference for the linked column - or `None`, in which case the \
+        primary key of the linked table is assumed.
+        """
+        if isinstance(foreign_c, (tuple, list)) or isinstance(primary_c, (tuple, list)):
+            raise NotImplementedError('composite keys are not supported')
+
         foreign_t = self[foreign_t]
+        primary_t = self[primary_t]
         if not primary_c:
-            primary_t = self[primary_t]
             primary_c = primary_t.tableSchema.primaryKey
         else:
             primary_c = self[primary_t, primary_c].name
-            primary_t = self[primary_t]
-        foreign_t.add_foreign_key(foreign_c, primary_t.url.string, primary_c)
+        foreign_t.add_foreign_key(self[foreign_t, foreign_c].name, primary_t.url.string, primary_c)
 
     def auto_constraints(self, component=None):
         """
