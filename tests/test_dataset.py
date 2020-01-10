@@ -450,6 +450,20 @@ def test_Dataset_from_data(tmpdir, cls, expected):
     assert type(cls.from_data(str(forms))) is expected
 
 
+def test_Dataset_remove_table(tmpdir):
+    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+    ds.add_component('LanguageTable')
+    ds.write(
+        ValueTable=[{'ID': '1', 'Language_ID': '1', 'Parameter_ID': 1, 'Value': 1}],
+        LanguageTable=[{'ID': '1', 'Name': 'l'}]
+    )
+    assert ds.validate()
+
+    ds.remove_table('LanguageTable')
+    ds.write(ValueTable=[{'ID': '1', 'Language_ID': '1', 'Parameter_ID': 1, 'Value': 1}])
+    assert ds.validate()
+
+
 def test_Dataset_validate(tmpdir, mocker):
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.write(ValueTable=[])

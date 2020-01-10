@@ -165,6 +165,17 @@ class Dataset(object):
     def add_table(self, url, *cols):
         return self.add_component({"url": url, "tableSchema": {"columns": []}}, *cols)
 
+    def remove_table(self, table):
+        table = self[table]
+
+        # First remove foreign keys:
+        for t in self.tables:
+            t.tableSchema.foreignKeys = [
+                fk for fk in t.tableSchema.foreignKeys if fk.reference.resource != table.url]
+
+        # Now remove the table:
+        self.tablegroup.tables = [t for t in self.tablegroup.tables if t.url != table.url]
+
     def add_component(self, component, *cols, **kw):
         if isinstance(component, str):
             component = jsonlib.load(pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
