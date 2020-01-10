@@ -1,4 +1,5 @@
 import pytest
+from pybtex.database import Entry
 
 from pycldf.sources import Sources, Source, Reference
 
@@ -12,6 +13,16 @@ BIB = """@BOOK{Obrazy,
     title = {Tirolské elegie}
 }
 """
+
+
+def test_from_entry():
+    e = Entry('book', fields={'title': 'Title'})
+    assert Source.from_entry('abc', e)['title'] == 'Title'
+
+    with pytest.raises(ValueError):
+        Source.from_entry('a.b', e)
+
+    assert Source.from_entry('a.b', e, _check_id=False).id == 'a.b'
 
 
 def test_field_order(tmpdir):

@@ -44,12 +44,20 @@ class Source(BaseSource):
         return '<%s %s>' % (self.__class__.__name__, self.id)
 
     @classmethod
-    def from_entry(cls, key, entry):
-        kw = {k: v for k, v in entry.fields.items()}
+    def from_entry(cls, key, entry, **_kw):
+        """
+        Create a `cls` instance from a `pybtex` entry object.
+
+        :param key: BibTeX citation key of the entry
+        :param entry: `pybtex.database.Entry` instance
+        :param _kw: Non-bib-metadata keywords to be passed for `cls` instantiation
+        :return: `cls` instance
+        """
+        _kw.update({k: v for k, v in entry.fields.items()})
         for role in entry.persons:
             if entry.persons[role]:
-                kw[role] = ' and '.join('%s' % p for p in entry.persons[role])
-        return cls(entry.type, key, **kw)
+                _kw[role] = ' and '.join('%s' % p for p in entry.persons[role])
+        return cls(entry.type, key, **_kw)
 
     @staticmethod
     def persons(s):
