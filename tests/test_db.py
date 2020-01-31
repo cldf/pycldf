@@ -20,7 +20,7 @@ def test_db_write(tmpdir, data):
     db.write_from_tg()
     #shutil.copy(str(tmpdir.join('db.sqlite')), 'db.sqlite')
     assert len(db.query("select * from ValueTable where cldf_parameterReference = 'fid1'")) == 1
-    assert len(db.query('select * from SourceTable')) == 2
+    assert len(db.query('select * from SourceTable')) == 3
     assert len(db.query(
         "select valuetable_cldf_id from ValueTable_SourceTable where context = '2-5'")) == 1
 
