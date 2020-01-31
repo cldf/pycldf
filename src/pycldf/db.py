@@ -63,7 +63,7 @@ def translate(d, table, col=None):
 
 
 def clean_bibtex_key(s):
-    return s.replace('-', '_')
+    return s.replace('-', '_').lower()
 
 
 class Database(csvw.db.Database):
