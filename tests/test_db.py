@@ -1,8 +1,9 @@
 import decimal
+import pathlib
 
 import pytest
 
-from pycldf.dataset import Dataset
+from pycldf.dataset import Dataset, Generic
 from pycldf.db import Database
 
 
@@ -14,7 +15,6 @@ def test_db_geocoords():
 
 
 def test_db_write(tmpdir, data):
-    #import shutil
     ds = Dataset.from_metadata(data / 'ds1.csv-metadata.json')
     db = Database(ds, fname=str(tmpdir.join('db.sqlite')))
     db.write_from_tg()
@@ -36,3 +36,14 @@ def test_db_write(tmpdir, data):
         db.write_from_tg(_exists_ok=True)
 
     db.write_from_tg(_force=True)
+
+
+def test_db_write_extra_tables(tmpdir):
+    md = pathlib.Path(str(tmpdir)) / 'metadata.json'
+    ds = Generic.in_dir(md.parent)
+    ds.add_table('extra.csv', 'ID', 'Name')
+    ds.write(md, **{'extra.csv': [dict(ID=1, Name='Name')]})
+
+    db = Database(ds, fname=md.parent / 'db.sqlite')
+    db.write_from_tg()
+    assert len(db.query("""select * from "extra.csv" """)) == 1

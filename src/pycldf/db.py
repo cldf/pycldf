@@ -86,7 +86,8 @@ class Database(csvw.db.Database):
                 if tt:
                     # Translate table URLs to CLDF component names:
                     translations[table.local_name].name = tt
-            except KeyError:  # pragma: no cover
+            except (KeyError, ValueError):
+                # If no table type can be determined, there's nothing to translate.
                 pass
             for col in table.tableSchema.columns:
                 if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
