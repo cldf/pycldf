@@ -4,7 +4,7 @@ import itertools
 import collections
 
 import attr
-from csvw.metadata import TableGroup, Table, Column, Link
+from csvw.metadata import TableGroup, Table, Column, Link, Schema
 from csvw.dsv import iterrows
 from clldutils.path import git_describe
 from clldutils.misc import log_or_raise
@@ -162,8 +162,21 @@ class Dataset(object):
     def add_sources(self, *sources, **kw):
         self.sources.add(*sources, **kw)
 
-    def add_table(self, url, *cols):
-        return self.add_component({"url": url, "tableSchema": {"columns": []}}, *cols)
+    def add_table(self, url, *cols, **kw):
+        """
+        Add a table description to the Dataset.
+
+        :param url: The url property of the table.
+        :param cols: Column specifications.
+        :param kw: Recognized keywords:
+            - `primaryKey`: specify the column(s) constituting the primary key of the table.
+        :return: `csvw.metadata.Table` instance.
+        """
+        t = self.add_component({"url": url, "tableSchema": {"columns": []}}, *cols)
+        if 'primaryKey' in kw:
+            t.tableSchema.primaryKey = attr.fields_dict(Schema)['primaryKey'].converter(
+                kw.pop('primaryKey'))
+        return t
 
     def remove_table(self, table):
         table = self[table]
@@ -364,6 +377,17 @@ class Dataset(object):
                 except ValueError:
                     success = False
                     log_or_raise('invalid CLDF URI: {0}'.format(type_uri), log=log)
+
+            if not table.tableSchema.primaryKey:
+                if log:
+                    log.warning('Table without primary key: {0} - {1}'.format(
+                        table.url,
+                        'This may cause problems with "cldf createdb"'))
+            elif len(table.tableSchema.primaryKey) > 1:
+                if log:
+                    log.warning('Table with composite primary key: {0} - {1}'.format(
+                        table.url,
+                        'This may cause problems with "cldf createdb"'))
 
             # FIXME: check whether table.common_props['dc:conformsTo'] is in validators!
             validators_ = []

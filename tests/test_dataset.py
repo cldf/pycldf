@@ -279,6 +279,22 @@ def test_in_dir_empty(ds_wl_notables):
     assert len(ds_wl_notables.tables) == 0
 
 
+def test_log_missing_primary_key(tmpdir, mocker):
+    md = Path(str(tmpdir)) / 'metadata.json'
+
+    ds = Generic.in_dir(md.parent)
+    ds.add_table('t1.csv', 'ID', 'Name', primaryKey=['ID', 'Name'])
+    t2 = ds.add_table('t2.csv', 'ID', {'name': 'T1_ID', 'separator': ' '})
+    t2.add_foreign_key('T1_ID', 't1.csv', 'ID')
+    ds.write(md, **{
+        't1.csv': [dict(ID='1', Name='Name')],
+        't2.csv': [dict(ID='1', T1_ID=['1'])],
+    })
+    log = mocker.Mock()
+    ds.validate(log=log)
+    assert log.warning.call_count == 2
+
+
 def test_cognates(ds_wl):
     ds_wl['FormTable', 'Segments'].separator = None
     ds_wl.write(

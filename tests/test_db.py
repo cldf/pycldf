@@ -1,5 +1,6 @@
 import decimal
 import pathlib
+import sqlite3
 
 import pytest
 
@@ -47,3 +48,43 @@ def test_db_write_extra_tables(tmpdir):
     db = Database(ds, fname=md.parent / 'db.sqlite')
     db.write_from_tg()
     assert len(db.query("""select * from "extra.csv" """)) == 1
+
+
+def test_db_write_tables_with_fks(tmpdir, mocker):
+    md = pathlib.Path(str(tmpdir)) / 'metadata.json'
+
+    ds = Generic.in_dir(md.parent)
+    t1 = ds.add_table('t1.csv', 'ID', 'Name')
+    t2 = ds.add_table('t2.csv', 'ID', {'name': 'T1_ID', 'separator': ' '})
+    t2.add_foreign_key('T1_ID', 't1.csv', 'ID')
+    ds.write(md, **{
+        't1.csv': [dict(ID='1', Name='Name')],
+        't2.csv': [dict(ID='1', T1_ID=['1'])],
+    })
+    with pytest.raises(AssertionError):
+        _ = Database(ds, fname=md.parent / 'db.sqlite')
+
+    # Primary keys must be inferred ...
+    db = Database(ds, fname=md.parent / 'db.sqlite', infer_primary_keys=True)
+    db.write_from_tg()
+
+    # ... or declared explicitly:
+    t2.tableSchema.primaryKey = ['ID']
+    db = Database(ds, fname=md.parent / 'db.sqlite')
+    with pytest.raises(sqlite3.OperationalError):
+        db.write_from_tg(_force=True)
+
+    t1.tableSchema.primaryKey = ['ID']
+    db = Database(ds, fname=md.parent / 'db.sqlite')
+    db.write_from_tg(_force=True)
+
+    ds = Generic.in_dir(md.parent)
+    ds.add_table('t1.csv', 'ID', 'Name', primaryKey='ID')
+    table = ds.add_table('t2.csv', 'ID', {'name': 'T1_ID', 'separator': ' '}, primaryKey='ID')
+    table.add_foreign_key('T1_ID', 't1.csv', 'ID')
+    ds.write(md, **{
+        't1.csv': [dict(ID='1', Name='Name')],
+        't2.csv': [dict(ID=1, T1_ID=['1'])],
+    })
+    db = Database(ds, fname=md.parent / 'db.sqlite')
+    db.write_from_tg(_force=True)

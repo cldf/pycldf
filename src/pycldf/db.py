@@ -16,6 +16,7 @@ import csvw.db
 from pycldf.terms import TERMS
 from pycldf.sources import Reference, Sources, Source
 
+PRIMARY_KEY_NAMES = ['id', 'pk']
 BIBTEX_FIELDS = [
     'address',  # Publisher's address
     'annote',  # An annotation for annotated bibliography styles (not typical)
@@ -74,6 +75,8 @@ class Database(csvw.db.Database):
         self._retranslate = collections.defaultdict(dict)
         self._source_cols = ['id', 'genre'] + BIBTEX_FIELDS
 
+        infer_primary_keys = kw.pop('infer_primary_keys', False)
+
         # We create a derived TableGroup, adding a table for the sources.
         tg = csvw.TableGroup.fromvalue(dataset.metadata_dict)
 
@@ -115,6 +118,11 @@ class Database(csvw.db.Database):
 
         # Add foreign keys to source table:
         for table in tg.tables[:-1]:
+            if not table.tableSchema.primaryKey and infer_primary_keys:
+                for col in table.tableSchema.columns:
+                    if col.name.lower() in PRIMARY_KEY_NAMES:
+                        table.tableSchema.primaryKey = [col.name]
+                        break
             for col in table.tableSchema.columns:
                 if col.propertyUrl and col.propertyUrl.uri == TERMS['source'].uri:
                     table.tableSchema.foreignKeys.append(csvw.ForeignKey.fromdict({

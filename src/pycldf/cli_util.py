@@ -26,7 +26,8 @@ def add_database(parser, must_exist=True):
         help='Path to the SQLite db file',
         type=PathType(type='file', must_exist=must_exist),
     )
+    parser.add_argument('--infer-primary-keys', action='store_true', default=False)
 
 
 def get_database(args):
-    return Database(get_dataset(args), fname=args.db)
+    return Database(get_dataset(args), fname=args.db, infer_primary_keys=args.infer_primary_keys)
