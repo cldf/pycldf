@@ -1,6 +1,7 @@
 import decimal
 import pathlib
 import sqlite3
+import warnings
 
 import pytest
 
@@ -48,6 +49,22 @@ def test_db_write_extra_tables(tmpdir):
     db = Database(ds, fname=md.parent / 'db.sqlite')
     db.write_from_tg()
     assert len(db.query("""select * from "extra.csv" """)) == 1
+
+
+def test_db_write_extra_columns(tmpdir):
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        md = pathlib.Path(str(tmpdir)) / 'metadata.json'
+        ds = Generic.in_dir(md.parent)
+        t = ds.add_table('extra.csv', 'ID', 'Name')
+        ds.write(md, **{'extra.csv': [dict(ID=1, Name='Name')]})
+        t.tableSchema.columns = [c for c in t.tableSchema.columns if c.name != 'Name']
+        ds.write_metadata(md)
+
+        db = Database(ds, fname=md.parent / 'db.sqlite')
+        assert len(db.dataset['extra.csv'].tableSchema.columns) == 1
+        db.write_from_tg()
+        assert len(db.query("""select * from "extra.csv" """)[0]) == 1
 
 
 def test_db_write_tables_with_fks(tmpdir, mocker):

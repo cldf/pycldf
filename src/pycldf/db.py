@@ -176,7 +176,8 @@ class Database(csvw.db.Database):
                 self.fname.unlink()
             elif _exists_ok:
                 raise NotImplementedError()
-        return csvw.db.Database.write(self, _force=False, _exists_ok=False, **items)
+        return csvw.db.Database.write(
+            self, _force=False, _exists_ok=False, _skip_extra=True, **items)
 
     def write_from_tg(self, _force=False, _exists_ok=False):
         items = {

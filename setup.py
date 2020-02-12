@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pycldf',
-    version='1.10.1.dev0',
+    version='1.11.0',
     author='Robert Forkel',
     author_email='forkel@shh.mpg.de',
     description='A python library to read and write CLDF datasets',
@@ -24,7 +24,7 @@ setup(
     platforms='any',
     python_requires='>=3.5',
     install_requires=[
-        'csvw>=1.5.5',
+        'csvw>=1.7',
         'clldutils>=3.5',
         'uritemplate>=3.0',
         'python-dateutil',
@@ -34,7 +34,7 @@ setup(
         'dev': ['flake8', 'wheel', 'twine'],
         'test': [
             'mock',
-            'pytest>=3.6',
+            'pytest>=4.3',
             'pytest-mock',
             'pytest-cov',
             'coverage>=4.2',
