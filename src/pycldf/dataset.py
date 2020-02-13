@@ -1,4 +1,5 @@
 import sys
+import json
 import pathlib
 import itertools
 import collections
@@ -6,18 +7,48 @@ import collections
 import attr
 from csvw.metadata import TableGroup, Table, Column, Link, Schema
 from csvw.dsv import iterrows
-from clldutils.path import git_describe
+from clldutils.path import git_describe, walk
 from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
 from pycldf.sources import Sources
 from pycldf.util import pkg_path, resolve_slices
-from pycldf.terms import term_uri, TERMS, get_column_names
+from pycldf.terms import term_uri, TERMS, get_column_names, URL as TERMS_URL
 from pycldf.validators import VALIDATORS
 
-__all__ = ['Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset']
+__all__ = [
+    'Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset',
+    'iter_datasets']
 
 MD_SUFFIX = '-metadata.json'
+
+
+def sniff(p):
+    with p.open('rb') as fp:
+        c = fp.read(10)
+        try:
+            c = c.decode('utf8').strip()
+        except UnicodeDecodeError:
+            return False
+        if not c.startswith('{'):
+            return False
+    try:
+        d = jsonlib.load(p)
+    except json.decoder.JSONDecodeError:
+        return False
+    return d.get('dc:conformsTo').startswith(TERMS_URL)
+
+
+def iter_datasets(d):
+    """
+    Discover CLDF datasets - by identifying metadata files - in a directory.
+
+    :param d: directory
+    :return: generator of `Dataset` instances.
+    """
+    for p in walk(d, mode='files'):
+        if sniff(p):
+            yield Dataset.from_metadata(p)
 
 
 @attr.s
