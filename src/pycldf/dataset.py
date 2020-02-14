@@ -36,7 +36,7 @@ def sniff(p):
         d = jsonlib.load(p)
     except json.decoder.JSONDecodeError:
         return False
-    return d.get('dc:conformsTo').startswith(TERMS_URL)
+    return d.get('dc:conformsTo', '').startswith(TERMS_URL)
 
 
 def iter_datasets(d):

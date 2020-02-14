@@ -683,4 +683,5 @@ def test_iter_datasets(data, tmpdir):
 
     tmpdir.join('f1').write_text('äöü', encoding='latin1')
     tmpdir.join('f2').write_text('{x', encoding='utf8')
+    tmpdir.join('f3').write_text('{}', encoding='utf8')
     assert len(list(iter_datasets(Path(str(tmpdir))))) == 0
