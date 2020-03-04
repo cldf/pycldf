@@ -54,6 +54,7 @@ class Source(BaseSource):
         :return: `cls` instance
         """
         _kw.update({k: v for k, v in entry.fields.items()})
+        _kw.setdefault('_check_id', False)
         for role in entry.persons:
             if entry.persons[role]:
                 _kw[role] = ' and '.join('%s' % p for p in entry.persons[role])

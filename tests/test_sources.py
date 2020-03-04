@@ -20,7 +20,7 @@ def test_from_entry():
     assert Source.from_entry('abc', e)['title'] == 'Title'
 
     with pytest.raises(ValueError):
-        Source.from_entry('a.b', e)
+        Source.from_entry('a.b', e, _check_id=True)
 
     assert Source.from_entry('a.b', e, _check_id=False).id == 'a.b'
 
