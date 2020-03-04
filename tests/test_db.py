@@ -6,7 +6,7 @@ import warnings
 import pytest
 
 from pycldf.dataset import Dataset, Generic
-from pycldf.db import Database
+from pycldf.db import Database, translate, TableTranslation
 
 
 def test_db_geocoords():
@@ -105,3 +105,42 @@ def test_db_write_tables_with_fks(tmpdir, mocker):
     })
     db = Database(ds, fname=md.parent / 'db.sqlite')
     db.write_from_tg(_force=True)
+
+
+def test_db_translations_for_association_table(data, tmpdir):
+    dbpath = pathlib.Path(str(tmpdir)) / 'db.sqlite'
+    dsdir = data / 'dataset_with_listvalued_foreign_keys_to_component'
+    ds = Dataset.from_metadata(dsdir / 'metadata.json')
+    db = Database(ds, fname=dbpath)
+    db.write_from_tg()
+    #assert len(db.query('select * from "forms.csv_concepts.csv"')) == 2
+    q = db.query('select ParameterTable_cldf_id from FormTable_ParameterTable')
+    assert {r[0] for r in q} == {'c1', 'c2'}
+    q = db.query('select "custom.csv_cldf_id" from "FormTable_custom.csv"')
+    assert {r[0] for r in q} == {'1'}
+
+    db.to_cldf(dest=dbpath.parent)
+    assert dbpath.parent.joinpath('forms.csv').read_text('utf8').strip() == \
+           dsdir.joinpath('forms.csv').read_text('utf8').strip()
+
+
+@pytest.fixture
+def translations():
+    return {
+        'forms.csv': TableTranslation(columns={'pk': 'id'}),
+        'parameters.csv': TableTranslation(name='PTable', columns={'pk': 'id'}),
+    }
+
+
+@pytest.mark.parametrize(
+    'table,col,expected',
+    [
+        ('forms.csv', None, 'forms.csv'),  # Table has no name in translations!
+        ('forms.csv', 'pk', 'id'),
+        ('forms.csv_parameters.csv', None, 'forms.csv_PTable'),
+        ('forms.csv_parameters.csv', 'parameters.csv_pk', 'PTable_id'),
+        ('forms.csv_parameters.csv', 'forms.csv_pk', 'forms.csv_id'),
+    ]
+)
+def test_translate(translations, table, col, expected):
+    assert translate(translations, table, col) == expected

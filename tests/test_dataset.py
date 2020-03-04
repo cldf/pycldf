@@ -679,7 +679,7 @@ def test_get_modules():
 
 
 def test_iter_datasets(data, tmpdir):
-    assert len(list(iter_datasets(data))) == 1
+    assert len(list(iter_datasets(data))) == 2
 
     tmpdir.join('f1').write_text('äöü', encoding='latin1')
     tmpdir.join('f2').write_text('{x', encoding='utf8')

@@ -1,9 +1,39 @@
-"""Functionality to load a set of CLDF datasets into a sqlite db.
+"""
+Functionality to load a CLDF dataset into a sqlite db.
 
-Notes:
-- Only CLDF components will be loaded into the db.
-- The names of the columns in the database are the names from the CSV files, not the
-  preferred labels for the corresponding CLDF properties.
+To make the resulting SQLite database useful without access to the datasets metadata, we
+use terms of the CLDF ontology for database objects as much as possible, i.e.
+- table names are component names (e.g. "ValueTable" for a table with propertyUrl
+  http://cldf.clld.org/v1.0/terms.rdf#ValueTable)
+- column names are property names, prefixed with "cldf_" (e.g. a column with propertyUrl
+  http://cldf.clld.org/v1.0/terms.rdf#id will be "cldf_id" in the database)
+
+This naming scheme also extends to automatically created association tables. I.e. when a
+table specifies a list-valued foreign key, an association table is created to implement this
+many-to-many relationship. The name of the association table is the concatenation of
+- the url properties of the tables in this relationship or of
+- the component names of the tables in the relationship.
+
+E.g. a list-valued foreign key from the FormTable to the ParameterTable will result in an
+association table
+
+  CREATE TABLE `FormTable_ParameterTable` (
+    `FormTable_cldf_id` TEXT,
+    `ParameterTable_cldf_id` TEXT,
+    `context` TEXT,
+    FOREIGN KEY(`FormTable_cldf_id`) REFERENCES `FormTable`(`cldf_id`) ON DELETE CASCADE,
+    FOREIGN KEY(`ParameterTable_cldf_id`) REFERENCES `ParameterTable`(`cldf_id`) ON DELETE CASCADE
+  );
+
+while a list-valued foreign key to a custom table may result in something like this
+
+  CREATE TABLE `FormTable_custom.csv` (
+    `FormTable_cldf_id` TEXT,
+    `custom.csv_id` TEXT,
+    `context` TEXT,
+    FOREIGN KEY(`FormTable_cldf_id`) REFERENCES `FormTable`(`cldf_id`) ON DELETE CASCADE,
+    FOREIGN KEY(`custom.csv_id`) REFERENCES `custom.csv`(`id`) ON DELETE CASCADE
+  );
 """
 import pathlib
 import functools
@@ -54,13 +84,25 @@ class TableTranslation(object):
 
 
 def translate(d, table, col=None):
+    """
+    Translate a db object name.
+
+    :param d: `dict` mapping table urls to `TableTranslation` instances.
+    :param table: The table name of the object to be translated.
+    :param col: Column name to be translated or `None` - so `table` will be translated.
+    :return: Translated name.
+    """
     if col:
         if table in d and col in d[table].columns:
+            # A simple, translateable column name.
             return d[table].columns[col]
+        if '_' in col:
+            t, _, c = col.partition('_')
+            if t in table and t in d and c in d[t].columns:
+                # A generated column name of an association table.
+                return '_'.join([d[t].name or t, d[t].columns[c]])
         return col
-    if table in d and d[table].name:
-        return d[table].name
-    return table
+    return '_'.join([(d[t].name or t) if t in d else t for t in table.split('_')])
 
 
 def clean_bibtex_key(s):
