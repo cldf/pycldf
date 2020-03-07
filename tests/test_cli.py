@@ -36,7 +36,7 @@ def test_check(data, glottolog_repos, concepticon_repos, caplog, tmpdir):
                 str(glottolog_repos)],
             log=logging.getLogger(__name__))
     assert res == 2
-    assert len(caplog.records) == 5
+    assert len(caplog.records) == 7
 
     assert main(
         ['check', str(data / 'ds1.csv-metadata.json')],
@@ -44,7 +44,7 @@ def test_check(data, glottolog_repos, concepticon_repos, caplog, tmpdir):
 
     shutil.copy(str(data / 'dataset_for_check' / 'metadata.json'), str(tmpdir))
     shutil.copy(str(data / 'dataset_for_check' / 'parameters.csv'), str(tmpdir))
-    tmpdir.join('languages.csv').write_text('ID,Glottocode,Latitude,ISO', encoding='utf8')
+    tmpdir.join('languages.csv').write_text('ID,Glottocode,Latitude,ISO,ma,lon', encoding='utf8')
     res = main(['check', str(tmpdir.join('metadata.json'))], log=logging.getLogger(__name__))
     assert res == 2
     assert 'Empty ' in caplog.records[-1].message

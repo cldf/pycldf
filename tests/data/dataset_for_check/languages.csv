@@ -1,5 +1,5 @@
-ID,Glottocode,Latitude,ISO
-l1,abcd1234,-91,aaa
-l2,book1111,,xyz
-l3,,,
-l4,xyzz9999,,
+ID,Glottocode,Latitude,ISO,ma,lon
+l1,abcd1234,-91,aaa,Papunesia,
+l2,book1111,,xyz,,
+l3,,,,nope,-120
+l4,xyzz9999,,,,190

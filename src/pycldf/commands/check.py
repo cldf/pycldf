@@ -171,7 +171,6 @@ class ConcepticonID(Check):
             warn('Parameter {0} mapped to invalid conceptset ID {1}'.format(rowid, cid))
 
 
-
 COLUMN_CHECKERS = {
     'LanguageTable': {
         'glottocode': Glottocode,

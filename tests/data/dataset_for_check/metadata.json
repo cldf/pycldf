@@ -19,8 +19,18 @@
           },
           {
             "datatype": "number",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#longitude",
+            "name": "lon"
+          },
+          {
+            "datatype": "number",
             "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#latitude",
             "name": "Latitude"
+          },
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#macroarea",
+            "name": "ma"
           },
           {
             "datatype": "string",
