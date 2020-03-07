@@ -1,3 +1,4 @@
+import logging
 import warnings
 from pathlib import Path
 
@@ -279,7 +280,7 @@ def test_in_dir_empty(ds_wl_notables):
     assert len(ds_wl_notables.tables) == 0
 
 
-def test_log_missing_primary_key(tmpdir, mocker):
+def test_log_missing_primary_key(tmpdir, mocker, caplog):
     md = Path(str(tmpdir)) / 'metadata.json'
 
     ds = Generic.in_dir(md.parent)
@@ -290,9 +291,8 @@ def test_log_missing_primary_key(tmpdir, mocker):
         't1.csv': [dict(ID='1', Name='Name')],
         't2.csv': [dict(ID='1', T1_ID=['1'])],
     })
-    log = mocker.Mock()
-    ds.validate(log=log)
-    assert log.warning.call_count == 2
+    ds.validate(log=logging.getLogger(__name__))
+    assert len(caplog.records) == 2
 
 
 def test_cognates(ds_wl):
@@ -518,15 +518,14 @@ def test_Dataset_remove_table(tmpdir):
     assert ds.validate()
 
 
-def test_Dataset_validate(tmpdir, mocker):
+def test_Dataset_validate(tmpdir, mocker, caplog):
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds.write(ValueTable=[])
     values = tmpdir / 'new' / 'values.csv'
     assert values.check()
     Path(str(values)).unlink()
-    log = mocker.Mock()
-    assert not ds.validate(log=log)
-    assert log.warn.called
+    assert not ds.validate(log=logging.getLogger(__name__))
+    assert caplog.records
 
     ds.write(ValueTable=[])
     assert ds.validate()
@@ -575,13 +574,12 @@ def test_Dataset_validate_custom_validator(tmpdir):
         ds.validate(validators=[('ValueTable', 'Value', v)])
 
 
-def test_Dataset_validate_missing_table(tmpdir, mocker):
+def test_Dataset_validate_missing_table(tmpdir, caplog):
     ds = StructureDataset.from_metadata(str(tmpdir))
     ds.tablegroup.tables = []
     ds.write()
-    log = mocker.Mock()
-    ds.validate(log=log)
-    assert log.warn.called
+    ds.validate(log=logging.getLogger(__name__))
+    assert caplog.records
 
 
 def test_stats(dataset):
@@ -654,24 +652,23 @@ def test_Dataset_write(tmpdir):
     ds.validate()
 
 
-def test_validators(tmpdir, mocker, data):
+def test_validators(tmpdir, data, caplog):
     copy(str(data / 'invalid.csv'), str(tmpdir / 'values.csv'))
     ds = Dataset.from_data(str(tmpdir / 'values.csv'))
 
     with pytest.raises(ValueError):
         ds.validate()
 
-    log = mocker.Mock()
+    log = logging.getLogger(__name__)
     ds.validate(log=log)
-    assert log.warn.call_count == 2
+    assert len(caplog.records) == 2
 
     for col in ds.tablegroup.tables[0].tableSchema.columns:
         if col.name == 'Language_ID':
             col.propertyUrl.uri = 'http://cldf.clld.org/v1.0/terms.rdf#glottocode'
 
-    log = mocker.Mock()
     ds.validate(log=log)
-    assert log.warn.call_count == 4
+    assert len(caplog.records) == 6
 
 
 def test_get_modules():

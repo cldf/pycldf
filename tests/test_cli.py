@@ -50,6 +50,18 @@ def test_check(data, glottolog_repos, concepticon_repos, caplog, tmpdir):
     assert 'Empty ' in caplog.records[-1].message
 
 
+def test_validate(tmpdir, caplog):
+    tmpdir.join('md.json').write_text("""{
+  "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
+  "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#StructureDataset",
+  "tables": []
+}""", encoding='utf8')
+    # A StructureDataset must speficy a ValueTable!
+    assert main(['validate', str(tmpdir.join('md.json'))], log=logging.getLogger(__name__)) == 1
+    assert all(
+        w in caplog.records[-1].message for w in ['StructureDataset', 'requires', 'ValueTable'])
+
+
 def test_all(capsys, tmpdir, mocker, data):
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
@@ -61,7 +73,7 @@ def test_all(capsys, tmpdir, mocker, data):
         pdata = str(tmpdir / 'values.csv')
         copy(str(data / 'ds1.csv'), pdata)
 
-        main(['validate', md])
+        assert main(['validate', md]) == 0
         out, err = capsys.readouterr()
         assert not out
 
