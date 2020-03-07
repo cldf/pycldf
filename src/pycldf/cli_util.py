@@ -6,7 +6,7 @@ from pycldf import Dataset, Database
 #
 # Copied from distutils.util - because we don't want to deal with deprecation warnings.
 #
-def strtobool (val):  # pragma: no cover
+def strtobool(val):  # pragma: no cover
     """Convert a string representation of truth to true (1) or false (0).
 
     True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
