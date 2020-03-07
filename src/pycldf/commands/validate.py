@@ -13,4 +13,3 @@ def register(parser):
 
 def run(args):
     return 0 if get_dataset(args).validate(log=args.log) else 1
-
