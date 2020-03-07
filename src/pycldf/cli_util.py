@@ -31,3 +31,15 @@ def add_database(parser, must_exist=True):
 
 def get_database(args):
     return Database(get_dataset(args), fname=args.db, infer_primary_keys=args.infer_primary_keys)
+
+
+def add_catalog_spec(parser, name):
+    parser.add_argument(
+        name,
+        metavar=name.upper(),
+        type=PathType(type='dir'),
+        help='Path to repository clone of {0} data'.format(name.capitalize()))
+    parser.add_argument(
+        '--{0}-version'.format(name),
+        help='Version of {0} data to checkout'.format(name.capitalize()),
+        default=None)

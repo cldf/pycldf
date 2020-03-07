@@ -13,5 +13,10 @@ def data():
 
 
 @pytest.fixture(scope='module')
+def glottolog_repos():
+    return DATA.parent / 'glottolog'
+
+
+@pytest.fixture(scope='module')
 def dataset(data):
     return Dataset.from_metadata(data / 'ds1.csv-metadata.json')

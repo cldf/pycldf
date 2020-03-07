@@ -1,3 +1,5 @@
+import shutil
+import logging
 import warnings
 
 import pytest
@@ -19,6 +21,26 @@ def test_stats(tmpdir):
 
     with pytest.raises(SystemExit):
         main(['stats', str(tmpdir / 'new')])
+
+
+def test_check(data, glottolog_repos, caplog, tmpdir):
+    res = main(
+            ['check', str(data / 'dataset_for_check' / 'metadata.json'), str(glottolog_repos)],
+            log=logging.getLogger(__name__))
+    assert res == 2
+    assert len(caplog.records) == 2
+
+    assert main(
+        ['check', str(data / 'ds1.csv-metadata.json'), str(glottolog_repos)],
+        log=logging.getLogger(__name__)) == 0
+
+    shutil.copy(str(data / 'dataset_for_check' / 'metadata.json'), str(tmpdir))
+    tmpdir.join('languages.csv').write_text('ID,Glottocode', encoding='utf8')
+    res = main(
+        ['check', str(tmpdir.join('metadata.json')), str(glottolog_repos)],
+        log=logging.getLogger(__name__))
+    assert res == 2
+    assert 'No languages' in caplog.records[-1].message
 
 
 def test_all(capsys, tmpdir, mocker, data):

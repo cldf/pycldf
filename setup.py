@@ -31,8 +31,14 @@ setup(
         'pybtex',
     ],
     extras_require={
+        'catalogs': [
+            'cldfcatalog',
+            'pyglottolog',
+        ],
         'dev': ['flake8', 'wheel', 'twine'],
         'test': [
+            'cldfcatalog',
+            'pyglottolog',
             'mock',
             'pytest>=4.3',
             'pytest-mock',
