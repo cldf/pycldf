@@ -1,6 +1,16 @@
+import distutils.util
+
 from clldutils.clilib import PathType
 
 from pycldf import Dataset, Database
+
+
+class FlagOrPathType(PathType):
+    def __call__(self, string):
+        try:
+            return bool(distutils.util.strtobool(string))
+        except ValueError:
+            return super().__call__(string)
 
 
 def add_dataset(parser):
@@ -35,7 +45,7 @@ def get_database(args):
 
 def add_catalog_spec(parser, name):
     parser.add_argument(
-        name,
+        '--' + name,
         metavar=name.upper(),
         type=PathType(type='dir'),
         help='Path to repository clone of {0} data'.format(name.capitalize()))

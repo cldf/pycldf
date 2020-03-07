@@ -1,0 +1,55 @@
+{
+  "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
+  "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#Generic",
+  "dialect": {"commentPrefix": null},
+  "tables": [
+    {
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#LanguageTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "name": "ID"
+          },
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#iso639P3code",
+            "name": "ISO"
+          },
+          {
+            "datatype": "number",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#latitude",
+            "name": "Latitude"
+          },
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#glottocode",
+            "name": "Glottocode"
+          }
+        ],
+        "primaryKey": ["ID"]
+      },
+      "url": "languages.csv"
+    },
+    {
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ParameterTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "name": "ID"
+          },
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#concepticonReference",
+            "name": "cid"
+          }
+        ],
+        "primaryKey": ["ID"]
+      },
+      "url": "parameters.csv"
+    }
+  ]
+}

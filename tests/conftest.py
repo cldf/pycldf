@@ -18,5 +18,10 @@ def glottolog_repos():
 
 
 @pytest.fixture(scope='module')
+def concepticon_repos():
+    return DATA.parent / 'concepticon'
+
+
+@pytest.fixture(scope='module')
 def dataset(data):
     return Dataset.from_metadata(data / 'ds1.csv-metadata.json')

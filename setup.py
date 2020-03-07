@@ -34,11 +34,13 @@ setup(
         'catalogs': [
             'cldfcatalog',
             'pyglottolog',
+            'pyconcepticon',
         ],
         'dev': ['flake8', 'wheel', 'twine'],
         'test': [
             'cldfcatalog',
             'pyglottolog',
+            'pyconcepticon',
             'mock',
             'pytest>=4.3',
             'pytest-mock',

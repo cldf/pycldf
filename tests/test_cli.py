@@ -23,24 +23,31 @@ def test_stats(tmpdir):
         main(['stats', str(tmpdir / 'new')])
 
 
-def test_check(data, glottolog_repos, caplog, tmpdir):
+def test_check(data, glottolog_repos, concepticon_repos, caplog, tmpdir):
     res = main(
-            ['check', str(data / 'dataset_for_check' / 'metadata.json'), str(glottolog_repos)],
+            [
+                'check',
+                '--iso-codes',
+                str(data / 'iso_codes.tab'),
+                str(data / 'dataset_for_check' / 'metadata.json'),
+                '--concepticon',
+                str(concepticon_repos),
+                '--glottolog',
+                str(glottolog_repos)],
             log=logging.getLogger(__name__))
     assert res == 2
-    assert len(caplog.records) == 2
+    assert len(caplog.records) == 5
 
     assert main(
-        ['check', str(data / 'ds1.csv-metadata.json'), str(glottolog_repos)],
+        ['check', str(data / 'ds1.csv-metadata.json')],
         log=logging.getLogger(__name__)) == 0
 
     shutil.copy(str(data / 'dataset_for_check' / 'metadata.json'), str(tmpdir))
-    tmpdir.join('languages.csv').write_text('ID,Glottocode', encoding='utf8')
-    res = main(
-        ['check', str(tmpdir.join('metadata.json')), str(glottolog_repos)],
-        log=logging.getLogger(__name__))
+    shutil.copy(str(data / 'dataset_for_check' / 'parameters.csv'), str(tmpdir))
+    tmpdir.join('languages.csv').write_text('ID,Glottocode,Latitude,ISO', encoding='utf8')
+    res = main(['check', str(tmpdir.join('metadata.json'))], log=logging.getLogger(__name__))
     assert res == 2
-    assert 'No languages' in caplog.records[-1].message
+    assert 'Empty ' in caplog.records[-1].message
 
 
 def test_all(capsys, tmpdir, mocker, data):
