@@ -147,5 +147,28 @@ ID,Language_ID,Parameter_ID,Value,Segments,Comment,Source
 ```
 
 
+### Converting a CLDF dataset to an SQLite database
+
+A very useful feature of CSVW in general and CLDF in particular is that it
+provides enough metadata for a set of CSV files to load them into a relational
+database - including relations between tables. This can be done running the
+`cldf createdb` command:
+
+```shell script
+$ cldf createdb -h
+usage: cldf createdb [-h] [--infer-primary-keys] DATASET SQLITE_DB_PATH
+
+Load a CLDF dataset into a SQLite DB
+
+positional arguments:
+  DATASET               Dataset specification (i.e. path to a CLDF metadata
+                        file or to the data file)
+  SQLITE_DB_PATH        Path to the SQLite db file
+```
+
+For a specification of the resulting database schema refer to the documentation in
+[`src/pycldf/db.py`](src/pycldf/db.py).
+
+
 ## See also
 - https://github.com/frictionlessdata/datapackage-py
