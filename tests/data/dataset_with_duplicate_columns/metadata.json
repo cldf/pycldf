@@ -1,0 +1,49 @@
+{
+  "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
+  "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#Generic",
+  "dialect": {"commentPrefix": null},
+  "tables": [
+    {
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#FormTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "datatype": {"base": "string", "format": "[a-zA-Z0-9_\\-]+"},
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "name": "ID"
+          },
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference",
+            "name": "Language_ID"
+          },
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference",
+            "name": "Duplicate_Language_ID"
+          },
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference",
+            "name": "Concept_ID"
+          },
+          {
+            "datatype": "string",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#form",
+            "name": "Phonetic_Transcription"
+          },
+          {
+            "datatype": "string",
+            "name": "Custom"
+          },
+          {
+            "datatype": "integer",
+            "name": "Custom"
+          }
+        ],
+        "primaryKey": ["ID"]
+      },
+      "url": "forms.csv"
+    }
+  ]
+}

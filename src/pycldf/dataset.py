@@ -421,12 +421,24 @@ class Dataset(object):
                         'This may cause problems with "cldf createdb"'))
 
             # FIXME: check whether table.common_props['dc:conformsTo'] is in validators!
-            validators_ = []
+            validators_, propertyUrls, colnames = [], set(), set()
             for col in table.tableSchema.columns:
+                if col.header in colnames:
+                    log_or_raise(
+                        'Duplicate column name in table schema: {} {}'.format(
+                            table.url, col.header),
+                        log=log)
+                colnames.add(col.header)
                 if col.propertyUrl:
                     col_uri = col.propertyUrl.uri
                     try:
                         TERMS.is_cldf_uri(col_uri)
+                        if col_uri in propertyUrls:
+                            log_or_raise(
+                                'Duplicate CLDF property in table schema: {} {}'.format(
+                                    table.url, col_uri),
+                                log=log)
+                        propertyUrls.add(col_uri)
                     except ValueError:
                         success = False
                         log_or_raise('invalid CLDF URI: {0}'.format(col_uri), log=log)

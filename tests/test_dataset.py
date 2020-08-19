@@ -582,6 +582,12 @@ def test_Dataset_validate_missing_table(tmpdir, caplog):
     assert caplog.records
 
 
+def test_Dataset_validate_duplicate_columns(data, caplog):
+    ds = Dataset.from_metadata(data / 'dataset_with_duplicate_columns' / 'metadata.json')
+    ds.validate(log=logging.getLogger(__name__))
+    assert len(caplog.records) == 2 and all('uplicate' in r.message for r in caplog.records)
+
+
 def test_stats(dataset):
     assert dict([(r[0], r[2]) for r in dataset.stats()])['ds1.csv'] == 5
     assert dict([(r[0], r[2]) for r in dataset.stats(exact=True)])['ds1.csv'] == 2
@@ -676,7 +682,7 @@ def test_get_modules():
 
 
 def test_iter_datasets(data, tmpdir):
-    assert len(list(iter_datasets(data))) == 3
+    assert len(list(iter_datasets(data))) == 4
 
     tmpdir.join('f1').write_text('äöü', encoding='latin1')
     tmpdir.join('f2').write_text('{x', encoding='utf8')
