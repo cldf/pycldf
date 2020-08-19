@@ -144,3 +144,11 @@ def translations():
 )
 def test_translate(translations, table, col, expected):
     assert translate(translations, table, col) == expected
+
+
+def test_TableTranslation():
+    t1 = TableTranslation()
+    t1.columns['a'] = 'b'
+    assert t1.columns
+    t2 = TableTranslation()
+    assert not t2.columns

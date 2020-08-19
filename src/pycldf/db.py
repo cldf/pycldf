@@ -80,7 +80,7 @@ BIBTEX_FIELDS = [
 @attr.s
 class TableTranslation(object):
     name = attr.ib(default=None)
-    columns = attr.ib(default={})
+    columns = attr.ib(default=attr.Factory(dict))
 
 
 def translate(d, table, col=None):
