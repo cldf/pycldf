@@ -98,6 +98,7 @@ class Sources(object):
         res = cls()
         fname = pathlib.Path(fname)
         if fname.exists():
+            assert fname.is_file(), 'Bibfile {} must be a file!'.format(fname)
             res.read(fname)
         return res
 

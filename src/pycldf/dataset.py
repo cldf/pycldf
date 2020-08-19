@@ -371,7 +371,8 @@ class Dataset(object):
 
     @property
     def bibpath(self):
-        return self.directory.joinpath(self.properties.get('dc:source', 'sources.bib'))
+        # Specifying "dc:source": "" means lookup the default location.
+        return self.directory.joinpath(self.properties.get('dc:source') or 'sources.bib')
 
     def validate(self, log=None, validators=None):
         validators = validators or []
