@@ -582,6 +582,7 @@ def test_Dataset_validate_missing_table(tmpdir, caplog):
     assert caplog.records
 
 
+@pytest.mark.filterwarnings('ignore::UserWarning')
 def test_Dataset_validate_duplicate_columns(data, caplog):
     ds = Dataset.from_metadata(data / 'dataset_with_duplicate_columns' / 'metadata.json')
     ds.validate(log=logging.getLogger(__name__))
@@ -681,6 +682,7 @@ def test_get_modules():
     assert not get_modules()[0].match(5)
 
 
+@pytest.mark.filterwarnings('ignore::UserWarning')
 def test_iter_datasets(data, tmpdir):
     assert len(list(iter_datasets(data))) == 4
 
