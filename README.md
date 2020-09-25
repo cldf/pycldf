@@ -8,6 +8,38 @@ A python package to read and write [CLDF](http://cldf.clld.org) datasets.
 [![PyPI](https://img.shields.io/pypi/v/pycldf.svg)](https://pypi.org/project/pycldf)
 
 
+## Reading CLDF
+
+```python
+>>> from pycldf.dataset import Dataset
+>>> dataset = Dataset.from_metadata('mydataset/Wordlist-metadata.json')
+>>> print(dataset)
+<cldf:v1.0:Wordlist at mydataset>
+
+# what is the type of dataset?
+>>> print(dataset.module)
+'Wordlist'
+
+# iterate over forms:
+>>> for form in dataset['FormTable']:
+>>>    print(form)
+>>> [('ID', '1'), ('Language_ID', 'abcd1234'), ('Parameter_ID', '1277'), ('Value', 'word'), ('Segments', []), ('Comment', None), ('Source', ['Meier2005[3-7]'])]
+...
+
+# or get all of them
+>>> forms = list(dataset['FormTable'])
+>>> forms[0]
+OrderedDict([('ID', '1'), ('Language_ID', 'abcd1234'), ('Parameter_ID', '1277'), ('Value', 'word'), ('Segments', []), ('Comment', None), ('Source', ['Meier2005[3-7]'])])
+
+# references
+>>> refs = list(dataset.sources.expand_refs(forms[0]['Source']))
+>>> refs
+[<Reference Meier2005[3-7]>]
+>>> print(refs[0].source)
+Meier, Hans. 2005. The Book.
+```
+
+
 ## Writing CLDF
 
 ```python
@@ -86,24 +118,6 @@ passing a tuple `(<TABLE>, <COLUMN>)` where `<TABLE>` specifies a table as expla
 above and `<COLUMN>` is
 - a full CLD Ontolgy URI used as `propertyUrl` of the column,
 - the `name` property of the column.
-
-
-## Reading CLDF
-
-```python
->>> from pycldf.dataset import Wordlist
->>> dataset = Wordlist.from_metadata('mydataset/Wordlist-metadata.json')
->>> print(dataset)
-<cldf:v1.0:Wordlist at mydataset>
->>> forms = list(dataset['FormTable'])
->>> forms[0]
-OrderedDict([('ID', '1'), ('Language_ID', 'abcd1234'), ('Parameter_ID', '1277'), ('Value', 'word'), ('Segments', []), ('Comment', None), ('Source', ['Meier2005[3-7]'])])
->>> refs = list(dataset.sources.expand_refs(forms[0]['Source']))
->>> refs
-[<Reference Meier2005[3-7]>]
->>> print(refs[0].source)
-Meier, Hans. 2005. The Book.
-```
 
 
 ## Command line usage
