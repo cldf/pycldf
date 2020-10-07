@@ -227,7 +227,7 @@ class Database(csvw.db.Database):
             for tname, t in self.tg.tabledict.items() if tname != self.source_table_name}
         items[self.source_table_name] = []
         for src in self.dataset.sources:
-            item = {k: '' for k in self._source_cols}
+            item = collections.OrderedDict([(k, '') for k in self._source_cols])
             item.update({clean_bibtex_key(k): v for k, v in src.items()})
             item.update({'id': src.id, 'genre': src.genre})
             items[self.source_table_name].append(item)
