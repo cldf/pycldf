@@ -280,7 +280,7 @@ class Dataset(object):
         for t in self.tables:
             t.tableSchema.foreignKeys = [
                 fk for fk in t.tableSchema.foreignKeys
-                if (fk.reference.resource != table.url or
+                if (fk.reference.resource != table.url or  # noqa: W504
                     (not set(str(c) for c in fk.reference.columnReference).intersection(cols)))]
 
         # Remove primary key constraints:
