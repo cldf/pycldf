@@ -107,11 +107,11 @@ class Glottocode(Check):
         if args.glottolog:
             glottolog = Glottolog(args.glottolog)
             self.bookkeeping, self.gcs = set(), set()
-            for l in glottolog.languoids():
-                self.gcs.add(l.id)
-                if l.lineage and l.lineage[0][1] == \
+            for lang in glottolog.languoids():
+                self.gcs.add(lang.id)
+                if lang.lineage and lang.lineage[0][1] == \
                         glottolog.language_types['bookkeeping'].pseudo_family_id:
-                    self.bookkeeping.add(l.id)
+                    self.bookkeeping.add(lang.id)
 
     def __call__(self, gc, rowid, warn):
         if self.gcs and gc:
