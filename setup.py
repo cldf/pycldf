@@ -28,7 +28,8 @@ setup(
         'clldutils>=3.5',
         'uritemplate>=3.0',
         'python-dateutil',
-        'pybtex',
+        'pybtex<0.23; python_version < "3.6"',
+        'pybtex; python_version > "3.5"',
     ],
     extras_require={
         'catalogs': [
