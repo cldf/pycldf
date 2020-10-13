@@ -652,6 +652,21 @@ class Dataset(object):
             table.common_props['dc:extent'] = table.write(items)
         self.write_metadata(fname)
 
+    def iter_rows(self, table, *cols):
+        """
+        Iterate rows in a table, resolving CLDF property names to local column names.
+
+        :param table: Table name.
+        :param cols: List of CLDF property terms which must be resolved in resulting `dict`s.
+        :return: Generator
+        """
+        cmap = {self[table, col].name: col for col in cols}
+        for item in self[table]:
+            for k, v in cmap.items():
+                # Add CLDF properties as aliases for the corresponding values:
+                item[v] = item[k]
+            yield item
+
 
 class Generic(Dataset):
     @property

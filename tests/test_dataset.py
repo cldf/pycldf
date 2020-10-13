@@ -191,6 +191,7 @@ def test_duplicate_component(ds, tmpdir):
             Dataset.from_metadata(str(md))
         assert 'duplicate component' in excinfo.exconly()
 
+
 def test_foreign_key_creation(ds):
     ds.add_component('ValueTable')
     assert not ds['ValueTable'].tableSchema.foreignKeys
@@ -690,3 +691,9 @@ def test_iter_datasets(data, tmpdir):
     tmpdir.join('f2').write_text('{x', encoding='utf8')
     tmpdir.join('f3').write_text('{}', encoding='utf8')
     assert len(list(iter_datasets(Path(str(tmpdir))))) == 0
+
+
+def test_Dataset_iter_rows(dataset):
+    for row in dataset.iter_rows('ValueTable', 'parameterReference', 'languageReference'):
+        assert all(k in row for k in ['parameterReference', 'languageReference'])
+        assert row['languageReference'] == 'abcd1234'
