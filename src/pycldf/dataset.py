@@ -6,6 +6,7 @@ import collections
 
 import attr
 from csvw.metadata import TableGroup, Table, Column, Link, Schema
+from csvw import datatypes
 from csvw.dsv import iterrows
 from clldutils.path import git_describe, walk
 from clldutils.misc import log_or_raise
@@ -53,12 +54,20 @@ def iter_datasets(d):
 
 @attr.s
 class Module(object):
+    """
+    Class representing a CLDF Module.
+
+    .. seealso:: https://github.com/cldf/cldf/blob/master/README.md#cldf-modules
+    """
     uri = attr.ib(validator=attr.validators.in_([t.uri for t in TERMS.classes.values()]))
     fname = attr.ib()
     cls = attr.ib(default=None)
 
     @property
     def id(self):
+        """
+        The local part of the term URI is interpreted as Module identifier.
+        """
         return self.uri.split('#')[1]
 
     def match(self, thing):
@@ -73,6 +82,9 @@ _modules = []
 
 
 def get_modules():
+    """
+    We read supported CLDF modules from the default metadata files distributed with `pycldf`.
+    """
     global _modules
     if not _modules:
         ds = sys.modules[__name__]
@@ -221,6 +233,11 @@ class Dataset(object):
         self.tablegroup.tables = [t for t in self.tablegroup.tables if t.url != table.url]
 
     def add_component(self, component, *cols, **kw):
+        """
+        Add a CLDF component to a dataset.
+
+        .. seealso:: https://github.com/cldf/cldf/blob/master/README.md#cldf-components
+        """
         if isinstance(component, str):
             component = jsonlib.load(pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
         if isinstance(component, dict):
@@ -492,6 +509,9 @@ class Dataset(object):
             del res.tables[:]
         return res
 
+    #
+    # Factory methods to create `Dataset` instances.
+    #
     @classmethod
     def from_metadata(cls, fname):
         fname = pathlib.Path(fname)
@@ -601,6 +621,33 @@ class Dataset(object):
             if row[id_col.name] == id_:
                 return row
         raise ValueError(id_)  # pragma: no cover
+
+    def get_row_url(self, table, row):
+        """
+        Get a URL associated with a row. Tables can specify associated row URLs by
+        - listing **one** column with datatype `anyURI` or
+        - specfying a `valueUrl` property for their ID column.
+
+        For rows representing objects in web applications, this may be the objects URL. For
+        rows representing media files, it may be a URL locating the file on a media server.
+
+        :param table: Table specified in a way that `__getitem__` understands.
+        :param row: A row specified by ID or as `dict` as returned when iterating over a table.
+        :return: a `str` representing a URL or `None`.
+        """
+        row = row if isinstance(row, dict) else self.get_row(table, row)
+        id_col = None
+        for col in self[table].tableSchema.columns:
+            if col.datatype and col.datatype.base == datatypes.anyURI.__name__:
+                # If one of the columns in the table explicitly spacifies anyURI as datatype, we
+                # return the value of this column.
+                return row[col.name]
+            if str(col.propertyUrl) == 'http://cldf.clld.org/v1.0/terms.rdf#id':
+                # Otherwise we fall back to looking up the `valueUrl` property on the ID column.
+                id_col = col
+        assert id_col, 'no ID column found in table {}'.format(table)
+        if id_col.valueUrl:
+            return id_col.valueUrl.expand(**row)
 
     @staticmethod
     def get_tabletype(table):

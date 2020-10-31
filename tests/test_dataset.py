@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Link
+from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Link, Datatype
 from clldutils.path import copy
 
 from pycldf.terms import term_uri
@@ -697,3 +697,16 @@ def test_Dataset_iter_rows(dataset):
     for row in dataset.iter_rows('ValueTable', 'parameterReference', 'languageReference'):
         assert all(k in row for k in ['parameterReference', 'languageReference'])
         assert row['languageReference'] == 'abcd1234'
+
+
+def test_Dataset_get_row_url(data):
+    dataset = Dataset.from_metadata(data / 'ds1.csv-metadata.json')
+    assert dataset.get_row_url('ValueTable', '2') is None
+
+    dataset = Dataset.from_metadata(data / 'ds1.csv-metadata.json')
+    dataset['ValueTable', 'id'].valueUrl = URITemplate('http://example.org/{ID}')
+    assert dataset.get_row_url('ValueTable', '1') == 'http://example.org/1'
+
+    dataset = Dataset.from_metadata(data / 'ds1.csv-metadata.json')
+    dataset['ValueTable', 'languageReference'].datatype = Datatype.fromvalue('anyURI')
+    assert dataset.get_row_url('ValueTable', '1') == 'abcd1234'
