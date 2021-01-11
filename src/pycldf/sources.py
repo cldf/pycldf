@@ -1,7 +1,9 @@
 import re
 import pathlib
 import collections
+from urllib.request import urlopen
 
+from csvw.metadata import is_url
 from pybtex import database
 from pybtex.database.output.bibtex import Writer as BaseWriter
 from clldutils.source import Source as BaseSource
@@ -96,9 +98,12 @@ class Sources(object):
     @classmethod
     def from_file(cls, fname):
         res = cls()
-        fname = pathlib.Path(fname)
-        if fname.exists():
-            assert fname.is_file(), 'Bibfile {} must be a file!'.format(fname)
+        if not is_url(fname):
+            fname = pathlib.Path(fname)
+            if fname.exists():
+                assert fname.is_file(), 'Bibfile {} must be a file!'.format(fname)
+                res.read(fname)
+        else:
             res.read(fname)
         return res
 
@@ -173,11 +178,12 @@ class Sources(object):
                     raise ValueError('%s' % e)
 
     def read(self, fname, **kw):
+        if is_url(fname):
+            content = urlopen(fname).read().decode('utf-8')
+        else:
+            content = pathlib.Path(fname).read_text(encoding='utf-8')
         self._add_entries(
-            database.parse_string(
-                pathlib.Path(fname).read_text(encoding='utf-8'),
-                bib_format='bibtex'),
-            **kw)
+            database.parse_string(content, bib_format='bibtex'), **kw)
 
     def write(self, fname, ids=None, **kw):
         if ids:

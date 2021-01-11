@@ -24,7 +24,7 @@ setup(
     platforms='any',
     python_requires='>=3.5',
     install_requires=[
-        'csvw>=1.7',
+        'csvw>=1.10',
         'clldutils>=3.5',
         'uritemplate>=3.0',
         'python-dateutil',

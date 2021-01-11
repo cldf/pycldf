@@ -1,4 +1,6 @@
+import io
 import pathlib
+import urllib.parse
 
 import pytest
 
@@ -10,6 +12,15 @@ DATA = pathlib.Path(__file__).parent / 'data'
 @pytest.fixture(scope='module')
 def data():
     return DATA
+
+
+@pytest.fixture
+def urlopen(mocker, data):
+    def _urlopen(url):
+        return io.BytesIO(data.joinpath(urllib.parse.urlparse(url).path[1:]).read_bytes())
+
+    mocker.patch('pycldf.sources.urlopen', _urlopen)
+    mocker.patch('csvw.metadata.urlopen', _urlopen)
 
 
 @pytest.fixture(scope='module')

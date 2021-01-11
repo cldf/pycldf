@@ -1,3 +1,6 @@
+import io
+import urllib.parse
+
 import pytest
 from pybtex.database import Entry
 
@@ -132,3 +135,7 @@ def test_Source_persons():
     assert len(list(Source.persons('A. Meier'))) == 1
     assert len(list(Source.persons('Meier, A.B.'))) == 1
     assert len(list(Source.persons('A. Meier, B. Meier, C.Meier'))) == 3
+
+
+def test_Sources_from_file(urlopen):
+    assert len(Sources.from_file('http://example.org/ds1.bib')) == 3

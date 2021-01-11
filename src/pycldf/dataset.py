@@ -3,9 +3,10 @@ import json
 import pathlib
 import itertools
 import collections
+import urllib.parse
 
 import attr
-from csvw.metadata import TableGroup, Table, Column, Link, Schema
+from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url
 from csvw import datatypes
 from csvw.dsv import iterrows
 from clldutils.path import git_describe, walk
@@ -389,7 +390,16 @@ class Dataset(object):
     @property
     def bibpath(self):
         # Specifying "dc:source": "" means lookup the default location.
+        if is_url(self.directory):
+            return urllib.parse.urljoin(
+                self.directory, self.properties.get('dc:source') or 'sources.bib')
         return self.directory.joinpath(self.properties.get('dc:source') or 'sources.bib')
+
+    @property
+    def bibname(self):
+        if is_url(self.bibpath):
+            return pathlib.Path(urllib.parse.urlparse(self.bibpath).path).name
+        return self.bibpath.name
 
     def validate(self, log=None, validators=None):
         validators = validators or []
@@ -488,7 +498,7 @@ class Dataset(object):
 
     @property
     def directory(self):
-        return self.tablegroup._fname.parent
+        return self.tablegroup._fname.parent if self.tablegroup._fname else self.tablegroup.base
 
     @property
     def module(self):
@@ -514,15 +524,18 @@ class Dataset(object):
     #
     @classmethod
     def from_metadata(cls, fname):
-        fname = pathlib.Path(fname)
-        if fname.is_dir():
-            name = '{0}{1}'.format(cls.__name__, MD_SUFFIX)
-            tablegroup = TableGroup.from_file(pkg_path('modules', name))
-            # adapt the path of the metadata file such that paths to tables are resolved
-            # correctly:
-            tablegroup._fname = fname.joinpath(name)
+        if is_url(fname):
+            tablegroup = TableGroup.from_url(fname)
         else:
-            tablegroup = TableGroup.from_file(fname)
+            fname = pathlib.Path(fname)
+            if fname.is_dir():
+                name = '{0}{1}'.format(cls.__name__, MD_SUFFIX)
+                tablegroup = TableGroup.from_file(pkg_path('modules', name))
+                # adapt the path of the metadata file such that paths to tables are resolved
+                # correctly:
+                tablegroup._fname = fname.joinpath(name)
+            else:
+                tablegroup = TableGroup.from_file(fname)
 
         comps = collections.Counter()
         for table in tablegroup.tables:
@@ -681,7 +694,7 @@ class Dataset(object):
                 sum(1 for _ in table) if (exact or 'dc:extent' not in table.common_props)
                 else int(table.common_props.get('dc:extent'))))
         if self.sources:
-            res.append((self.bibpath.name, 'Sources', len(self.sources)))
+            res.append((self.bibname, 'Sources', len(self.sources)))
         return res
 
     def write_metadata(self, fname=None):

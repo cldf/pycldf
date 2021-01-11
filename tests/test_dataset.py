@@ -1,5 +1,6 @@
 import logging
 import warnings
+import urllib.parse
 from pathlib import Path
 
 import pytest
@@ -710,3 +711,10 @@ def test_Dataset_get_row_url(data):
     dataset = Dataset.from_metadata(data / 'ds1.csv-metadata.json')
     dataset['ValueTable', 'languageReference'].datatype = Datatype.fromvalue('anyURI')
     assert dataset.get_row_url('ValueTable', '1') == 'abcd1234'
+
+
+def test_Dataset_from_url(urlopen):
+    ds = Dataset.from_metadata('http://example.org/ds1.csv-metadata.json')
+    assert ds.bibpath == 'http://example.org/ds1.bib'
+    assert ds.bibname == 'ds1.bib'
+    assert len(ds.sources) == 3
