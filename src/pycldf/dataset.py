@@ -10,19 +10,21 @@ from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url
 from csvw import datatypes
 from csvw.dsv import iterrows
 from clldutils.path import git_describe, walk
-from clldutils.misc import log_or_raise
+from clldutils.misc import log_or_raise, lazyproperty
 from clldutils import jsonlib
 
 from pycldf.sources import Sources
-from pycldf.util import pkg_path, resolve_slices
+from pycldf.util import pkg_path, resolve_slices, DictTuple
 from pycldf.terms import term_uri, TERMS, get_column_names, URL as TERMS_URL
 from pycldf.validators import VALIDATORS
+from pycldf import orm
 
 __all__ = [
     'Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset',
     'iter_datasets']
 
 MD_SUFFIX = '-metadata.json'
+ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
 
 
 def sniff(p):
@@ -144,6 +146,7 @@ class Dataset(object):
         self.tablegroup = tablegroup
         self.auto_constraints()
         self.sources = Sources.from_file(self.bibpath)
+        self._objects = collections.defaultdict(collections.OrderedDict)
 
     @property
     def metadata_dict(self):
@@ -164,7 +167,7 @@ class Dataset(object):
 
         Note that this property is computed each time it is accessed (because the dataset
         schema may have changed). So when accessing a dataset for reading only, calling code
-        should retrieve `column_names` once, and then work with the local reference.
+        should use `readonly_column_names`.
 
         :return: an `argparse.Namespace` object, with attributes `<object>s` for each component \
         `<Object>Table` defined in the ontology. Each such attribute evaluates to `None` if the \
@@ -173,6 +176,13 @@ class Dataset(object):
         in the component - and the local column name if it is.
         """
         return get_column_names(self)
+
+    @lazyproperty
+    def readonly_column_names(self):
+        """
+        :return: `argparse.Namespace` with component names as attributes.
+        """
+        return get_column_names(self, use_component_names=True, with_multiplicity=True)
 
     def add_provenance(self, **kw):
         """
@@ -726,6 +736,22 @@ class Dataset(object):
                 # Add CLDF properties as aliases for the corresponding values:
                 item[v] = item[k]
             yield item
+
+    def objects(self, table):
+        assert table in ORM_CLASSES
+
+        # ORM usage is read-only, so we can cache the objects.
+        if table not in self._objects:
+            for item in self[table]:
+                item = ORM_CLASSES[table](self, item)
+                self._objects[table][item.id] = item
+
+        return DictTuple(self._objects[table].values())
+
+    def get_object(self, table, id_):
+        if table not in self._objects:
+            self.objects(table)
+        return self._objects[table][id_]
 
 
 class Generic(Dataset):
