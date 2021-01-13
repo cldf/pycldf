@@ -1,0 +1,4 @@
+ID,Language_ID,Parameter_ID,Value,Code_ID,Source,Comment,Example_ID
+v1,l1,p1,ja,c1,,,e1;e2
+v2,l1,p2,ja,c3,,,e2
+v3,l2,p2,nein,c4,,,e1

@@ -19,6 +19,10 @@ class Object:
     """
     Represents a row of a CLDF component table.
     """
+    # If a subclass name can not be used to derive the CLDF component name, the component can be
+    # specified here:
+    __component__ = None
+
     def __init__(self, dataset, row):
         # Get a mapping of column names to pairs (CLDF property name, list-valued) for columns
         # present in the component specified by class name.
@@ -43,7 +47,7 @@ class Object:
 
     @classmethod
     def component_name(cls):
-        return cls.__name__ + 'Table'
+        return cls.__component__ or (cls.__name__ + 'Table')
 
     @property
     def component(self):
@@ -51,8 +55,7 @@ class Object:
 
     @property
     def key(self):
-        # Hashing/comparison is only defined between objects of the same dataset!
-        return self.__class__.__name__, self.id
+        return id(self.dataset), self.__class__.__name__, self.id
 
     def __hash__(self):
         return hash(self.key)
@@ -121,7 +124,7 @@ class Object:
         if fks and not isinstance(fks, list):
             fks = [fks]
         if fks:
-            return [self.dataset.get_object(TERMS[relation].references, fk) for fk in fks]
+            return DictTuple(self.dataset.get_object(TERMS[relation].references, fk) for fk in fks)
         return []
 
 
@@ -174,7 +177,9 @@ class Cognate(Object):
 
 
 class Entry(Object, WithLanguageMixin):
-    pass
+    @property
+    def senses(self):
+        return DictTuple(v for v in self.dataset.objects('SenseTable') if self in v.entries)
 
 
 class Example(Object, WithLanguageMixin):
@@ -201,7 +206,7 @@ class FunctionalEquivalentset(Object):
 
 class FunctionalEquivalent(Object):
     @property
-    def form(self):
+    def form(self):  # pragma: no cover
         return self.related('formReference')
 
 
@@ -261,6 +266,10 @@ class Sense(Object):
     @property
     def entry(self):
         return self.related('entryReference')
+
+    @property
+    def entries(self):
+        return self.all_related('entryReference')
 
 
 class Value(Object, WithLanguageMixin, WithParameterMixin):

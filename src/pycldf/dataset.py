@@ -737,20 +737,27 @@ class Dataset(object):
                 item[v] = item[k]
             yield item
 
-    def objects(self, table):
-        assert table in ORM_CLASSES
+    def objects(self, table, cls=None):
+        """
+        Read data of a CLDF component as `pycldf.orm.Object` instances.
+
+        :param table: table to read, specified as component name.
+        :param cls: `orm.Object` subclass to instantiate objects with.
+        :return:
+        """
+        cls = cls or ORM_CLASSES[table]
 
         # ORM usage is read-only, so we can cache the objects.
         if table not in self._objects:
             for item in self[table]:
-                item = ORM_CLASSES[table](self, item)
+                item = cls(self, item)
                 self._objects[table][item.id] = item
 
         return DictTuple(self._objects[table].values())
 
-    def get_object(self, table, id_):
+    def get_object(self, table, id_, cls=None):
         if table not in self._objects:
-            self.objects(table)
+            self.objects(table, cls=cls)
         return self._objects[table][id_]
 
 

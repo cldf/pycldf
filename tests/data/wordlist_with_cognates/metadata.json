@@ -1,0 +1,255 @@
+{
+  "@context": [
+    "http://www.w3.org/ns/csvw",
+    {
+      "@language": "en"
+    }
+  ],
+  "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#Wordlist",
+  "dialect": {
+    "commentPrefix": null
+  },
+  "dc:source": "sources.bib",
+  "tables": [
+    {
+      "url": "languages.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#LanguageTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Name",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name",
+            "datatype": "string"
+          },
+          {
+            "name": "Latitude",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#latitude",
+            "datatype": {
+              "base": "decimal",
+              "minimum": -90,
+              "maximum": 90
+            }
+          },
+          {
+            "name": "Longitude",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#longitude",
+            "datatype": {
+              "base": "decimal",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "Glottocode",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#glottocode",
+            "datatype": {
+              "base": "string",
+              "format": "[a-z0-9]{4}[1-9][0-9]{3}"
+            },
+            "valueUrl": "http://glottolog.org/resource/languoid/id/{glottocode}"
+          },
+          {
+            "name": "ISO639P3code",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#iso639P3code",
+            "datatype": {
+              "base": "string",
+              "format": "[a-z]{3}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "url": "parameters.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ParameterTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Name",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name",
+            "datatype": "string"
+          },
+          {
+            "name": "Description",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#description",
+            "datatype": "string"
+          },
+          {
+            "name": "Concepticon_ID",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#concepticonReference",
+            "datatype": "string"
+          }
+        ]
+      }
+    },
+    {
+      "url": "forms.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#FormTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Language_ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Parameter_ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Form",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#form",
+            "datatype": "string"
+          },
+          {
+            "name": "Segments",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#segments",
+            "datatype": "string",
+            "separator": " "
+          },
+          {
+            "name": "Comment",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#comment",
+            "datatype": "string"
+          },
+          {
+            "name": "Source",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source",
+            "datatype": {
+              "base": "string"
+            },
+            "separator": ";"
+          }
+        ]
+      }
+    },
+    {
+      "url": "cognates.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#CognateTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Form_ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#formReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Cognateset_ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#cognatesetReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Segment_Slice",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#segmentSlice",
+            "datatype": {
+              "base": "string",
+              "format": "\\d+(:\\d+)?"
+            },
+            "separator": " "
+          },
+          {
+            "name": "Alignment",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#alignment",
+            "datatype": "string",
+            "separator": " "
+          },
+          {
+            "name": "Source",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source",
+            "datatype": {
+              "base": "string"
+            },
+            "separator": ";"
+          }
+        ]
+      }
+    },
+    {
+      "url": "cognatesets.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#CognatesetTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Description",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#description",
+            "datatype": "string"
+          },
+          {
+            "name": "Source",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source",
+            "datatype": {
+              "base": "string"
+            },
+            "separator": ";"
+          }
+        ]
+      }
+    }
+  ]
+}

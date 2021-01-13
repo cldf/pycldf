@@ -1,0 +1,269 @@
+{
+  "@context": [
+    "http://www.w3.org/ns/csvw",
+    {
+      "@language": "en"
+    }
+  ],
+  "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#StructureDataset",
+  "dialect": {
+    "commentPrefix": null
+  },
+  "dc:source": "",
+  "tables": [
+    {
+      "url": "languages.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#LanguageTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Name",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name",
+            "datatype": "string"
+          },
+          {
+            "name": "Latitude",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#latitude",
+            "datatype": {
+              "base": "decimal",
+              "minimum": -90,
+              "maximum": 90
+            }
+          },
+          {
+            "name": "Longitude",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#longitude",
+            "datatype": {
+              "base": "decimal",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "Glottocode",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#glottocode",
+            "datatype": {
+              "base": "string",
+              "format": "[a-z0-9]{4}[1-9][0-9]{3}"
+            },
+            "valueUrl": "http://glottolog.org/resource/languoid/id/{glottocode}"
+          },
+          {
+            "name": "ISO639P3code",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#iso639P3code",
+            "datatype": {
+              "base": "string",
+              "format": "[a-z]{3}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "url": "parameters.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ParameterTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Name",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name",
+            "datatype": "string"
+          },
+          {
+            "name": "Description",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#description",
+            "datatype": "string"
+          }
+        ]
+      }
+    },
+    {
+      "url": "codes.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#CodeTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Parameter_ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Name",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name",
+            "datatype": "string"
+          },
+          {
+            "name": "Description",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#description",
+            "datatype": "string"
+          }
+        ]
+      }
+    },
+    {
+      "url": "values.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Language_ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Parameter_ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Value",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#value",
+            "datatype": "string",
+            "null": [
+              "?",
+              ""
+            ]
+          },
+          {
+            "name": "Code_ID",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#codeReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Comment",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#comment",
+            "datatype": "string"
+          },
+          {
+            "name": "Source",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#source",
+            "datatype": {
+              "base": "string"
+            },
+            "separator": ";"
+          },
+          {
+            "name": "Example_ID",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#exampleReference",
+            "datatype": "string",
+            "separator": ";"
+          }
+        ]
+      }
+    },
+    {
+      "url": "examples.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ExampleTable",
+      "tableSchema": {
+        "columns": [
+          {
+            "name": "ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "datatype": {
+              "base": "string",
+              "format": "[a-zA-Z0-9_\\-]+"
+            }
+          },
+          {
+            "name": "Language_ID",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Primary_Text",
+            "required": true,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#primaryText",
+            "datatype": "string"
+          },
+          {
+            "name": "Analyzed_Word",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#analyzedWord",
+            "datatype": "string",
+            "separator": "\\t"
+          },
+          {
+            "name": "Gloss",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#gloss",
+            "datatype": "string",
+            "separator": "\\t"
+          },
+          {
+            "name": "Translated_Text",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#translatedText",
+            "datatype": "string"
+          },
+          {
+            "name": "Meta_Language_ID",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#metaLanguageReference",
+            "datatype": "string"
+          },
+          {
+            "name": "Comment",
+            "required": false,
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#comment",
+            "datatype": "string"
+          }
+        ]
+      }
+    }
+  ]
+}
