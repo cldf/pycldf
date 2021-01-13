@@ -120,6 +120,20 @@ above and `<COLUMN>` is
 - the `name` property of the column.
 
 
+## Object oriented access to CLDF data
+
+The [`pycldf.orm`](src/pycldf/orm.py) module implements functionality
+to access CLDF data via an [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping). Read its docstring for
+details.
+
+
+## Accessing CLDF data via SQL
+
+The [`pycldf.db`](src/pycldf/db.py) module implements functionality
+to load CLDF data into a [SQLite](https://sqlite.org) database. Read its docstring for
+details.
+
+
 ## Command line usage
 
 Installing the `pycldf` package will also install a command line interface `cldf`, which provides some sub-commands to manage CLDF datasets.
