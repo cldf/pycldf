@@ -113,8 +113,10 @@ class Terms(dict):
 TERMS = Terms()
 
 
-def get_column_names(dataset):
-    comp_names = {k: k.replace('Table', '').lower() + 's' for k in TERMS.components}
+def get_column_names(dataset, use_component_names=False, with_multiplicity=False):
+    comp_names = {
+        k: k if use_component_names else k.replace('Table', '').lower() + 's'
+        for k in TERMS.components}
     name_map = argparse.Namespace(**{k: None for k in comp_names.values()})
     for term, attr_ in comp_names.items():
         try:
@@ -122,7 +124,11 @@ def get_column_names(dataset):
             props = {}
             for k in TERMS.properties:
                 try:
-                    props[k] = dataset[table, k].name
+                    col = dataset[table, k]
+                    if with_multiplicity:
+                        props[k] = (col.name, bool(col.separator))
+                    else:
+                        props[k] = col.name
                 except KeyError:
                     props[k] = None
             setattr(name_map, attr_, argparse.Namespace(**props))

@@ -62,6 +62,8 @@
               "format": "[a-zA-Z0-9_\\-]+"
             },
             "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+            "aboutUrl": "http://example.org/{English}",
+            "valueUrl": "http://example.org/{id}/{English}",
             "required": true,
             "name": "ID"
           },

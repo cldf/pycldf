@@ -1,3 +1,4 @@
+import sys
 import shutil
 import logging
 import warnings
@@ -35,8 +36,9 @@ def test_check(data, glottolog_repos, concepticon_repos, caplog, tmpdir):
                 '--glottolog',
                 str(glottolog_repos)],
             log=logging.getLogger(__name__))
-    assert res == 2
-    assert len(caplog.records) == 7
+    if sys.version_info >= (3, 6):
+        assert res == 2
+        assert len(caplog.records) == 7
 
     assert main(
         ['check', str(data / 'ds1.csv-metadata.json')],

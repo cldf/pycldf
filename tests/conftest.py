@@ -36,3 +36,23 @@ def concepticon_repos():
 @pytest.fixture(scope='module')
 def dataset(data):
     return Dataset.from_metadata(data / 'ds1.csv-metadata.json')
+
+
+@pytest.fixture(scope='module')
+def dictionary(data):
+    return Dataset.from_metadata(data / 'dictionary' / 'metadata.json')
+
+
+@pytest.fixture(scope='module')
+def structuredataset_with_examples(data):
+    return Dataset.from_metadata(data / 'structuredataset_with_examples' / 'metadata.json')
+
+
+@pytest.fixture(scope='module')
+def wordlist_with_borrowings(data):
+    return Dataset.from_metadata(data / 'wordlist_with_borrowings' / 'metadata.json')
+
+
+@pytest.fixture(scope='module')
+def wordlist_with_cognates(data):
+    return Dataset.from_metadata(data / 'wordlist_with_cognates' / 'metadata.json')
