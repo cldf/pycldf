@@ -1,6 +1,27 @@
 """
 Object oriented (read-only) access to CLDF data
 
+To read ORM objects from a `pycldf.Dataset`, use two methods
+- `pycldf.Dataset.objects`
+- `pycldf.Dataset.get_object`
+
+Both will return default implementations of the objects, i.e. instances of the corresponding
+class defined in this module. To customize these objects,
+- subclass the default and specify
+  the appropriate component (i.e. the table of the CLDF dataset which holds rows to be transformed
+  to this type):
+
+  ```python
+  from pycldf.orm import Language
+
+  class Variety(Language):
+      __component__ = 'LanguageTable'
+
+      def custom_method(self):
+          pass
+  ```
+- pass the class into the `objects` or `get_object` method.
+
 This functionality comes with the typical "more convenient API vs. less performance and bigger
 memory footprint" trade-off. If you are running into problems with this, you might want to load
 your data into a SQLite db using the `pycldf.db` module, and access via SQL.
@@ -238,12 +259,14 @@ class Language(Object):
 
     def glottolog_languoid(self, glottolog_api):
         """
+        Get a Glottolog languoid associated with the `Language`.
 
-        :param glottolog_api:
-        :return:
+        :param glottolog_api: `pyglottolog.Glottolog` instance or `dict` mapping glottocodes to \
+        `pyglottolog.langoids.Languoid` instances.
+        :return: `pyglottolog.langoids.Languoid` instance or `None`.
         """
         if isinstance(glottolog_api, dict):
-            return glottolog_api[self.cldf.glottocode]
+            return glottolog_api.get(self.cldf.glottocode)
         return glottolog_api.languoid(self.cldf.glottocode)
 
 
@@ -257,9 +280,16 @@ class Parameter(Object):
         return DictTuple(v for v in self.dataset.objects('FormTable') if self in v.parameters)
 
     def concepticon_conceptset(self, concepticon_api):
+        """
+        Get a Concepticon conceptset associated with the `Parameter`.
+
+        :param concepticon_api: `pyconcepticon.Concepticon` instance or `dict` mapping conceptset \
+        IDs to `pyconcepticon.models.Conceptset` instances.
+        :return: `pyconcepticon.models.Conceptset` instance or `None`.
+        """
         if isinstance(concepticon_api, dict):
-            return concepticon_api[self.cldf.concepticonReference]
-        return concepticon_api.conceptsets[self.cldf.concepticonReference]
+            return concepticon_api.get(self.cldf.concepticonReference)
+        return concepticon_api.conceptsets.get(self.cldf.concepticonReference)
 
 
 class Sense(Object):
