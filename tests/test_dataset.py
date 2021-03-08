@@ -134,6 +134,37 @@ def test_example_validators(ds, tmpdir):
     assert 'number of morphemes' in str(e.value)
 
 
+def test_regex_validator_for_listvalued_column(ds, tmpdir):
+    ds.add_table(
+        'test',
+        {
+            'name': 'col',
+            'separator': ';',
+            'datatype': {'base': 'string', 'format': '[a-z]{3}'}
+        },
+    )
+    ds.write(test=[{'col': ['abc', 'abcd']}])
+    with pytest.raises(ValueError) as e:
+        ds.validate()
+    assert 'invalid lexical value for string: abcd' in str(e.value)
+
+
+def test_regex_validator_for_listvalued_column2(ds, tmpdir):
+    ds.add_table(
+        'test',
+        {
+            'name': 'col',
+            'separator': ';',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#iso639P3code',
+            'datatype': {'base': 'string'}
+        }
+    )
+    ds.write(test=[{'col': ['abc', 'abcd']}])
+    with pytest.raises(ValueError) as e:
+        ds.validate()
+    assert 'invalid ISO 639-3 code' in str(e.value)
+
+
 def test_duplicate_component(ds, tmpdir):
     # adding a component twice is not possible:
     t = ds.add_component('ValueTable')

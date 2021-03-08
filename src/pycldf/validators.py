@@ -9,8 +9,13 @@ def valid_references(dataset, table, column, row):
 
 def valid_regex(pattern, name, dataset, table, column, row):
     value = row[column.name]
-    if value is not None and not pattern.match(value):
-        raise ValueError('invalid {0}: {1}'.format(name, value))
+    if value is not None:
+        if not isinstance(value, list):
+            # Normalize to also work with list-valued columns:
+            value = [value]
+        for val in value:
+            if not pattern.match(val):
+                raise ValueError('invalid {0}: {1} (in {2})'.format(name, val, value))
 
 
 def valid_igt(dataset, table, column, row):
