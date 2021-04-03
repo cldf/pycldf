@@ -16,6 +16,18 @@ def test_help(capsys):
     assert 'usage' in out
 
 
+def test_markdown(capsys, data):
+    main(['markdown', str(data / 'ds1.csv-metadata.json')])
+    out, _ = capsys.readouterr()
+    assert 'a cldf dataset' in out
+
+    main([
+        'markdown',
+        str(data / 'dataset_with_listvalued_foreign_keys_to_component' / 'metadata.json')])
+    out, _ = capsys.readouterr()
+    assert 'References' in out
+
+
 def test_stats(tmpdir):
     with pytest.raises(SystemExit):
         main(['stats'])

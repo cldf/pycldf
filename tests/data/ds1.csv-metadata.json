@@ -1,13 +1,48 @@
 {
   "dc:creator": "The Author",
-  "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
-  "dialect": {"delimiter": ",", "encoding": "utf-8", "header": true},
+  "@context": [
+    "http://www.w3.org/ns/csvw",
+    {
+      "@language": "en"
+    }
+  ],
+  "dialect": {
+    "delimiter": ",",
+    "encoding": "utf-8",
+    "header": true
+  },
   "dc:title": "a cldf dataset",
+  "dc:bibliographicCitation": null,
   "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#StructureDataset",
   "dc:source": "ds1.bib",
+  "prov:wasDerivedFrom": [
+    {
+      "rdf:type": "prov:Entity",
+      "dc:title": "Repository",
+      "rdf:about": "https://github.com/phoible/dev",
+      "dc:created": "v2.0-54-g435f657"
+    },
+    {
+      "rdf:type": "prov:Entity",
+      "dc:title": "Repository",
+      "rdf:about": "https://github.com/cldf-datasets/phoible",
+      "dc:created": "v2.0.1"
+    },
+    {
+      "rdf:type": "prov:Entity",
+      "dc:title": "Glottolog",
+      "rdf:about": "https://github.com/glottolog/glottolog",
+      "dc:created": "v4.3-treedb-fixes-325-gd68f7280c0"
+    }
+  ],
+  "dc:format": {
+    "dc:title": "CLDF!",
+    "http://example.com": "text"
+  },
   "tables": [
     {
       "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable",
+      "dc:description": "stuff",
       "dc:extent": 5,
       "url": "ds1.csv",
       "tableSchema": {
