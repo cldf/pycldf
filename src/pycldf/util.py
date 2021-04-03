@@ -114,6 +114,8 @@ def metadata2markdown(ds, path, rel_path='./'):
                     if '-g' in tag:
                         tag = tag.split('-g')[-1]
                     url = '{}/tree/{}'.format(url, tag)
+                    if label == obj['rdf:about']:
+                        label = label.split('github.com/')[-1]
                 return '<a href="{}">{} {}</a>'.format(url, label, obj.get('dc:created') or '')
             items = []
             for k, v in obj.items():
@@ -137,11 +139,15 @@ def metadata2markdown(ds, path, rel_path='./'):
         res.append('')
         return '\n'.join(res)
 
-    def colrow(col, fks):
+    def colrow(col, fks, pk):
         dt = '`{}`'.format(col.datatype.base if col.datatype else 'string')
         if col.separator:
             dt = 'list of {} (separated by `{}`)'.format(dt, col.separator)
         desc = col.common_props.get('dc:description', '').replace('\n', ' ')
+
+        if col.name in pk:
+            desc = (desc + '<br>') if desc else desc
+            desc += 'Primary key'
 
         if col.name in fks:
             desc = (desc + '<br>') if desc else desc
@@ -181,5 +187,5 @@ def metadata2markdown(ds, path, rel_path='./'):
         res.append('Name/Property | Datatype | Description')
         res.append(' --- | --- | --- ')
         for col in table.tableSchema.columns:
-            res.append(colrow(col, fks))
+            res.append(colrow(col, fks, table.tableSchema.primaryKey))
     return '\n'.join(res)
