@@ -1,10 +1,12 @@
+import html
 import pathlib
 import itertools
 import collections
 
+from clldutils.misc import slug
 import pycldf
 
-__all__ = ['pkg_path', 'multislice', 'resolve_slices', 'DictTuple']
+__all__ = ['pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown']
 
 
 def pkg_path(*comps):
@@ -65,3 +67,119 @@ class DictTuple(tuple):
                 return [self[i] for i in self._d[item]]
             return self[self._d[item][0]]
         return super(DictTuple, self).__getitem__(item)
+
+
+def metadata2markdown(ds, path, rel_path='./'):
+    """
+    Render the metadata of a dataset as markdown.
+
+    :param ds: `pycldf.Dataset` instance
+    :param path: `pathlib.Path` of the metadata file
+    :param rel_path: `str` to use a relative path when creating links to data files
+    :return: `str` with markdown formatted text
+    """
+    def qname2link(qname, html=False):
+        prefixes = {
+            'csvw': 'http://www.w3.org/ns/csvw#',
+            'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+            'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
+            'xsd': 'http://www.w3.org/2001/XMLSchema#',
+            'dc': 'http://purl.org/dc/terms/',
+            'dcat': 'http://www.w3.org/ns/dcat#',
+            'prov': 'http://www.w3.org/ns/prov#',
+        }
+        if ':' in qname:
+            prefix, lname = qname.split(':', maxsplit=1)
+            if prefix in prefixes:
+                if html:
+                    return '<a href="{}{}">{}</a>'.format(prefixes[prefix], lname, qname)
+                return '[{}]({}{})'.format(qname, prefixes[prefix], lname)
+        return qname
+
+    def htmlify(obj):
+        """
+        For inclusion in tables we must use HTML for lists.
+        """
+        if isinstance(obj, list):
+            return '<ol>{}</ol>'.format(
+                ''.join('<li>{}</li>'.format(htmlify(item)) for item in obj))
+        if isinstance(obj, dict):
+            if obj.get('rdf:type') == 'prov:Entity' and 'rdf:about' in obj:
+                label = obj.get('dc:title')
+                if (not label) or label == 'Repository':
+                    label = obj['rdf:about']
+                url = obj['rdf:about']
+                if ('github.com' in url) and ('/tree/' not in url) and ('dc:created' in obj):
+                    tag = obj['dc:created']
+                    if '-g' in tag:
+                        tag = tag.split('-g')[-1]
+                    url = '{}/tree/{}'.format(url, tag)
+                return '<a href="{}">{} {}</a>'.format(url, label, obj.get('dc:created') or '')
+            items = []
+            for k, v in obj.items():
+                items.append('<dt>{}</dt><dd>{}</dd>'.format(
+                    qname2link(k, html=True), html.escape(str(v))))
+            return '<dl>{}</dl>'.format(''.join(items))
+        return str(obj)
+
+    def properties(obj):
+        res = []
+        if obj.common_props.get('dc:description'):
+            res.append(obj.common_props['dc:description'] + '\n')
+        res.append('property | value\n --- | ---')
+        for k, v in obj.common_props.items():
+            if not v:
+                continue
+            if k not in ('dc:description', 'dc:title', 'dc:source'):
+                if k == 'dc:conformsTo':
+                    v = '[CLDF {}]({})'.format(v.split('#')[1], v)
+                res.append('{} | {}'.format(qname2link(k), htmlify(v)))
+        res.append('')
+        return '\n'.join(res)
+
+    def colrow(col, fks):
+        dt = '`{}`'.format(col.datatype.base if col.datatype else 'string')
+        if col.separator:
+            dt = 'list of {} (separated by `{}`)'.format(dt, col.separator)
+        desc = col.common_props.get('dc:description', '').replace('\n', ' ')
+
+        if col.name in fks:
+            desc = (desc + '<br>') if desc else desc
+            desc += 'References [{}::{}](#table-{})'.format(
+                fks[col.name][1], fks[col.name][0], slug(fks[col.name][1]))
+        elif col.propertyUrl \
+                and col.propertyUrl.uri == "http://cldf.clld.org/v1.0/terms.rdf#source" \
+                and 'dc:source' in ds.properties:
+            desc = (desc + '<br>') if desc else desc
+            desc += 'References [{}::BibTeX-key]({}{})'.format(
+                ds.properties['dc:source'], rel_path, ds.properties['dc:source'])
+
+        return ' | '.join([
+            '[{}]({})'.format(col.name, col.propertyUrl)
+            if col.propertyUrl else '`{}`'.format(col.name),
+            dt,
+            desc,
+        ])
+
+    title = ds.properties.get('dc:title', ds.module)
+
+    res = ['# {}\n'.format(title)]
+    if path.suffix == '.json':
+        res.append('**CLDF Metadata**: [{0}]({1}{0})\n'.format(path.name, rel_path))
+    if 'dc:source' in ds.properties:
+        res.append('**Sources**: [{0}]({1}{0})\n'.format(ds.properties['dc:source'], rel_path))
+    res.append(properties(ds.tablegroup))
+
+    for table in ds.tables:
+        fks = {
+            fk.columnReference[0]: (fk.reference.columnReference[0], fk.reference.resource.string)
+            for fk in table.tableSchema.foreignKeys if len(fk.columnReference) == 1}
+        res.append('\n## <a name="table-{0}"></a>Table [{1}]({2}{1})\n'.format(
+            slug(table.url.string), table.url, rel_path))
+        res.append(properties(table))
+        res.append('\n### Columns\n')
+        res.append('Name/Property | Datatype | Description')
+        res.append(' --- | --- | --- ')
+        for col in table.tableSchema.columns:
+            res.append(colrow(col, fks))
+    return '\n'.join(res)

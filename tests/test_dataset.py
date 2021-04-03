@@ -1,6 +1,5 @@
 import logging
 import warnings
-import urllib.parse
 from pathlib import Path
 
 import pytest

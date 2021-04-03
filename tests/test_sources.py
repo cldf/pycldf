@@ -1,6 +1,3 @@
-import io
-import urllib.parse
-
 import pytest
 from pybtex.database import Entry
 
