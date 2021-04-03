@@ -35,6 +35,16 @@
       "dc:created": "v4.3-treedb-fixes-325-gd68f7280c0"
     }
   ],
+  "prov:wasGeneratedBy": [
+    {
+      "dc:title": "python",
+      "dc:description": "3.8.5"
+    },
+    {
+      "dc:title": "python-packages",
+      "dc:relation": "requirements.txt"
+    }
+  ],
   "dc:format": {
     "dc:title": "CLDF!",
     "http://example.com": "text"

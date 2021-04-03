@@ -96,14 +96,22 @@ def metadata2markdown(ds, path, rel_path='./'):
                 return '[{}]({}{})'.format(qname, prefixes[prefix], lname)
         return qname
 
-    def htmlify(obj):
+    def htmlify(obj, key=None):
         """
         For inclusion in tables we must use HTML for lists.
         """
         if isinstance(obj, list):
             return '<ol>{}</ol>'.format(
-                ''.join('<li>{}</li>'.format(htmlify(item)) for item in obj))
+                ''.join('<li>{}</li>'.format(htmlify(item, key=key)) for item in obj))
         if isinstance(obj, dict):
+            if key == 'prov:wasGeneratedBy' \
+                    and set(obj.keys()).issubset({'dc:title', 'dc:description', 'dc:relation'}):
+                desc = obj.get('dc:description') or ''
+                if obj.get('dc:relation'):
+                    desc = (desc + '<br>') if desc else desc
+                    desc += '<a href="{0}{1}">{1}</a>'.format(rel_path, obj['dc:relation'])
+                return '<strong>{}</strong>: {}'.format(obj.get('dc:title') or '', desc)
+
             if obj.get('rdf:type') == 'prov:Entity' and 'rdf:about' in obj:
                 label = obj.get('dc:title')
                 if (not label) or label == 'Repository':
@@ -135,7 +143,7 @@ def metadata2markdown(ds, path, rel_path='./'):
             if k not in ('dc:description', 'dc:title', 'dc:source'):
                 if k == 'dc:conformsTo':
                     v = '[CLDF {}]({})'.format(v.split('#')[1], v)
-                res.append('{} | {}'.format(qname2link(k), htmlify(v)))
+                res.append('{} | {}'.format(qname2link(k), htmlify(v, key=k)))
         res.append('')
         return '\n'.join(res)
 
