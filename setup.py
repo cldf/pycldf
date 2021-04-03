@@ -3,9 +3,9 @@ from setuptools import setup, find_packages
 
 setup(
     name='pycldf',
-    version='1.18.2.dev0',
+    version='1.19.0',
     author='Robert Forkel',
-    author_email='forkel@shh.mpg.de',
+    author_email='robert_forkel@eva.mpg.de',
     description='A python library to read and write CLDF datasets',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
