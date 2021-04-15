@@ -581,15 +581,17 @@ def test_Dataset_validate(tmpdir, mocker, caplog):
 
     # test an invalid CLDF URL:
     ds['LanguageTable'].common_props['dc:conformsTo'] = 'http://cldf.clld.org/404'
-    with pytest.raises(ValueError):
-        ds.validate()
+    with pytest.warns(UserWarning):
+        with pytest.raises(ValueError):
+            ds.validate()
 
     ds = StructureDataset.in_dir(str(tmpdir / 'new'))
     ds['ValueTable'].get_column('Source').propertyUrl = URITemplate(
         'http://cldf.clld.org/404')
     ds.write(ValueTable=[])
-    with pytest.raises(ValueError):
-        ds.validate()
+    with pytest.warns(UserWarning):
+        with pytest.raises(ValueError):
+            ds.validate()
 
 
 def test_Dataset_validate_custom_validator(tmpdir):

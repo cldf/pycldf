@@ -6,9 +6,6 @@ def test_terms():
 
     assert 'alignment' in TERMS.properties
 
-    with pytest.raises(ValueError):
-        TERMS.is_cldf_uri('http://cldf.clld.org/404')
-
     assert not TERMS.is_cldf_uri('http://example.org')
     assert TERMS.is_cldf_uri('http://cldf.clld.org/v1.0/terms.rdf#source')
 
@@ -23,3 +20,11 @@ def test_terms():
     assert '<p>' in id_.comment()
     assert '</a>' in TERMS['Wordlist'].comment(one_line=True)
     assert TERMS['languageReference'].cardinality is None
+
+
+def test_invalid_uri():
+    from pycldf.terms import TERMS
+
+    with pytest.warns(UserWarning):
+        with pytest.raises(ValueError):
+            TERMS.is_cldf_uri('http://cldf.clld.org/unknown')

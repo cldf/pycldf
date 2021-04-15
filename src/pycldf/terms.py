@@ -1,6 +1,7 @@
 import re
 import json
 import argparse
+import warnings
 import urllib.parse
 from xml.etree import ElementTree
 
@@ -127,9 +128,9 @@ class Terms(dict):
     def is_cldf_uri(self, uri):
         if uri and urllib.parse.urlparse(uri).netloc == 'cldf.clld.org':
             if uri not in self.by_uri:
-                #
-                # FIXME: see https://github.com/cldf/pycldf/issues/128
-                #
+                warnings.warn('If pycldf does not recognize valid CLDF URIs, You may be '
+                              'running an outdated version. Please upgrade via '
+                              '"pip install -U pycldf"')
                 raise ValueError(uri)
             return True
         return False
