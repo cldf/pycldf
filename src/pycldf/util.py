@@ -98,7 +98,7 @@ def metadata2markdown(ds, path, rel_path='./'):
         if url:
             if html:
                 return '<a href="{}">{}</a>'.format(url, qname)
-            return '[{}]()'.format(qname, url)
+            return '[{}]({})'.format(qname, url)
         return qname
 
     def htmlify(obj, key=None):

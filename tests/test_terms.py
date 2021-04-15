@@ -18,3 +18,8 @@ def test_terms():
     assert 'LanguageTable' in TERMS.components
     assert 'LanguageTable' not in TERMS.modules
     assert 'Wordlist' in TERMS.modules
+    id_ = TERMS['id']
+    assert id_.version == 'v1.0'
+    assert '<p>' in id_.comment()
+    assert '</a>' in TERMS['Wordlist'].comment(one_line=True)
+    assert TERMS['languageReference'].cardinality is None

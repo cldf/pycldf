@@ -1,3 +1,4 @@
+import re
 import json
 import argparse
 import urllib.parse
@@ -32,6 +33,22 @@ def qname(ns, lname):
     return '{%s}%s' % (ns, lname)
 
 
+def _get(e, subelementns, subelementlname, attrns=None, attrlname=None, converter=None):
+    """
+    :return: Text content or attribute value of a subelement of e.
+    """
+    res = None
+    subelement = e.find(qname(subelementns, subelementlname))
+    if subelement is not None:
+        if not attrlname:
+            res = subelement.text
+        else:
+            res = subelement.attrib[qname(attrns, attrlname)]
+    if converter and res:
+        res = converter(res)
+    return res
+
+
 @attr.s
 class Term(object):
     name = attr.ib()
@@ -39,6 +56,10 @@ class Term(object):
     element = attr.ib()
     references = attr.ib(default=None)
     subtype = attr.ib(default=None)
+    version = attr.ib(default=None, validator=attr.validators.matches_re(r'v[0-9]+(\.[0-9]+)+'))
+    cardinality = attr.ib(
+        default=None,
+        validator=attr.validators.optional(attr.validators.in_(['singlevalued', 'multivalued'])))
 
     @property
     def uri(self):
@@ -46,14 +67,18 @@ class Term(object):
 
     @classmethod
     def from_element(cls, e):
-        ref = e.find(qname(DC, 'references'))
         subClassOf = e.find(qname(RDFS, 'subClassOf'))
         kw = dict(
             name=e.attrib[qname(RDF, 'about')].split('#')[1],
+            version=_get(
+                e, DC, 'hasVersion', RDF, 'resource',
+                converter=lambda s: 'v' + s.split('/v')[1].replace('/', '')) or 'v1.0',
             type=e.tag.split('}')[1],
             element=e,
-            references=ref.attrib[qname(RDF, 'resource')].split('#')[1]
-            if ref is not None else None)
+            cardinality=_get(e, DC, 'extent'),
+            references=_get(
+                e, DC, 'references', RDF, 'resource', converter=lambda s: s.split('#')[1]),
+        )
         if kw['type'] == 'Class':
             kw['subtype'] = 'module' \
                 if subClassOf is not None \
@@ -62,8 +87,7 @@ class Term(object):
         return cls(**kw)
 
     def csvw_prop(self, lname):
-        if self.element.find(qname(CSVW, lname)) is not None:
-            return json.loads(self.element.find(qname(CSVW, lname)).text)
+        return _get(self.element, CSVW, lname, converter=lambda s: json.loads(s))
 
     def to_column(self):
         col = Column(
@@ -75,6 +99,20 @@ class Term(object):
             if v:
                 setattr(col, k, v)
         return col
+
+    def comment(self, one_line=False):
+        c = self.element.find("{http://www.w3.org/2000/01/rdf-schema#}comment")
+        try:
+            xml = ElementTree.tostring(c, default_namespace='http://www.w3.org/1999/xhtml')
+        except (ValueError, TypeError):
+            xml = ElementTree.tostring(c)
+        # Turn the rdfs:comment element into a div, and strip namespace prefixes:
+        res = re.sub(
+            r'ns[0-9]+:comment(\s[^>]+)?',
+            'div',
+            xml.decode('utf8')
+        ).replace('<html:', '<').replace('</html:', '</')
+        return re.sub(r'\s+', ' ', res.replace('\n', ' ')) if one_line else res
 
 
 class Terms(dict):
@@ -89,6 +127,9 @@ class Terms(dict):
     def is_cldf_uri(self, uri):
         if uri and urllib.parse.urlparse(uri).netloc == 'cldf.clld.org':
             if uri not in self.by_uri:
+                #
+                # FIXME: see https://github.com/cldf/pycldf/issues/128
+                #
                 raise ValueError(uri)
             return True
         return False
