@@ -78,8 +78,8 @@ class Term(object):
 
 
 class Terms(dict):
-    def __init__(self):
-        r = ElementTree.parse(str(pkg_path('terms.rdf'))).getroot()
+    def __init__(self, path=None):
+        r = ElementTree.parse(str(path or pkg_path('terms.rdf'))).getroot()
         terms = [Term.from_element(e) for e in r.findall(qname(RDF, 'Property'))]
         for e in r.findall(qname(RDFS, 'Class')):
             terms.append(Term.from_element(e))
