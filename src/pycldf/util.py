@@ -6,7 +6,8 @@ import collections
 from clldutils.misc import slug
 import pycldf
 
-__all__ = ['pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown']
+__all__ = [
+    'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown', 'qname2url']
 
 
 def pkg_path(*comps):
@@ -69,6 +70,20 @@ class DictTuple(tuple):
         return super(DictTuple, self).__getitem__(item)
 
 
+def qname2url(qname):
+    for prefix, uri in {
+        'csvw': 'http://www.w3.org/ns/csvw#',
+        'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+        'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
+        'xsd': 'http://www.w3.org/2001/XMLSchema#',
+        'dc': 'http://purl.org/dc/terms/',
+        'dcat': 'http://www.w3.org/ns/dcat#',
+        'prov': 'http://www.w3.org/ns/prov#',
+    }.items():
+        if qname.startswith(prefix + ':'):
+            return qname.replace(prefix + ':', uri)
+
+
 def metadata2markdown(ds, path, rel_path='./'):
     """
     Render the metadata of a dataset as markdown.
@@ -79,21 +94,11 @@ def metadata2markdown(ds, path, rel_path='./'):
     :return: `str` with markdown formatted text
     """
     def qname2link(qname, html=False):
-        prefixes = {
-            'csvw': 'http://www.w3.org/ns/csvw#',
-            'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-            'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
-            'xsd': 'http://www.w3.org/2001/XMLSchema#',
-            'dc': 'http://purl.org/dc/terms/',
-            'dcat': 'http://www.w3.org/ns/dcat#',
-            'prov': 'http://www.w3.org/ns/prov#',
-        }
-        if ':' in qname:
-            prefix, lname = qname.split(':', maxsplit=1)
-            if prefix in prefixes:
-                if html:
-                    return '<a href="{}{}">{}</a>'.format(prefixes[prefix], lname, qname)
-                return '[{}]({}{})'.format(qname, prefixes[prefix], lname)
+        url = qname2url(qname)
+        if url:
+            if html:
+                return '<a href="{}">{}</a>'.format(url, qname)
+            return '[{}]()'.format(qname, url)
         return qname
 
     def htmlify(obj, key=None):
