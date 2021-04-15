@@ -42,6 +42,10 @@ Meier, Hans. 2005. The Book.
 
 ## Writing CLDF
 
+**Warning:** Writing CLDF with `pycldf` does not automatically result in valid CLDF!
+It does result in data that can be checked via `cldf validate` (see [below](#validation)),
+though, so you should always validate after writing.
+
 ```python
 from pycldf import Wordlist, Source
 
