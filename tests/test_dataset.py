@@ -7,7 +7,7 @@ import pytest
 from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Link, Datatype
 from clldutils.path import copy
 
-from pycldf.terms import term_uri
+from pycldf.terms import term_uri, TERMS
 from pycldf.dataset import (
     Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, GitRepository,
     make_column, get_modules, iter_datasets)
@@ -592,6 +592,29 @@ def test_Dataset_validate(tmpdir, mocker, caplog):
     with pytest.warns(UserWarning):
         with pytest.raises(ValueError):
             ds.validate()
+
+
+def test_Dataset_cardinality_mismatch(tmp_path):
+    ds = StructureDataset.in_dir(tmp_path / 'new')
+    ds.write(ValueTable=[{'ID': '1', 'Value': 'x', 'Language_ID': 'l', 'Parameter_ID': 'p'}])
+    terms = tmp_path / 'terms.rdf'
+    terms.write_text(TERMS._path.read_text(encoding='utf8').replace(
+        '<rdfs:subPropertyOf rdf:resource="http://www.w3.org/2000/01/rdf-schema#comment" />',
+        '<rdfs:subPropertyOf rdf:resource="http://www.w3.org/2000/01/rdf-schema#comment" />'
+        '<dc:extent>multivalued</dc:extent>',
+    ))
+    assert ds.validate()
+    with pytest.raises(ValueError, match='multivalued'):
+        ds.validate(ontology_path=terms)
+
+    ds['ValueTable', 'comment'].separator = ';'
+    terms.write_text(TERMS._path.read_text(encoding='utf8').replace(
+        '<rdfs:subPropertyOf rdf:resource="http://www.w3.org/2000/01/rdf-schema#comment" />',
+        '<rdfs:subPropertyOf rdf:resource="http://www.w3.org/2000/01/rdf-schema#comment" />'
+        '<dc:extent>singlevalued</dc:extent>',
+    ))
+    with pytest.raises(ValueError, match='singlevalued'):
+        ds.validate(ontology_path=terms)
 
 
 def test_Dataset_validate_custom_validator(tmpdir):

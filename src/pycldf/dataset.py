@@ -15,7 +15,7 @@ from clldutils import jsonlib
 
 from pycldf.sources import Sources
 from pycldf.util import pkg_path, resolve_slices, DictTuple
-from pycldf.terms import term_uri, TERMS, get_column_names, URL as TERMS_URL
+from pycldf.terms import term_uri, Terms, TERMS, get_column_names, URL as TERMS_URL
 from pycldf.validators import VALIDATORS
 from pycldf import orm
 
@@ -411,12 +411,16 @@ class Dataset(object):
             return pathlib.Path(urllib.parse.urlparse(self.bibpath).path).name
         return self.bibpath.name
 
-    def validate(self, log=None, validators=None):
+    def validate(self, log=None, validators=None, ontology_path=None):
+        terms = Terms(ontology_path) or TERMS
         validators = validators or []
         validators.extend(VALIDATORS)
         success = True
         default_tg = TableGroup.from_file(
             pkg_path('modules', '{0}{1}'.format(self.module, MD_SUFFIX)))
+        #
+        # Make sure, all required tables and columns are present and consistent.
+        #
         for default_table in default_tg.tables:
             dtable_uri = default_table.common_props['dc:conformsTo']
             try:
@@ -427,22 +431,33 @@ class Dataset(object):
                 table = None
 
             if table:
-                default_cols = {
+                default_cols = {c.propertyUrl.uri: c for c in default_table.tableSchema.columns}
+                required_default_cols = {
                     c.propertyUrl.uri for c in default_table.tableSchema.columns
                     if c.required or c.common_props.get('dc:isRequiredBy')}
                 cols = {
-                    c.propertyUrl.uri for c in table.tableSchema.columns
+                    c.propertyUrl.uri: c for c in table.tableSchema.columns
                     if c.propertyUrl}
                 table_uri = table.common_props['dc:conformsTo']
-                for col in default_cols - cols:
+                for col in required_default_cols - set(cols.keys()):
                     log_or_raise('{0} requires column {1}'.format(table_uri, col), log=log)
                     success = False
+                for uri, col in cols.items():
+                    default = default_cols.get(uri)
+                    if default:
+                        cardinality = default.common_props.get('dc:extent')
+                        if not cardinality:
+                            cardinality = terms.by_uri[uri].cardinality
+                        if (cardinality == 'multivalued' and not col.separator) or \
+                                (cardinality == 'singlevalued' and col.separator):
+                            log_or_raise('{} {} must be {}'.format(
+                                table_uri, uri, cardinality), log=log)
 
         for table in self.tables:
             type_uri = table.common_props.get('dc:conformsTo')
             if type_uri:
                 try:
-                    TERMS.is_cldf_uri(type_uri)
+                    terms.is_cldf_uri(type_uri)
                 except ValueError:
                     success = False
                     log_or_raise('invalid CLDF URI: {0}'.format(type_uri), log=log)
@@ -470,7 +485,7 @@ class Dataset(object):
                 if col.propertyUrl:
                     col_uri = col.propertyUrl.uri
                     try:
-                        TERMS.is_cldf_uri(col_uri)
+                        terms.is_cldf_uri(col_uri)
                         if col_uri in propertyUrls:
                             log_or_raise(
                                 'Duplicate CLDF property in table schema: {} {}'.format(
