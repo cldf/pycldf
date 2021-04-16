@@ -15,6 +15,11 @@ BIB = """@BOOK{Obrazy,
 """
 
 
+@pytest.fixture
+def bib(tmp_path):
+    return tmp_path / 'test.bib'
+
+
 def test_from_entry():
     e = Entry('book', fields={'title': 'Title'})
     assert Source.from_entry('abc', e)['title'] == 'Title'
@@ -25,20 +30,19 @@ def test_from_entry():
     assert Source.from_entry('a.b', e, _check_id=False).id == 'a.b'
 
 
-def test_field_order(tmpdir):
+def test_field_order(bib):
     srcs = Sources()
     src = Source('misc', 'x')  # src is an OrderedDict and we add title *after* year.
     src['year'] = '2018'
     src['title'] = 'The Title'
     srcs.add(src)
-    bib = tmpdir / 'test.bib'
-    srcs.write(str(bib))
+    srcs.write(bib)
     res = bib.read_text(encoding='utf8')
     # Still, title should be printed in the BibTeX before year:
     assert res.index('title =') < res.index('year =')
 
 
-def test_Sources(tmpdir):
+def test_Sources(bib):
     src = Sources()
     src.add(BIB, Source(
         'book', 'huber2005', author='Herrmann Huber', year='2005', title='y'))
@@ -63,7 +67,6 @@ def test_Sources(tmpdir):
     with pytest.raises(ValueError):
         src.validate(['x'])
 
-    bib = str(tmpdir / 'test.bib')
     src.write(bib)
 
     src2 = Sources()
@@ -84,11 +87,10 @@ def test_Source_from_bibtex():
     assert Source.from_bibtex(bibtex).entry.fields['title'] == 'Obrazy z Rus'
 
 
-def test_Sources_with_None_values(tmpdir):
+def test_Sources_with_None_values(bib):
     src = Sources()
     src.add(Source('book', 'huber2005', title=None))
-    bib = tmpdir / 'test.bib'
-    src.write(str(bib))
+    src.write(bib)
 
 
 @pytest.mark.parametrize(
@@ -98,11 +100,10 @@ def test_Sources_with_None_values(tmpdir):
         ('@book{1,\ntitle={Something about & and _}}', 'Something about & and _'),
     ]
 )
-def test_Sources_roundtrip_latex(tmpdir, bibtex, expected):
+def test_Sources_roundtrip_latex(bib, bibtex, expected):
     src = Sources()
     src.add(bibtex)
-    bib = tmpdir / 'test.bib'
-    src.write(str(bib))
+    src.write(bib)
     assert expected in bib.read_text('utf8')
 
 

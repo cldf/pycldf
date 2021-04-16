@@ -1,6 +1,5 @@
 import logging
 import warnings
-from pathlib import Path
 
 import pytest
 
@@ -14,18 +13,18 @@ from pycldf.dataset import (
 
 
 @pytest.fixture
-def ds(tmpdir):
-    return Generic.in_dir(str(tmpdir))
+def ds(tmp_path):
+    return Generic.in_dir(tmp_path)
 
 
 @pytest.fixture
-def ds_wl(tmpdir):
-    return Wordlist.in_dir(str(tmpdir))
+def ds_wl(tmp_path):
+    return Wordlist.in_dir(tmp_path)
 
 
 @pytest.fixture
-def ds_wl_notables(tmpdir):
-    return Wordlist.in_dir(str(tmpdir), empty_tables=True)
+def ds_wl_notables(tmp_path):
+    return Wordlist.in_dir(str(tmp_path), empty_tables=True)
 
 
 @pytest.mark.parametrize("col_spec,datatype", [
@@ -58,7 +57,7 @@ def test_column_names(ds_wl):
         cn.forms.unknown_property
 
 
-def test_provenance(ds, tmpdir):
+def test_provenance(ds, tmp_path):
     ds.add_provenance(wasDerivedFrom=[GitRepository('http://example.org'), 'other'])
     assert ds.properties['prov:wasDerivedFrom'][0]['rdf:about'] == 'http://example.org'
 
@@ -81,7 +80,7 @@ def test_provenance(ds, tmpdir):
     assert ds.properties['prov:wasDerivedFrom']['dc:created'] == 'v1'
 
     ds.tablegroup.common_props = {}
-    ds.add_provenance(wasDerivedFrom=GitRepository('http://example.org', clone=str(tmpdir)))
+    ds.add_provenance(wasDerivedFrom=GitRepository('http://example.org', clone=tmp_path))
     assert ds.properties['prov:wasDerivedFrom']['dc:created']
 
 
@@ -115,7 +114,7 @@ def test_tabletype_none(ds):
     assert ds.get_tabletype(t) is None
 
 
-def test_example_validators(ds, tmpdir):
+def test_example_validators(ds):
     ds.add_table(
         'examples',
         {
@@ -128,12 +127,11 @@ def test_example_validators(ds, tmpdir):
             'separator': '\t'},
     )
     ds.write(examples=[{'morphemes': ['a'], 'gloss': ['a', 'b']}])
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match='number of morphemes'):
         ds.validate()
-    assert 'number of morphemes' in str(e.value)
 
 
-def test_regex_validator_for_listvalued_column(ds, tmpdir):
+def test_regex_validator_for_listvalued_column(ds):
     ds.add_table(
         'test',
         {
@@ -143,12 +141,11 @@ def test_regex_validator_for_listvalued_column(ds, tmpdir):
         },
     )
     ds.write(test=[{'col': ['abc', 'abcd']}])
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match='invalid lexical value for string: abcd'):
         ds.validate()
-    assert 'invalid lexical value for string: abcd' in str(e.value)
 
 
-def test_regex_validator_for_listvalued_column2(ds, tmpdir):
+def test_regex_validator_for_listvalued_column2(ds):
     ds.add_table(
         'test',
         {
@@ -159,12 +156,11 @@ def test_regex_validator_for_listvalued_column2(ds, tmpdir):
         }
     )
     ds.write(test=[{'col': ['abc', 'abcd']}])
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match='invalid ISO 639-3 code'):
         ds.validate()
-    assert 'invalid ISO 639-3 code' in str(e.value)
 
 
-def test_duplicate_component(ds, tmpdir):
+def test_duplicate_component(ds, tmp_path):
     # adding a component twice is not possible:
     t = ds.add_component('ValueTable')
     t.url = Link('other.csv')
@@ -172,7 +168,7 @@ def test_duplicate_component(ds, tmpdir):
         ds.add_component('ValueTable')
 
     # JSON descriptions with duplicate components cannot be read:
-    md = tmpdir / 'md.json'
+    md = tmp_path / 'md.json'
     json = """\
 {
     "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
@@ -212,15 +208,14 @@ def test_duplicate_component(ds, tmpdir):
         warnings.simplefilter("always")
 
         md.write_text(json.replace('COMPS', comp), encoding='utf8')
-        (tmpdir / 'values.csv').write_text(
+        (tmp_path / 'values.csv').write_text(
             "ID,Language_ID,Parameter_ID,Value\n1,1,1,1", encoding='utf8')
         ds = Dataset.from_metadata(str(md))
         assert ds.validate()
 
         md.write_text(json.replace('COMPS', ', '.join([comp, comp])), encoding='utf8')
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(ValueError, match='duplicate component'):
             Dataset.from_metadata(str(md))
-        assert 'duplicate component' in excinfo.exconly()
 
 
 def test_foreign_key_creation(ds):
@@ -272,9 +267,9 @@ def test_foreign_key_creation_two_fks_from_new_comp(ds):
     ds.validate()
 
 
-def test_add_table(tmpdir, ds):
+def test_add_table(tmp_path, ds):
     ds.add_table('stuff.csv', term_uri('id'), 'col1')
-    ds.write(fname=str(tmpdir / 't.json'), **{'stuff.csv': [{'ID': '.ab'}]})
+    ds.write(fname=tmp_path / 't.json', **{'stuff.csv': [{'ID': '.ab'}]})
     with pytest.raises(ValueError):
         ds.validate()
     ds['stuff.csv', 'ID'].name = 'nid'
@@ -312,8 +307,8 @@ def test_in_dir_empty(ds_wl_notables):
     assert len(ds_wl_notables.tables) == 0
 
 
-def test_log_missing_primary_key(tmpdir, mocker, caplog):
-    md = Path(str(tmpdir)) / 'metadata.json'
+def test_log_missing_primary_key(tmp_path, caplog):
+    md = tmp_path / 'metadata.json'
 
     ds = Generic.in_dir(md.parent)
     ds.add_table('t1.csv', 'ID', 'Name', primaryKey=['ID', 'Name'])
@@ -367,9 +362,9 @@ def test_partial_cognates(ds_wl):
     assert ' '.join(ds_wl.get_subsequence(list(ds_wl['CognateTable'])[0])) == 'd e f g'
 
 
-def _make_tg(tmpdir, *tables):
+def _make_tg(tmp_path, *tables):
     tg = TableGroup.fromvalue({'tables': list(tables)})
-    tg._fname = Path(str(tmpdir / 'md.json'))  # FIXME: clldutils dependency
+    tg._fname = tmp_path / 'md.json'
     return tg
 
 
@@ -405,37 +400,37 @@ def test_add_component(ds_wl):
         ds_wl.validate()
 
 
-def test_modules(tmpdir):
-    ds = Dataset(_make_tg(tmpdir))
+def test_modules(tmp_path):
+    ds = Dataset(_make_tg(tmp_path))
     assert ds.primary_table is None
-    ds = Dataset(_make_tg(tmpdir, {"url": "data.csv"}))
+    ds = Dataset(_make_tg(tmp_path, {"url": "data.csv"}))
     assert ds.primary_table is None
-    ds = Dataset(_make_tg(tmpdir, {
+    ds = Dataset(_make_tg(tmp_path, {
         "url": "data.csv",
         "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ValueTable"}))
     assert ds.primary_table == 'ValueTable'
-    assert Wordlist.in_dir(str(tmpdir)).primary_table
-    assert Dictionary.in_dir(str(tmpdir)).primary_table
-    assert StructureDataset.in_dir(str(tmpdir)).primary_table
+    assert Wordlist.in_dir(tmp_path).primary_table
+    assert Dictionary.in_dir(tmp_path).primary_table
+    assert StructureDataset.in_dir(tmp_path).primary_table
 
 
-def test_Dataset_from_scratch(tmpdir, data):
+def test_Dataset_from_scratch(tmp_path, data):
     # An unknown file name cannot be used with Dataset.from_data:
-    copy(str(data / 'ds1.csv'), str(tmpdir / 'xyz.csv'))
+    copy(data / 'ds1.csv', tmp_path / 'xyz.csv')
     with pytest.raises(ValueError):
-        Dataset.from_data(str(tmpdir / 'xyz.csv'))
+        Dataset.from_data(tmp_path / 'xyz.csv')
 
     # Known file name, but non-standard column name:
-    Path(str(tmpdir / 'values.csv')).write_text(
+    tmp_path.joinpath('values.csv').write_text(
         "IDX,Language_ID,Parameter_ID,Value\n1,1,1,1", encoding='utf-8')
     with pytest.raises(ValueError, match='missing columns'):
-        ds = Dataset.from_data(str(tmpdir / 'values.csv'))
+        ds = Dataset.from_data(tmp_path / 'values.csv')
 
     # A known file name will determine the CLDF module of the dataset:
-    copy(str(data / 'ds1.csv'), str(tmpdir / 'values.csv'))
+    copy(data / 'ds1.csv', tmp_path / 'values.csv')
     with warnings.catch_warnings(record=True):
         warnings.simplefilter("always")
-        ds = Dataset.from_data(str(tmpdir / 'values.csv'))
+        ds = Dataset.from_data(tmp_path / 'values.csv')
         assert ds.module == 'StructureDataset'
 
         assert len(list(ds['ValueTable'])) == 2
@@ -456,8 +451,8 @@ def test_Dataset_from_scratch(tmpdir, data):
     assert counts['extra.csv'] == 0
 
 
-def test_Dataset_auto_foreign_keys(tmpdir):
-    ds = StructureDataset.in_dir(str(tmpdir), empty_tables=True)
+def test_Dataset_auto_foreign_keys(tmp_path):
+    ds = StructureDataset.in_dir(tmp_path, empty_tables=True)
     ds.add_component(
         {
             'url': 'languages.csv',
@@ -484,10 +479,10 @@ def test_Dataset_auto_foreign_keys(tmpdir):
     ds.validate()
 
 
-def test_Dataset_from_data_empty_file(tmpdir):
-    Path(str(tmpdir / 'values.csv')).write_text('', encoding='utf-8')
+def test_Dataset_from_data_empty_file(tmp_path):
+    tmp_path.joinpath('values.csv').write_text('', encoding='utf-8')
     with pytest.raises(ValueError, match='empty data file'):
-        Dataset.from_data(str(tmpdir / 'values.csv'))
+        Dataset.from_data(tmp_path / 'values.csv')
 
 
 @pytest.mark.parametrize('cls, expected', [
@@ -495,14 +490,14 @@ def test_Dataset_from_data_empty_file(tmpdir):
     (Wordlist, Wordlist),
     (ParallelText, ParallelText),
 ])
-def test_Dataset_from_data(tmpdir, cls, expected):
-    forms = tmpdir / 'forms.csv'
+def test_Dataset_from_data(tmp_path, cls, expected):
+    forms = tmp_path / 'forms.csv'
     forms.write_text('ID,Language_ID,Parameter_ID,Form', encoding='utf-8')
-    assert type(cls.from_data(str(forms))) is expected
+    assert type(cls.from_data(forms)) is expected
 
 
-def test_Dataset_remove_columns(tmpdir):
-    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+def test_Dataset_remove_columns(tmp_path):
+    ds = StructureDataset.in_dir(tmp_path / 'new')
     ds.add_component('LanguageTable')
     ds.add_foreign_key('ValueTable', 'Value', 'LanguageTable', 'Name')
     ds.remove_columns('languages.csv', 'ID')
@@ -521,8 +516,8 @@ def test_Dataset_remove_columns(tmpdir):
     assert ds.validate()
 
 
-def test_Dataset_remove_table(tmpdir):
-    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+def test_Dataset_remove_table(tmp_path):
+    ds = StructureDataset.in_dir(tmp_path / 'new')
     ds.add_component('LanguageTable')
     ds.add_component('ParameterTable')
     ds.write(
@@ -550,12 +545,12 @@ def test_Dataset_remove_table(tmpdir):
     assert ds.validate()
 
 
-def test_Dataset_validate(tmpdir, mocker, caplog):
-    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+def test_Dataset_validate(tmp_path, mocker, caplog):
+    ds = StructureDataset.in_dir(tmp_path / 'new')
     ds.write(ValueTable=[])
-    values = tmpdir / 'new' / 'values.csv'
-    assert values.check()
-    Path(str(values)).unlink()
+    values = tmp_path / 'new' / 'values.csv'
+    assert values.exists()
+    values.unlink()
     assert not ds.validate(log=logging.getLogger(__name__))
     assert caplog.records
 
@@ -570,7 +565,7 @@ def test_Dataset_validate(tmpdir, mocker, caplog):
     with pytest.raises(ValueError):
         ds.validate()
 
-    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+    ds = StructureDataset.in_dir(tmp_path / 'new')
     ds.add_component('LanguageTable')
     ds.write(ValueTable=[], LanguageTable=[])
     assert ds.validate()
@@ -585,7 +580,7 @@ def test_Dataset_validate(tmpdir, mocker, caplog):
         with pytest.raises(ValueError):
             ds.validate()
 
-    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+    ds = StructureDataset.in_dir(tmp_path / 'new')
     ds['ValueTable'].get_column('Source').propertyUrl = URITemplate(
         'http://cldf.clld.org/404')
     ds.write(ValueTable=[])
@@ -617,8 +612,8 @@ def test_Dataset_cardinality_mismatch(tmp_path):
         ds.validate(ontology_path=terms)
 
 
-def test_Dataset_validate_custom_validator(tmpdir):
-    ds = StructureDataset.in_dir(str(tmpdir / 'new'))
+def test_Dataset_validate_custom_validator(tmp_path):
+    ds = StructureDataset.in_dir(tmp_path / 'new')
     ds.write(ValueTable=[
         {'ID': '1', 'Value': 'x', 'Language_ID': 'l', 'Parameter_ID': 'p'}])
     assert ds.validate()
@@ -631,8 +626,8 @@ def test_Dataset_validate_custom_validator(tmpdir):
         ds.validate(validators=[('ValueTable', 'Value', v)])
 
 
-def test_Dataset_validate_missing_table(tmpdir, caplog):
-    ds = StructureDataset.from_metadata(str(tmpdir))
+def test_Dataset_validate_missing_table(tmp_path, caplog):
+    ds = StructureDataset.from_metadata(tmp_path)
     ds.tablegroup.tables = []
     ds.write()
     ds.validate(log=logging.getLogger(__name__))
@@ -651,10 +646,10 @@ def test_stats(dataset):
     assert dict([(r[0], r[2]) for r in dataset.stats(exact=True)])['ds1.csv'] == 2
 
 
-def test_Dataset_write(tmpdir):
-    ds = StructureDataset.from_metadata(str(tmpdir))
+def test_Dataset_write(tmp_path):
+    ds = StructureDataset.from_metadata(tmp_path)
     ds.write(ValueTable=[])
-    assert (tmpdir / 'values.csv').exists()
+    assert (tmp_path / 'values.csv').exists()
     ds.validate()
     ds.add_sources("@misc{ky,\ntitle={the title}\n}")
     ds.write(ValueTable=[
@@ -665,8 +660,7 @@ def test_Dataset_write(tmpdir):
             'Value': 'yes',
             'Source': ['key[1-20]', 'ky'],
         }])
-    ds2 = StructureDataset.from_metadata(
-        str(tmpdir.join('StructureDataset-metadata.json')))
+    ds2 = StructureDataset.from_metadata(tmp_path.joinpath('StructureDataset-metadata.json'))
     assert ds2['ValueTable'].common_props['dc:extent'] == 1
     assert {s[1]: s[2] for s in ds.stats()}['ValueTable'] == 1
     ds['ValueTable'].common_props['dc:extent'] = 3
@@ -716,9 +710,9 @@ def test_Dataset_write(tmpdir):
     ds.validate()
 
 
-def test_validators(tmpdir, data, caplog):
-    copy(str(data / 'invalid.csv'), str(tmpdir / 'values.csv'))
-    ds = Dataset.from_data(str(tmpdir / 'values.csv'))
+def test_validators(tmp_path, data, caplog):
+    copy(str(data / 'invalid.csv'), tmp_path / 'values.csv')
+    ds = Dataset.from_data(tmp_path / 'values.csv')
 
     with pytest.raises(ValueError):
         ds.validate()
@@ -740,13 +734,13 @@ def test_get_modules():
 
 
 @pytest.mark.filterwarnings('ignore::UserWarning')
-def test_iter_datasets(data, tmpdir):
+def test_iter_datasets(data, tmp_path):
     assert len(list(iter_datasets(data))) == 8
 
-    tmpdir.join('f1').write_text('äöü', encoding='latin1')
-    tmpdir.join('f2').write_text('{x', encoding='utf8')
-    tmpdir.join('f3').write_text('{}', encoding='utf8')
-    assert len(list(iter_datasets(Path(str(tmpdir))))) == 0
+    tmp_path.joinpath('f1').write_text('äöü', encoding='latin1')
+    tmp_path.joinpath('f2').write_text('{x', encoding='utf8')
+    tmp_path.joinpath('f3').write_text('{}', encoding='utf8')
+    assert len(list(iter_datasets(tmp_path))) == 0
 
 
 def test_Dataset_iter_rows(dataset):

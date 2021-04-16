@@ -5,8 +5,6 @@ import warnings
 
 import pytest
 
-from clldutils.path import copy
-
 from pycldf.__main__ import main
 
 
@@ -29,15 +27,15 @@ def test_markdown(capsys, data, tmp_path):
     assert 'References' in out.read_text(encoding='utf8')
 
 
-def test_stats(tmpdir):
+def test_stats(tmp_path):
     with pytest.raises(SystemExit):
         main(['stats'])
 
     with pytest.raises(SystemExit):
-        main(['stats', str(tmpdir / 'new')])
+        main(['stats', str(tmp_path / 'new')])
 
 
-def test_check(data, glottolog_repos, concepticon_repos, caplog, tmpdir):
+def test_check(data, glottolog_repos, concepticon_repos, caplog, tmp_path):
     res = main(
             [
                 'check',
@@ -57,54 +55,55 @@ def test_check(data, glottolog_repos, concepticon_repos, caplog, tmpdir):
         ['check', str(data / 'ds1.csv-metadata.json')],
         log=logging.getLogger(__name__)) == 0
 
-    shutil.copy(str(data / 'dataset_for_check' / 'metadata.json'), str(tmpdir))
-    shutil.copy(str(data / 'dataset_for_check' / 'parameters.csv'), str(tmpdir))
-    tmpdir.join('languages.csv').write_text('ID,Glottocode,Latitude,ISO,ma,lon', encoding='utf8')
-    res = main(['check', str(tmpdir.join('metadata.json'))], log=logging.getLogger(__name__))
+    shutil.copy(str(data / 'dataset_for_check' / 'metadata.json'), tmp_path)
+    shutil.copy(str(data / 'dataset_for_check' / 'parameters.csv'), tmp_path)
+    tmp_path.joinpath('languages.csv').write_text(
+        'ID,Glottocode,Latitude,ISO,ma,lon', encoding='utf8')
+    res = main(['check', str(tmp_path.joinpath('metadata.json'))], log=logging.getLogger(__name__))
     assert res == 2
     assert 'Empty ' in caplog.records[-1].message
 
 
-def test_validate(tmpdir, caplog):
-    tmpdir.join('md.json').write_text("""{
+def test_validate(tmp_path, caplog):
+    tmp_path.joinpath('md.json').write_text("""{
   "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],
   "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#StructureDataset",
   "tables": []
 }""", encoding='utf8')
     # A StructureDataset must speficy a ValueTable!
-    assert main(['validate', str(tmpdir.join('md.json'))], log=logging.getLogger(__name__)) == 1
+    assert main(['validate', str(tmp_path / 'md.json')], log=logging.getLogger(__name__)) == 1
     assert all(
         w in caplog.records[-1].message for w in ['StructureDataset', 'requires', 'ValueTable'])
 
 
-def test_all(capsys, tmpdir, mocker, data):
+def test_all(capsys, tmp_path, mocker, data):
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
 
-        md = str(tmpdir / 'md.json')
-        copy(str(data / 'ds1.csv-metadata.json'), md)
-        copy(str(data / 'ds1.bib'), str(tmpdir / 'ds1.bib'))
-        copy(str(data / 'ds1.csv'), str(tmpdir / 'ds1.csv'))
-        pdata = str(tmpdir / 'values.csv')
-        copy(str(data / 'ds1.csv'), pdata)
+        md = tmp_path / 'md.json'
+        shutil.copy(data / 'ds1.csv-metadata.json', md)
+        shutil.copy(data / 'ds1.bib', tmp_path / 'ds1.bib')
+        shutil.copy(data / 'ds1.csv', tmp_path / 'ds1.csv')
+        pdata = tmp_path / 'values.csv'
+        shutil.copy(data / 'ds1.csv', pdata)
 
-        assert main(['validate', md]) == 0
+        assert main(['validate', str(md)]) == 0
         out, err = capsys.readouterr()
         assert not out
 
-        main(['stats', pdata])
+        main(['stats', str(pdata)])
         out, err = capsys.readouterr()
         assert 'StructureDataset' in out
 
-        main(['stats', md])
+        main(['stats', str(md)])
 
         with pytest.raises(SystemExit):
-            main(['createdb', md])
+            main(['createdb', str(md)])
 
         log = mocker.MagicMock()
-        main(['createdb', md, str(tmpdir / 'test.sqlite')], log=log)
+        main(['createdb', str(md), str(tmp_path / 'test.sqlite')], log=log)
         assert log.info.called
-        main(['dumpdb', md, str(tmpdir / 'test.sqlite')], log=log)
+        main(['dumpdb', str(md), str(tmp_path / 'test.sqlite')], log=log)
 
         uc = [
             w_ for w_ in w
@@ -113,4 +112,4 @@ def test_all(capsys, tmpdir, mocker, data):
         assert uc
 
     with pytest.raises(SystemExit):
-        main(['createdb', md, str(tmpdir / 'test.sqlite')], log=log)
+        main(['createdb', str(md), str(tmp_path / 'test.sqlite')], log=log)

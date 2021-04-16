@@ -1,5 +1,4 @@
 import decimal
-import pathlib
 import sqlite3
 import warnings
 
@@ -9,6 +8,11 @@ from pycldf.dataset import Dataset, Generic
 from pycldf.db import Database, translate, TableTranslation
 
 
+@pytest.fixture
+def md(tmp_path):
+    return tmp_path / 'metadata.json'
+
+
 def test_db_geocoords():
     item = dict(cldf_latitude=decimal.Decimal(3.123456))
     assert pytest.approx(
@@ -16,20 +20,19 @@ def test_db_geocoords():
         decimal.Decimal(3.1235))
 
 
-def test_db_write(tmpdir, data):
+def test_db_write(tmp_path, data):
     ds = Dataset.from_metadata(data / 'ds1.csv-metadata.json')
-    db = Database(ds, fname=str(tmpdir.join('db.sqlite')))
+    db = Database(ds, fname=tmp_path / 'db.sqlite')
     db.write_from_tg()
-    #shutil.copy(str(tmpdir.join('db.sqlite')), 'db.sqlite')
     assert len(db.query("select * from ValueTable where cldf_parameterReference = 'fid1'")) == 1
     assert len(db.query('select * from SourceTable')) == 3
     assert len(db.query(
         "select valuetable_cldf_id from ValueTable_SourceTable where context = '2-5'")) == 1
 
     assert db.read()['ValueTable'][0]['cldf_source'] == ['80086', 'meier2015[2-5]']
-    db.to_cldf(str(tmpdir.join('cldf')))
-    assert tmpdir.join('cldf', 'ds1.bib').check()
-    assert '80086;meier2015[2-5]' in tmpdir.join('cldf', 'ds1.csv').read_text('utf8')
+    db.to_cldf(tmp_path / 'cldf')
+    assert tmp_path.joinpath('cldf', 'ds1.bib').exists()
+    assert '80086;meier2015[2-5]' in tmp_path.joinpath('cldf', 'ds1.csv').read_text(encoding='utf8')
 
     with pytest.raises(ValueError):
         db.write_from_tg()
@@ -40,8 +43,7 @@ def test_db_write(tmpdir, data):
     db.write_from_tg(_force=True)
 
 
-def test_db_write_extra_tables(tmpdir):
-    md = pathlib.Path(str(tmpdir)) / 'metadata.json'
+def test_db_write_extra_tables(md):
     ds = Generic.in_dir(md.parent)
     ds.add_table('extra.csv', 'ID', 'Name')
     ds.write(md, **{'extra.csv': [dict(ID=1, Name='Name')]})
@@ -51,10 +53,9 @@ def test_db_write_extra_tables(tmpdir):
     assert len(db.query("""select * from "extra.csv" """)) == 1
 
 
-def test_db_write_extra_columns(tmpdir):
+def test_db_write_extra_columns(md):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        md = pathlib.Path(str(tmpdir)) / 'metadata.json'
         ds = Generic.in_dir(md.parent)
         t = ds.add_table('extra.csv', 'ID', 'Name')
         ds.write(md, **{'extra.csv': [dict(ID=1, Name='Name')]})
@@ -67,9 +68,7 @@ def test_db_write_extra_columns(tmpdir):
         assert len(db.query("""select * from "extra.csv" """)[0]) == 1
 
 
-def test_db_write_tables_with_fks(tmpdir, mocker):
-    md = pathlib.Path(str(tmpdir)) / 'metadata.json'
-
+def test_db_write_tables_with_fks(md):
     ds = Generic.in_dir(md.parent)
     t1 = ds.add_table('t1.csv', 'ID', 'Name')
     t2 = ds.add_table('t2.csv', 'ID', {'name': 'T1_ID', 'separator': ' '})
@@ -107,8 +106,8 @@ def test_db_write_tables_with_fks(tmpdir, mocker):
     db.write_from_tg(_force=True)
 
 
-def test_db_translations_for_association_table(data, tmpdir):
-    dbpath = pathlib.Path(str(tmpdir)) / 'db.sqlite'
+def test_db_translations_for_association_table(data, tmp_path):
+    dbpath = tmp_path / 'db.sqlite'
     dsdir = data / 'dataset_with_listvalued_foreign_keys_to_component'
     ds = Dataset.from_metadata(dsdir / 'metadata.json')
     db = Database(ds, fname=dbpath)

@@ -6,8 +6,8 @@ from pycldf.dataset import ParallelText
 
 
 @pytest.fixture
-def ds(tmpdir):
-    ds = ParallelText.in_dir(str(tmpdir))
+def ds(tmp_path):
+    ds = ParallelText.in_dir(tmp_path)
     ds.add_component('FunctionalEquivalentTable')
     ds.add_component('FunctionalEquivalentsetTable')
     for fname in [
@@ -16,8 +16,8 @@ def ds(tmpdir):
         'functionalEquivalentsets.csv',
     ]:
         src = Path(__file__).parent / 'data' / 'paralleltext_{0}'.format(fname)
-        target = tmpdir.join(fname)
-        target.write(src.read_text(encoding='utf-8').encode('utf8'), mode='wb')
+        target = tmp_path / fname
+        target.write_text(src.read_text(encoding='utf-8'), encoding='utf8')
     return ds
 
 
