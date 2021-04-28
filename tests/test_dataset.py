@@ -36,6 +36,13 @@ def test_column_basetype(col_spec, datatype):
     assert make_column(col_spec).datatype.base == datatype
 
 
+def test_v1_1(ds):
+    ds.add_component('MediaTable')
+    ds.add_component('ContributionTable')
+    assert ds['MediaTable', 'mediaType']
+    assert ds['ContributionTable', 'citation']
+
+
 def test_make_column():
     assert make_column(term_uri('source')).separator == ';'
     assert make_column(Column('name')).datatype is None
