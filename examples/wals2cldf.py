@@ -1,6 +1,6 @@
 import pathlib
 
-from pycldf import StructureDataset, Sources
+from pycldf import StructureDataset
 
 
 def make_cldf(out, fid):
@@ -26,30 +26,27 @@ def make_cldf(out, fid):
 
     # Now we collect the data by filtering the full dataset:
     values = []
+    # We use `Dataset.objects` for easier access to the Source objects, referenced by the value.
+    for val in wals.objects('ValueTable'):
+        if val.cldf.parameterReference == fid:
+            values.append(val)
+            for ref in val.references:
+                ds.add_sources(ref.source)
+
     # We use the `Dataset.iter_rows` to be able to access columns by CLDF ontology terms rather than
     # by dataset-local column names.
-    for val in wals.iter_rows('ValueTable', 'id', 'languageReference', 'parameterReference', 'codeReference', 'source'):
-        if val['parameterReference'] == fid:
-            values.append(val)
-            for ref in val['source']:
-                # Split references into Source ID and context (e.g. page numbers) ...
-                sid, _ = Sources.parse(ref)
-                # ... and copy the Source instance:
-                ds.add_sources(wals.sources[sid])
-
     languages = [
-        r for r in wals.iter_rows(
-            'LanguageTable', 'id', 'name', 'latitude', 'longitude', 'glottocode', 'iso639P3code',
-        ) if r['id'] in set(v['languageReference'] for v in values)]
+        r for r in wals.iter_rows('LanguageTable', 'id')
+        if r['id'] in set(v.cldf.languageReference for v in values)]
 
     codes = [
-        r for r in wals.iter_rows('CodeTable', 'id', 'name')
-        if r['id'] in set(v['codeReference'] for v in values)]
+        r for r in wals.iter_rows('CodeTable', 'id')
+        if r['id'] in set(v.cldf.codeReference for v in values)]
 
     # Contributor names must be looked up in a non-CLDF table:
     authors = [r for r in wals['contributors.csv'] if r['ID'] in feature['Contributor_ID']]
     ds.write(
-        ValueTable=values,
+        ValueTable=[v.data for v in values],
         LanguageTable=languages,
         ParameterTable=[{
             'ID': fid,

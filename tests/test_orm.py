@@ -1,6 +1,8 @@
 import pytest
 
-from pycldf import Dataset
+import rfc3986
+from csvw.metadata import URITemplate
+from pycldf import Dataset, Generic
 from pycldf.orm import Language
 
 
@@ -89,3 +91,20 @@ def test_catalogs(wordlist_with_cognates, glottolog_repos, concepticon_repos):
     conc = Concepticon(concepticon_repos)
     assert c.concepticon_conceptset(conc).gloss == 'CONTEMPTIBLE'
     assert c.concepticon_conceptset(conc.conceptsets).gloss == 'CONTEMPTIBLE'
+
+
+def test_Media(tmp_path):
+    ds = Generic.in_dir(tmp_path)
+    ds.add_component('MediaTable')
+    ds.remove_columns('MediaTable', 'downloadUrl')
+    ds['MediaTable', 'id'].valueUrl = URITemplate('http://example.org/{ID}')
+    ds.write(MediaTable=[dict(ID='1', Media_Type='text/plain')])
+    assert ds.get_object('MediaTable', '1').downloadUrl == 'http://example.org/1'
+
+    ds = Generic.in_dir(tmp_path)
+    ds.add_component('MediaTable')
+    ds['MediaTable', 'id'].valueUrl = URITemplate('http://example.org/{ID}')
+    url = rfc3986.URIReference.from_string('http://example.org/ü')
+    ds.write(
+        MediaTable=[dict(ID='1', Media_Type='text/plain', Download_URL=url)])
+    assert ds.get_object('MediaTable', '1').downloadUrl == 'http://example.org/ü'

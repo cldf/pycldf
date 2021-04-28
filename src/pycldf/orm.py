@@ -310,3 +310,15 @@ class Value(Object, WithLanguageMixin, WithParameterMixin):
     @property
     def examples(self):
         return self.all_related('exampleReference')
+
+
+class Contribution(Object):
+    pass
+
+
+class Media(Object):
+    @property
+    def downloadUrl(self):
+        if hasattr(self.cldf, 'downloadUrl'):
+            return self.cldf.downloadUrl
+        return self.valueUrl()
