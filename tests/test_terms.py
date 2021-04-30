@@ -28,3 +28,12 @@ def test_invalid_uri():
     with pytest.warns(UserWarning):
         with pytest.raises(ValueError):
             TERMS.is_cldf_uri('http://cldf.clld.org/unknown')
+
+
+def test_cltsReference():
+    from pycldf.terms import TERMS
+
+    col = TERMS['cltsReference'].to_column()
+    assert col.datatype.read('NA') and col.datatype.read('rounded_open-mid_central_vowel')
+    with pytest.raises(ValueError):
+        col.datatype.read('Na')
