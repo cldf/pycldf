@@ -100,8 +100,10 @@ def test_column_access(ds):
         assert ds['']
 
     ds.add_component('ValueTable', url='datapoints.csv')
+    assert 'ValueTable' in ds
     assert ds['ValueTable'] == ds['datapoints.csv']
 
+    assert ('ValueTable', 'colx') not in ds
     with pytest.raises(KeyError):
         assert ds['ValueTable', 'colx']
 

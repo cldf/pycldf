@@ -647,6 +647,13 @@ class Dataset(object):
 
         raise KeyError(column)
 
+    def __contains__(self, item):
+        try:
+            self.__getitem__(item)
+            return True
+        except KeyError:
+            return False
+
     def get(self, item, default=None):
         try:
             return self[item]
