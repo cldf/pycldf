@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pycldf',
-    version='1.20.2',
+    version='1.20.3.dev0',
     author='Robert Forkel',
     author_email='robert_forkel@eva.mpg.de',
     description='A python library to read and write CLDF datasets',
