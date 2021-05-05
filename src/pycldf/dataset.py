@@ -666,6 +666,10 @@ class Dataset(object):
     def get_foreign_key_target(self, table, column):
         """
         Retrieve the target of a foreign key constraint for the specified column.
+
+        :param table: A table, specified by filename, component name or as `Table` instance.
+        :param column: A column, specified by column name, CLDF term or as `Column` instance.
+        :return: A pair (`Table`, `Column`) specifying the referenced column - or `None`.
         """
         table = self[table]
         column = self[table, column]
