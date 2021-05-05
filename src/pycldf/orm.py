@@ -29,6 +29,7 @@ your data into a SQLite db using the `pycldf.db` module, and access via SQL.
 import argparse
 import collections
 
+import csvw.metadata
 from tabulate import tabulate
 from clldutils.misc import lazyproperty
 
@@ -160,7 +161,7 @@ class WithLanguageMixin:
 
 
 class WithParameterMixin:
-    @property
+    @lazyproperty
     def parameter(self):
         return self.related('parameterReference')
 
@@ -271,6 +272,13 @@ class Language(Object):
 
 
 class Parameter(Object):
+    @lazyproperty
+    def datatype(self):
+        if 'datatype' in self.data \
+                and self.dataset['ParameterTable', 'datatype'].datatype.base == 'json':
+            if self.data['datatype']:
+                return csvw.metadata.Datatype.fromvalue(self.data['datatype'])
+
     @property
     def values(self):
         return DictTuple(v for v in self.dataset.objects('ValueTable') if self in v.parameters)
@@ -303,6 +311,12 @@ class Sense(Object):
 
 
 class Value(Object, WithLanguageMixin, WithParameterMixin):
+    @property
+    def typed_value(self):
+        if self.parameter.datatype:
+            return self.parameter.datatype.read(self.cldf.value)
+        return self.cldf.value
+
     @property
     def code(self):
         return self.related('codeReference')

@@ -2,7 +2,7 @@ import pytest
 
 import rfc3986
 from csvw.metadata import URITemplate
-from pycldf import Dataset, Generic
+from pycldf import Dataset, Generic, StructureDataset
 from pycldf.orm import Language
 
 
@@ -108,3 +108,26 @@ def test_Media(tmp_path):
     ds.write(
         MediaTable=[dict(ID='1', Media_Type='text/plain', Download_URL=url)])
     assert ds.get_object('MediaTable', '1').downloadUrl == 'http://example.org/ü'
+
+
+def test_typed_parameters(tmp_path):
+    ds = StructureDataset.in_dir(tmp_path)
+    ds.add_component(
+        'ParameterTable',
+        {"name": "datatype", "datatype": "json"},
+    )
+    ds.write(
+        ParameterTable=[
+            dict(ID='1', datatype=dict(base='integer', maximum=5)),
+            dict(ID='2'),
+        ],
+        ValueTable=[
+            dict(ID='1', Language_ID='l', Parameter_ID='1', Value='3'),
+            dict(ID='1', Language_ID='l', Parameter_ID='2', Value='3'),
+        ],
+    )
+    for v in ds.objects('ValueTable'):
+        if v.parameter.datatype:
+            assert v.typed_value == 3
+        else:
+            assert v.typed_value == '3'
