@@ -125,11 +125,11 @@ def test_typed_parameters(tmp_path):
         ],
         ValueTable=[
             dict(ID='1', Language_ID='l', Parameter_ID='1', Value=dt.formatted(3)),
-            dict(ID='1', Language_ID='l', Parameter_ID='2', Value='3'),
+            dict(ID='2', Language_ID='l', Parameter_ID='2', Value='3'),
         ],
     )
     for v in ds.objects('ValueTable'):
-        if v.parameter.datatype:
+        if v.id == '1':
             assert v.typed_value == 3
-        else:
+        elif v.id == '2':
             assert v.typed_value == '3'
