@@ -781,8 +781,8 @@ def test_Dataset_from_url(urlopen):
 def test_Dataset_get_foreign_key_target(tmp_path):
     ds = StructureDataset.in_dir(tmp_path)
     ds.add_component('LanguageTable')
-    t, c = ds.get_foreign_key_target('values.csv', 'Language_ID')
+    t, c = ds.get_foreign_key_reference('values.csv', 'Language_ID')
     assert ds.get_tabletype(t) == 'LanguageTable'
     assert c.name == 'ID'
 
-    assert ds.get_foreign_key_target('values.csv', 'Value') is None
+    assert ds.get_foreign_key_reference('values.csv', 'Value') is None

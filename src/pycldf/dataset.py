@@ -663,13 +663,13 @@ class Dataset(object):
         except KeyError:
             return default
 
-    def get_foreign_key_target(self, table, column):
+    def get_foreign_key_reference(self, table, column):
         """
-        Retrieve the target of a foreign key constraint for the specified column.
+        Retrieve the reference of a foreign key constraint for the specified column.
 
-        :param table: A table, specified by filename, component name or as `Table` instance.
-        :param column: A column, specified by column name, CLDF term or as `Column` instance.
-        :return: A pair (`Table`, `Column`) specifying the referenced column - or `None`.
+        :param table: Source table, specified by filename, component name or as `Table` instance.
+        :param column: Source column, specified by column name, CLDF term or as `Column` instance.
+        :return: A pair (`Table`, `Column`) specifying the reference column - or `None`.
         """
         table = self[table]
         column = self[table, column]
