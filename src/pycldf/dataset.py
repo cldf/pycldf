@@ -677,7 +677,7 @@ class Dataset(object):
         for fk in table.tableSchema.foreignKeys:
             if len(fk.columnReference) == 1 and fk.columnReference[0] == column.name:
                 return self[fk.reference.resource], \
-                       self[fk.reference.resource, fk.reference.columnReference[0]]
+                    self[fk.reference.resource, fk.reference.columnReference[0]]
 
     def get_row(self, table, id_):
         id_col = self[table, TERMS['id']]
