@@ -111,6 +111,8 @@ def test_Media(tmp_path):
 
 
 def test_typed_parameters(tmp_path):
+    from csvw.metadata import Datatype
+    dt = Datatype.fromvalue(dict(base='integer', maximum=5))
     ds = StructureDataset.in_dir(tmp_path)
     ds.add_component(
         'ParameterTable',
@@ -118,11 +120,11 @@ def test_typed_parameters(tmp_path):
     )
     ds.write(
         ParameterTable=[
-            dict(ID='1', datatype=dict(base='integer', maximum=5)),
+            dict(ID='1', datatype=dt.asdict()),
             dict(ID='2'),
         ],
         ValueTable=[
-            dict(ID='1', Language_ID='l', Parameter_ID='1', Value='3'),
+            dict(ID='1', Language_ID='l', Parameter_ID='1', Value=dt.formatted(3)),
             dict(ID='1', Language_ID='l', Parameter_ID='2', Value='3'),
         ],
     )
