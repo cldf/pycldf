@@ -626,6 +626,9 @@ class Dataset(object):
         else:
             table, column = item, None
 
+        if isinstance(table, Link):
+            table = table.string
+
         if not isinstance(table, Table):
             uri = term_uri(table, terms=TERMS.by_uri)
             for t in self.tables:
@@ -659,6 +662,22 @@ class Dataset(object):
             return self[item]
         except KeyError:
             return default
+
+    def get_foreign_key_reference(self, table, column):
+        """
+        Retrieve the reference of a foreign key constraint for the specified column.
+
+        :param table: Source table, specified by filename, component name or as `Table` instance.
+        :param column: Source column, specified by column name, CLDF term or as `Column` instance.
+        :return: A pair (`Table`, `Column`) specifying the reference column - or `None`.
+        """
+        table = self[table]
+        column = self[table, column]
+
+        for fk in table.tableSchema.foreignKeys:
+            if len(fk.columnReference) == 1 and fk.columnReference[0] == column.name:
+                return self[fk.reference.resource], \
+                    self[fk.reference.resource, fk.reference.columnReference[0]]
 
     def get_row(self, table, id_):
         id_col = self[table, TERMS['id']]

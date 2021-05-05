@@ -776,3 +776,13 @@ def test_Dataset_from_url(urlopen):
     assert ds.bibpath == 'http://example.org/ds1.bib'
     assert ds.bibname == 'ds1.bib'
     assert len(ds.sources) == 3
+
+
+def test_Dataset_get_foreign_key_target(tmp_path):
+    ds = StructureDataset.in_dir(tmp_path)
+    ds.add_component('LanguageTable')
+    t, c = ds.get_foreign_key_reference('values.csv', 'Language_ID')
+    assert ds.get_tabletype(t) == 'LanguageTable'
+    assert c.name == 'ID'
+
+    assert ds.get_foreign_key_reference('values.csv', 'Value') is None
