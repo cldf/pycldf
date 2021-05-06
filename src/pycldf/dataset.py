@@ -147,6 +147,7 @@ class Dataset(object):
         self.auto_constraints()
         self.sources = Sources.from_file(self.bibpath)
         self._objects = collections.defaultdict(collections.OrderedDict)
+        self._objects_by_pk = collections.defaultdict(collections.OrderedDict)
 
     @property
     def metadata_dict(self):
@@ -370,7 +371,7 @@ class Dataset(object):
             # `xxxReference` column properties?
             return
 
-        # auto-add foreign keys targetting the new component:
+        # auto-add foreign keys targeting the new component:
         for table in self.tables:
             self._auto_foreign_keys(table, component=component, table_type=table_type)
 
@@ -793,13 +794,15 @@ class Dataset(object):
             for item in self[table]:
                 item = cls(self, item)
                 self._objects[table][item.id] = item
+                if item.pk:
+                    self._objects_by_pk[table][item.pk] = item
 
         return DictTuple(self._objects[table].values())
 
-    def get_object(self, table, id_, cls=None):
+    def get_object(self, table, id_, cls=None, pk=False):
         if table not in self._objects:
             self.objects(table, cls=cls)
-        return self._objects[table][id_]
+        return self._objects[table][id_] if not pk else self._objects_by_pk[table][id_]
 
 
 class Generic(Dataset):

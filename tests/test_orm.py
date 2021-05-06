@@ -1,8 +1,10 @@
+import json
+
 import pytest
 
 import rfc3986
 from csvw.metadata import URITemplate
-from pycldf import Dataset, Generic
+from pycldf import Dataset, Generic, StructureDataset
 from pycldf.orm import Language
 
 
@@ -108,3 +110,57 @@ def test_Media(tmp_path):
     ds.write(
         MediaTable=[dict(ID='1', Media_Type='text/plain', Download_URL=url)])
     assert ds.get_object('MediaTable', '1').downloadUrl == 'http://example.org/ü'
+
+
+def test_non_id_fk(tmp_path):
+    """
+    Foreign keys do not have to reference the id column, but may reference another column if it is
+    specified as primary key.
+    """
+    ds = StructureDataset.in_dir(tmp_path)
+    ds.add_component('ParameterTable')
+    ds['ParameterTable'].tableSchema.primaryKey = ['Name']
+    ds['ValueTable'].tableSchema.foreignKeys[0].reference.columnReference = ['Name']
+    ds.write(
+        ParameterTable=[dict(ID='1', Name='a'), dict(ID='2', Name='b')],
+        ValueTable=[
+            dict(ID='1', Language_ID='l', Parameter_ID='a', Value='1'),
+            dict(ID='2', Language_ID='l', Parameter_ID='b', Value='3'),
+        ],
+    )
+    assert ds.validate()
+    assert ds.get_object('ValueTable', '1').parameter.id == '1'
+
+
+def test_typed_parameters(tmp_path):
+    from csvw.metadata import Datatype
+    dt = Datatype.fromvalue(dict(base='integer', maximum=5))
+    ds = StructureDataset.in_dir(tmp_path)
+    ds.add_component(
+        'ParameterTable',
+        {"name": "datatype", "datatype": "json"},
+    )
+    ds.write(
+        ParameterTable=[
+            dict(ID='1', datatype=dt.asdict()),
+            dict(ID='2'),
+            dict(ID='3', datatype='json'),
+            dict(ID='4', datatype=dict(base='string', format='a|b|c'))
+        ],
+        ValueTable=[
+            dict(ID='1', Language_ID='l', Parameter_ID='1', Value=dt.formatted(3)),
+            dict(ID='2', Language_ID='l', Parameter_ID='2', Value='3'),
+            dict(ID='3', Language_ID='l', Parameter_ID='3', Value=json.dumps({'a': 5})),
+            dict(ID='4', Language_ID='l', Parameter_ID='4', Value='x'),
+        ],
+    )
+    for v in ds.objects('ValueTable'):
+        if v.id == '1':
+            assert v.typed_value == 3
+        elif v.id == '2':
+            assert v.typed_value == '3'
+        elif v.id == '3':
+            assert v.typed_value['a'] == 5
+        elif v.id == '4':
+            with pytest.raises(ValueError):
+                _ = v.typed_value
