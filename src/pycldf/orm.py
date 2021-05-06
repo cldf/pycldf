@@ -25,6 +25,12 @@ class defined in this module. To customize these objects,
 This functionality comes with the typical "more convenient API vs. less performance and bigger
 memory footprint" trade-off. If you are running into problems with this, you might want to load
 your data into a SQLite db using the `pycldf.db` module, and access via SQL.
+
+Some numbers (to be interpreted relative to each other):
+Reading ~400,000 rows from a ValueTable of a StructureDataset takes
+- ~2secs with csvcut, i.e. only making sure it's valid CSV
+- ~15secs iterating over pycldf.Dataset['ValueTable']
+- ~35secs iterating over pycldf.Dataset.objects('ValueTable')
 """
 import argparse
 import collections
@@ -33,7 +39,7 @@ import csvw.metadata
 from tabulate import tabulate
 from clldutils.misc import lazyproperty
 
-from pycldf.terms import TERMS
+from pycldf.terms import TERMS, term_uri
 from pycldf.util import DictTuple
 
 
@@ -64,6 +70,10 @@ class Object:
         self.cldf = argparse.Namespace(**self.cldf)
         self.dataset = dataset
         self.id = self.cldf.id
+        self.pk = None
+        t = dataset[self.component_name()]
+        if t.tableSchema.primaryKey and len(t.tableSchema.primaryKey) == 1:
+            self.pk = self.data[dataset[self.component_name()].tableSchema.primaryKey[0]]
         self.name = getattr(self.cldf, 'name', None)
         self.description = getattr(self.cldf, 'name', None)
 
@@ -135,7 +145,11 @@ class Object:
                 '{} is list-valued, use `all_related` to retrieve related objects'.format(relation))
         fk = getattr(self.cldf, relation, None)
         if fk:
-            return self.dataset.get_object(TERMS[relation].references, fk)
+            ref = self.dataset.get_foreign_key_reference(self.component_name(), relation)
+            if ref:
+                if str(ref[1].propertyUrl) == term_uri('id'):
+                    return self.dataset.get_object(TERMS[relation].references, fk)
+                return self.dataset.get_object(TERMS[relation].references, fk, pk=True)
 
     def all_related(self, relation):
         """

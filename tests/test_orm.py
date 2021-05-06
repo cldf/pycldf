@@ -110,6 +110,26 @@ def test_Media(tmp_path):
     assert ds.get_object('MediaTable', '1').downloadUrl == 'http://example.org/ü'
 
 
+def test_non_id_fk(tmp_path):
+    """
+    Foreign keys do not have to reference the id column, but may reference another column if it is
+    specified as primary key.
+    """
+    ds = StructureDataset.in_dir(tmp_path)
+    ds.add_component('ParameterTable')
+    ds['ParameterTable'].tableSchema.primaryKey = ['Name']
+    ds['ValueTable'].tableSchema.foreignKeys[0].reference.columnReference = ['Name']
+    ds.write(
+        ParameterTable=[dict(ID='1', Name='a'), dict(ID='2', Name='b')],
+        ValueTable=[
+            dict(ID='1', Language_ID='l', Parameter_ID='a', Value='1'),
+            dict(ID='2', Language_ID='l', Parameter_ID='b', Value='3'),
+        ],
+    )
+    assert ds.validate()
+    assert ds.get_object('ValueTable', '1').parameter.id == '1'
+
+
 def test_typed_parameters(tmp_path):
     from csvw.metadata import Datatype
     dt = Datatype.fromvalue(dict(base='integer', maximum=5))
