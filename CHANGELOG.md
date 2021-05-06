@@ -1,0 +1,10 @@
+# Changes
+
+The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+- Support for "typed values" in `StructureDataset`s
+- More convenient access to targets of foreign key constraints via
+  `Dataset.get_foreign_key_reference`
+- Existence of components/columns can now be checked with `name in Dataset`  

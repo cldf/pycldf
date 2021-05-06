@@ -16,6 +16,7 @@ Releasing pycldf
 - Update the version number, by removing the trailing `.dev0` in:
   - `setup.py`
   - `src/pycldf/__init__.py`
+  - and edit `CHANGELOG.md`
 
 - Create the release commit:
   ```shell
