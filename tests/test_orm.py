@@ -131,6 +131,20 @@ def test_non_id_fk(tmp_path):
     assert ds.validate()
     assert ds.get_object('ValueTable', '1').parameter.id == '1'
 
+    ds = StructureDataset.in_dir(tmp_path)
+    ds.add_component('ParameterTable')
+    ds['ValueTable'].tableSchema.foreignKeys[0].reference.columnReference = ['Name']
+    ds.write(
+        ParameterTable=[dict(ID='1', Name='a'), dict(ID='2', Name='b')],
+        ValueTable=[
+            dict(ID='1', Language_ID='l', Parameter_ID='a', Value='1'),
+            dict(ID='2', Language_ID='l', Parameter_ID='b', Value='3'),
+        ],
+    )
+    assert ds.validate()
+    with pytest.raises(NotImplementedError):
+        _ = ds.get_object('ValueTable', '1').parameter
+
 
 def test_typed_parameters(tmp_path):
     from csvw.metadata import Datatype

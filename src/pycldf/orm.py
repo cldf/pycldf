@@ -22,15 +22,18 @@ class defined in this module. To customize these objects,
   ```
 - pass the class into the `objects` or `get_object` method.
 
-This functionality comes with the typical "more convenient API vs. less performance and bigger
-memory footprint" trade-off. If you are running into problems with this, you might want to load
-your data into a SQLite db using the `pycldf.db` module, and access via SQL.
-
-Some numbers (to be interpreted relative to each other):
-Reading ~400,000 rows from a ValueTable of a StructureDataset takes
-- ~2secs with csvcut, i.e. only making sure it's valid CSV
-- ~15secs iterating over pycldf.Dataset['ValueTable']
-- ~35secs iterating over pycldf.Dataset.objects('ValueTable')
+Limitations:
+- We only support foreign key constraints for CLDF reference properties targeting either a
+  component's CLDF id or its primary key. This is because CSVW does not support unique constraints
+  other than the one implied by the primary key declaration.
+- This functionality comes with the typical "more convenient API vs. less performance and bigger
+  memory footprint" trade-off. If you are running into problems with this, you might want to load
+  your data into a SQLite db using the `pycldf.db` module, and access via SQL.
+  Some numbers (to be interpreted relative to each other):
+  Reading ~400,000 rows from a ValueTable of a StructureDataset takes
+  - ~2secs with csvcut, i.e. only making sure it's valid CSV
+  - ~15secs iterating over pycldf.Dataset['ValueTable']
+  - ~35secs iterating over pycldf.Dataset.objects('ValueTable')
 """
 import argparse
 import collections
@@ -149,7 +152,10 @@ class Object:
             if ref:
                 if str(ref[1].propertyUrl) == term_uri('id'):
                     return self.dataset.get_object(TERMS[relation].references, fk)
-                return self.dataset.get_object(TERMS[relation].references, fk, pk=True)
+                if [ref[1].name] == self.dataset[TERMS[relation].references].tableSchema.primaryKey:
+                    return self.dataset.get_object(TERMS[relation].references, fk, pk=True)
+                raise NotImplementedError('pycldf does not support foreign key constraints '
+                                          'referencing columns other than CLDF id or primary key.')
 
     def all_related(self, relation):
         """
