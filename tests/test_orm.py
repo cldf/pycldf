@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 import rfc3986
@@ -142,10 +144,12 @@ def test_typed_parameters(tmp_path):
         ParameterTable=[
             dict(ID='1', datatype=dt.asdict()),
             dict(ID='2'),
+            dict(ID='3', datatype='json')
         ],
         ValueTable=[
             dict(ID='1', Language_ID='l', Parameter_ID='1', Value=dt.formatted(3)),
             dict(ID='2', Language_ID='l', Parameter_ID='2', Value='3'),
+            dict(ID='3', Language_ID='l', Parameter_ID='3', Value=json.dumps({'a': 5}))
         ],
     )
     for v in ds.objects('ValueTable'):
@@ -153,3 +157,5 @@ def test_typed_parameters(tmp_path):
             assert v.typed_value == 3
         elif v.id == '2':
             assert v.typed_value == '3'
+        elif v.id == '3':
+            assert v.typed_value['a'] == 5
