@@ -144,12 +144,14 @@ def test_typed_parameters(tmp_path):
         ParameterTable=[
             dict(ID='1', datatype=dt.asdict()),
             dict(ID='2'),
-            dict(ID='3', datatype='json')
+            dict(ID='3', datatype='json'),
+            dict(ID='4', datatype=dict(base='string', format='a|b|c'))
         ],
         ValueTable=[
             dict(ID='1', Language_ID='l', Parameter_ID='1', Value=dt.formatted(3)),
             dict(ID='2', Language_ID='l', Parameter_ID='2', Value='3'),
-            dict(ID='3', Language_ID='l', Parameter_ID='3', Value=json.dumps({'a': 5}))
+            dict(ID='3', Language_ID='l', Parameter_ID='3', Value=json.dumps({'a': 5})),
+            dict(ID='4', Language_ID='l', Parameter_ID='4', Value='x'),
         ],
     )
     for v in ds.objects('ValueTable'):
@@ -159,3 +161,6 @@ def test_typed_parameters(tmp_path):
             assert v.typed_value == '3'
         elif v.id == '3':
             assert v.typed_value['a'] == 5
+        elif v.id == '4':
+            with pytest.raises(ValueError):
+                _ = v.typed_value
