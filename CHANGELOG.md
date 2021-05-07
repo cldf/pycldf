@@ -10,4 +10,5 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 - Existence of components/columns can now be checked with `name in Dataset`  
 - Added `Dataset.components` property, to allow convenient access to components
   specified in a dataset.
-- Enhanced and refactored documentation.  
+- Enhanced and refactored documentation (see https://pycldf.readthedocs.io/en/latest/). 
+
