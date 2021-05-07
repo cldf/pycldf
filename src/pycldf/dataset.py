@@ -651,7 +651,7 @@ class Dataset(object):
         Iterate rows in a table, resolving CLDF property names to local column names.
 
         :param table: Table name.
-        :param cols: List of CLDF property terms which must be resolved in resulting `dict`s.
+        :param cols: List of CLDF property terms which must be resolved in resulting `dict` s
         :return: Generator
         """
         cmap = {self[table, col].name: col for col in cols}
