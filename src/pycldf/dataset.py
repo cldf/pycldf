@@ -1,8 +1,12 @@
+import argparse
+import logging
 import sys
 import json
+import typing
 import pathlib
 import itertools
 import collections
+import collections.abc
 import urllib.parse
 
 import attr
@@ -26,40 +30,6 @@ __all__ = [
 
 MD_SUFFIX = '-metadata.json'
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
-
-
-def sniff(p):
-    """
-    Determine whether a file contains CLDF metadata.
-
-    :param p: `pathlib.Path` object for an existing file.
-    :return: `True` if the file contains CLDF metadata, `False` otherwise.
-    """
-    with p.open('rb') as fp:
-        c = fp.read(10)
-        try:
-            c = c.decode('utf8').strip()
-        except UnicodeDecodeError:
-            return False
-        if not c.startswith('{'):
-            return False
-    try:
-        d = jsonlib.load(p)
-    except json.decoder.JSONDecodeError:
-        return False
-    return d.get('dc:conformsTo', '').startswith(TERMS_URL)
-
-
-def iter_datasets(d):
-    """
-    Discover CLDF datasets - by identifying metadata files - in a directory.
-
-    :param d: directory
-    :return: generator of `Dataset` instances.
-    """
-    for p in walk(d, mode='files'):
-        if sniff(p):
-            yield Dataset.from_metadata(p)
 
 
 @attr.s
@@ -151,8 +121,12 @@ class Dataset(object):
 
     def __init__(self, tablegroup: csvw.TableGroup):
         """
-        A `Dataset` is initialized passing a TableGroup. For convenience methods to get such a
-        TableGroup, see the factory methods below.
+        A :class:`~pycldf.dataset.Dataset` is initialized passing a TableGroup. For convenience \
+        methods to get such a TableGroup, see the factory methods
+
+        - :meth:`~pycldf.dataset.Dataset.in_dir`
+        - :meth:`~pycldf.dataset.Dataset.from_metadata`
+        - :meth:`~pycldf.dataset.Dataset.from_data`
         """
         self.tablegroup = tablegroup
         self.auto_constraints()
@@ -164,11 +138,14 @@ class Dataset(object):
     # Factory methods to create `Dataset` instances.
     #
     @classmethod
-    def in_dir(cls, d, empty_tables=False):
+    def in_dir(cls, d: typing.Union[str, pathlib.Path], empty_tables=False):
         """
-        Create a `Dataset` in a (possibly empty or even non-existing) directory.
+        Create a :class:`~pycldf.dataset.Dataset` in a (possibly empty or even non-existing) \
+        directory.
 
         The dataset will be initialized with the default metadata for the respective module.
+
+        :rtype: :class:`~pycldf.dataset.Dataset`
         """
         fname = pathlib.Path(d)
         if not fname.exists():
@@ -180,13 +157,14 @@ class Dataset(object):
         return res
 
     @classmethod
-    def from_metadata(cls, fname):
+    def from_metadata(cls, fname: typing.Union[str, pathlib.Path]):
         """
-        Initialize a `Dataset` with the metadata found at `fname`.
+        Initialize a :class:`~pycldf.dataset.Dataset` with the metadata found at `fname`.
 
         :param fname: A URL (`str`) or a local path (`str` or `pathlib.Path`). \
         If `fname` points to a directory, the default metadata for the respective module will be \
         read.
+        :rtype: :class:`~pycldf.dataset.Dataset`
         """
         if is_url(fname):
             tablegroup = TableGroup.from_url(fname)
@@ -220,9 +198,11 @@ class Dataset(object):
     @classmethod
     def from_data(cls, fname):
         """
-        Initialize a `Dataset` from a single CLDF data file.
+        Initialize a :class:`~pycldf.dataset.Dataset` from a single CLDF data file.
 
         See https://github.com/cldf/cldf#metadata-free-conformance
+
+        :rtype: :class:`~pycldf.dataset.Dataset`
         """
         fname = pathlib.Path(fname)
         colnames = next(iterrows(fname), [])
@@ -247,11 +227,18 @@ class Dataset(object):
     # Accessing dataset metadata
     #
     @property
-    def directory(self):
+    def directory(self) -> typing.Union[str, pathlib.Path]:
+        """
+        :return: The location of the metadata file. Either a local directory as `pathlib.Path` or \
+        a URL as `str`.
+        """
         return self.tablegroup._fname.parent if self.tablegroup._fname else self.tablegroup.base
 
     @property
-    def module(self):
+    def module(self) -> str:
+        """
+        :return: The name of the CLDF module of the dataset.
+        """
         return self.properties['dc:conformsTo'].split('#')[1]
 
     @property
@@ -262,15 +249,22 @@ class Dataset(object):
         return '<cldf:%s:%s at %s>' % (self.version, self.module, self.directory)
 
     @property
-    def metadata_dict(self):
+    def metadata_dict(self) -> dict:
         return self.tablegroup.asdict(omit_defaults=False)
 
     @property
-    def properties(self):
+    def properties(self) -> dict:
+        """
+        :return: Common properties of the CSVW TableGroup of the dataset.
+        """
         return self.tablegroup.common_props
 
     @property
-    def bibpath(self):
+    def bibpath(self) -> typing.Union[str, pathlib.Path]:
+        """
+        :return: Location of the sources BibTeX file. Either a URL (`str`) or a local path \
+        (`pathlib.Path`).
+        """
         # Specifying "dc:source": "" means lookup the default location.
         if is_url(self.directory):
             return urllib.parse.urljoin(
@@ -278,7 +272,10 @@ class Dataset(object):
         return self.directory.joinpath(self.properties.get('dc:source') or 'sources.bib')
 
     @property
-    def bibname(self):
+    def bibname(self) -> str:
+        """
+        :return: Filename of the sources BibTeX file.
+        """
         if is_url(self.bibpath):
             return pathlib.Path(urllib.parse.urlparse(self.bibpath).path).name
         return self.bibpath.name
@@ -287,11 +284,17 @@ class Dataset(object):
     # Accessing schema objects (components, tables, columns, foreign keys)
     #
     @property
-    def tables(self):
+    def tables(self) -> list:
+        """
+        :return: All tables defined in the dataset.
+        """
         return self.tablegroup.tables
 
     @property
-    def components(self):
+    def components(self) -> typing.Dict[str, csvw.Table]:
+        """
+        :return: Mapping of component name to table obejcts as defined in the dataset.
+        """
         res = collections.OrderedDict()
         for table in self.tables:
             comp = None
@@ -304,7 +307,7 @@ class Dataset(object):
         return res
 
     @staticmethod
-    def get_tabletype(table):
+    def get_tabletype(table) -> typing.Union[str, None]:
         if table.common_props.get('dc:conformsTo', '') is None:
             return None
         if '#' in table.common_props.get('dc:conformsTo', ''):
@@ -316,14 +319,14 @@ class Dataset(object):
             table.url))
 
     @property
-    def primary_table(self):
+    def primary_table(self) -> typing.Union[str, None]:
         if self.tables:
             try:
                 return self.get_tabletype(self.tables[0])
             except ValueError:
                 return None
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> typing.Union[csvw.Table, csvw.Column]:
         """
         Access to tables and columns.
 
@@ -331,16 +334,20 @@ class Dataset(object):
         returned, otherwise `item` is assumed to be a table-spec.
 
         A table-spec may be
+
         - a CLDF ontology URI matching the dc:conformsTo property of a table
-        - the local name of a CLDF ontology URI, where the complete URI matches the
+        - the local name of a CLDF ontology URI, where the complete URI matches the \
           the dc:conformsTo property of a table
         - a filename matching the `url` property of a table
 
         A column-spec may be
+
         - a CLDF ontology URI matching the propertyUrl of a column
-        - the local name of a CLDF ontology URI, where the complete URI matches the
+        - the local name of a CLDF ontology URI, where the complete URI matches the \
           propertyUrl of a column
         - the name of a column
+
+        :raises KeyError: If no matching table or column is found.
         """
         if isinstance(item, tuple):
             table, column = item
@@ -371,20 +378,27 @@ class Dataset(object):
 
         raise KeyError(column)
 
-    def __contains__(self, item):
-        try:
-            self.__getitem__(item)
-            return True
-        except KeyError:
-            return False
+    def __contains__(self, item) -> bool:
+        """
+        Check whether a dataset specifies a table or column.
 
-    def get(self, item, default=None):
+        :param item: See  :meth:`~pycldf.dataset.Dataset.__getitem__`
+        """
+        return bool(self.get(item))
+
+    def get(self, item, default=None) -> typing.Union[csvw.Table, csvw.Column, None]:
+        """
+        Acts like `dict.get`.
+
+        :param item: See  :meth:`~pycldf.dataset.Dataset.__getitem__`
+        """
         try:
             return self[item]
         except KeyError:
             return default
 
-    def get_foreign_key_reference(self, table, column):
+    def get_foreign_key_reference(self, table, column) \
+            -> typing.Union[typing.Tuple[csvw.Table, csvw.Column], None]:
         """
         Retrieve the reference of a foreign key constraint for the specified column.
 
@@ -401,7 +415,7 @@ class Dataset(object):
                     self[fk.reference.resource, fk.reference.columnReference[0]]
 
     @property
-    def column_names(self):
+    def column_names(self) -> argparse.Namespace:
         """
         In-direction layer, mapping ontology terms to local column names (or `None`).
 
@@ -418,7 +432,7 @@ class Dataset(object):
         return get_column_names(self)
 
     @lazyproperty
-    def readonly_column_names(self):
+    def readonly_column_names(self) -> argparse.Namespace:
         """
         :return: `argparse.Namespace` with component names as attributes.
         """
@@ -456,15 +470,15 @@ class Dataset(object):
                 v = old
             self.tablegroup.common_props[k] = v
 
-    def add_table(self, url, *cols, **kw):
+    def add_table(self, url: str, *cols, **kw) -> csvw.Table:
         """
         Add a table description to the Dataset.
 
         :param url: The url property of the table.
-        :param cols: Column specifications.
+        :param cols: Column specifications; anything accepted by :func:`pycldf.dataset.make_column`.
         :param kw: Recognized keywords:
             - `primaryKey`: specify the column(s) constituting the primary key of the table.
-        :return: `csvw.metadata.Table` instance.
+        :return: The new table.
         """
         t = self.add_component({"url": url, "tableSchema": {"columns": []}}, *cols)
         if 'primaryKey' in kw:
@@ -473,6 +487,9 @@ class Dataset(object):
         return t
 
     def remove_table(self, table):
+        """
+        Removes the table specified by `table` from the dataset.
+        """
         table = self[table]
 
         # First remove foreign keys:
@@ -483,11 +500,14 @@ class Dataset(object):
         # Now remove the table:
         self.tablegroup.tables = [t for t in self.tablegroup.tables if t.url != table.url]
 
-    def add_component(self, component, *cols, **kw):
+    def add_component(self, component: typing.Union[str, dict], *cols, **kw) -> csvw.Table:
         """
         Add a CLDF component to a dataset.
 
         .. seealso:: https://github.com/cldf/cldf/blob/master/README.md#cldf-components
+
+        :param component: A component specified by name or as `dict` representing the JSON \
+        description of the component.
         """
         if isinstance(component, str):
             component = jsonlib.load(pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
@@ -521,7 +541,10 @@ class Dataset(object):
         self.auto_constraints(component)
         return component
 
-    def add_columns(self, table, *cols):
+    def add_columns(self, table, *cols) -> None:
+        """
+        Add columns specified by `cols` to the table specified by `table`.
+        """
         table = self[table]
         for col in cols:
             existing = [c.name for c in table.tableSchema.columns]
@@ -641,18 +664,24 @@ class Dataset(object):
     # Add data
     #
     def add_sources(self, *sources, **kw):
+        """
+        Add sources to the dataset.
+
+        :param sources: Anything accepted by :meth:`pycldf.sources.Sources.add`.
+        """
         self.sources.add(*sources, **kw)
 
     #
     # Methods to read data
     #
-    def iter_rows(self, table, *cols):
+    def iter_rows(self, table, *cols) -> typing.Iterable[dict]:
         """
         Iterate rows in a table, resolving CLDF property names to local column names.
 
         :param table: Table name.
-        :param cols: List of CLDF property terms which must be resolved in resulting `dict` s
-        :return: Generator
+        :param cols: List of CLDF property terms which must be resolved in resulting `dict` s. \
+        I.e. the row dicts will be augmented with copies of the values keyed with CLDF property \
+        terms.
         """
         cmap = {self[table, col].name: col for col in cols}
         for item in self[table]:
@@ -661,9 +690,11 @@ class Dataset(object):
                 item[v] = item[k]
             yield item
 
-    def get_row(self, table, id_):
+    def get_row(self, table, id_) -> dict:
         """
-        Retrieve a row specified by table and id.
+        Retrieve a row specified by table and CLDF id.
+
+        :raises ValueError: If no matching row is found.
         """
         id_col = self[table, TERMS['id']]
         for row in self[table]:
@@ -671,9 +702,10 @@ class Dataset(object):
                 return row
         raise ValueError(id_)  # pragma: no cover
 
-    def get_row_url(self, table, row):
+    def get_row_url(self, table, row) -> typing.Union[str, None]:
         """
         Get a URL associated with a row. Tables can specify associated row URLs by
+
         - listing **one** column with datatype `anyURI` or
         - specfying a `valueUrl` property for their ID column.
 
@@ -698,12 +730,12 @@ class Dataset(object):
         if id_col.valueUrl:
             return id_col.valueUrl.expand(**row)
 
-    def objects(self, table, cls=None):
+    def objects(self, table, cls=None) -> DictTuple:
         """
-        Read data of a CLDF component as `pycldf.orm.Object` instances.
+        Read data of a CLDF component as :class:`pycldf.orm.Object` instances.
 
         :param table: table to read, specified as component name.
-        :param cls: `orm.Object` subclass to instantiate objects with.
+        :param cls: :class:`pycldf.orm.Object` subclass to instantiate objects with.
         :return:
         """
         cls = cls or ORM_CLASSES[table]
@@ -718,7 +750,10 @@ class Dataset(object):
 
         return DictTuple(self._objects[table].values())
 
-    def get_object(self, table, id_, cls=None, pk=False):
+    def get_object(self, table, id_, cls=None, pk=False) -> orm.Object:
+        """
+        Get a row of a component as :class:`pycldf.orm.Object` instance.
+        """
         if table not in self._objects:
             self.objects(table, cls=cls)
         return self._objects[table][id_] if not pk else self._objects_by_pk[table][id_]
@@ -727,12 +762,29 @@ class Dataset(object):
     # Methods for writing (meta)data to files:
     #
     def write_metadata(self, fname=None):
+        """
+        Write the CLDF metadata to a JSON file.
+
+        :fname: Path of a file to write to, or `None` to use the default name and write to \
+        :meth:`~pycldf.dataset.Dataset.directory`.
+        """
         return self.tablegroup.to_file(fname or self.tablegroup._fname)
 
     def write_sources(self):
+        """
+        Write the sources BibTeX file to :meth:`~pycldf.dataset.Dataset.bibpath`
+        """
         return self.sources.write(self.bibpath)
 
-    def write(self, fname=None, **table_items):
+    def write(self, fname=None, **table_items: typing.Dict[str, typing.List[dict]]):
+        """
+        Write metadata, sources and data. Metadata will be written to `fname` (as interpreted in
+        :meth:`pycldf.dataset.Dataset.write_metadata`); data files will be written to the file
+        specified by `csvw.Table.url` of the corresponding table, interpreted as path relative
+        to :meth:`~pycldf.dataset.Dataset.directory`.
+
+        :param table_items: Mapping of table specifications to lists of row dicts.
+        """
         if self.sources and not self.properties.get('dc:source'):
             self.properties['dc:source'] = 'sources.bib'
         self.write_sources()
@@ -744,11 +796,23 @@ class Dataset(object):
     #
     # Reporting
     #
-    def validate(self, log=None, validators=None, ontology_path=None):
+    def validate(
+            self,
+            log: logging.Logger = None,
+            validators: typing.List[typing.Tuple[str, str, callable]] = None,
+            ontology_path=None) -> bool:
         """
         Validate schema and data of a `Dataset`:
+
         - Make sure the schema follows the CLDF specification and
         - make sure the data is consistent with the schema.
+
+        :param log: a `logging.Logger` to write ERRORs and WARNINGs to. If `None`, an exception \
+        will be raised at the first problem.
+        :param validators: Custom validation rules, i.e. triples \
+        (tablespec, columnspec, attrs validator)
+        :raises ValueError: if a validation error is encountered (and `log` is `None`).
+        :return: Flag signaling whether schema and data are valid.
         """
         terms = Terms(ontology_path) or TERMS
         validators = validators or []
@@ -859,7 +923,12 @@ class Dataset(object):
 
         return success
 
-    def stats(self, exact=False):
+    def stats(self, exact=False) -> typing.List[typing.Tuple[str, str, int]]:
+        """
+        Compute summary statistics for the dataset.
+
+        :return: List of triples (table, type, rowcount).
+        """
         res = []
         for table in self.tables:
             dctype = table.common_props.get('dc:conformsTo')
@@ -937,3 +1006,37 @@ class StructureDataset(Dataset):
     @property
     def primary_table(self):
         return 'ValueTable'
+
+
+def sniff(p: pathlib.Path) -> bool:
+    """
+    Determine whether a file contains CLDF metadata.
+
+    :param p: `pathlib.Path` object for an existing file.
+    :return: `True` if the file contains CLDF metadata, `False` otherwise.
+    """
+    with p.open('rb') as fp:
+        c = fp.read(10)
+        try:
+            c = c.decode('utf8').strip()
+        except UnicodeDecodeError:
+            return False
+        if not c.startswith('{'):
+            return False
+    try:
+        d = jsonlib.load(p)
+    except json.decoder.JSONDecodeError:
+        return False
+    return d.get('dc:conformsTo', '').startswith(TERMS_URL)
+
+
+def iter_datasets(d: pathlib.Path) -> typing.Iterable[Dataset]:
+    """
+    Discover CLDF datasets - by identifying metadata files - in a directory.
+
+    :param d: directory
+    :return: generator of `Dataset` instances.
+    """
+    for p in walk(d, mode='files'):
+        if sniff(p):
+            yield Dataset.from_metadata(p)

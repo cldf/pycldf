@@ -3,10 +3,10 @@ Functionality to load a CLDF dataset into a sqlite db.
 
 To make the resulting SQLite database useful without access to the datasets metadata, we
 use terms of the CLDF ontology for database objects as much as possible, i.e.
-- table names are component names (e.g. "ValueTable" for a table with propertyUrl
+- table names are component names (e.g. "ValueTable" for a table with propertyUrl \
   http://cldf.clld.org/v1.0/terms.rdf#ValueTable)
-- column names are property names, prefixed with "cldf_" (e.g. a column with propertyUrl
-  http://cldf.clld.org/v1.0/terms.rdf#id will be "cldf_id" in the database)
+- column names are property names, prefixed with "cldf" + UNDERSCORE (e.g. a column with \
+  propertyUrl http://cldf.clld.org/v1.0/terms.rdf#id will be "cldf_id" in the database)
 
 This naming scheme also extends to automatically created association tables. I.e. when a
 table specifies a list-valued foreign key, an association table is created to implement this
@@ -17,6 +17,8 @@ many-to-many relationship. The name of the association table is the concatenatio
 E.g. a list-valued foreign key from the FormTable to the ParameterTable will result in an
 association table
 
+.. code-block:: sql
+
   CREATE TABLE `FormTable_ParameterTable` (
     `FormTable_cldf_id` TEXT,
     `ParameterTable_cldf_id` TEXT,
@@ -26,6 +28,8 @@ association table
   );
 
 while a list-valued foreign key to a custom table may result in something like this
+
+.. code-block:: sql
 
   CREATE TABLE `FormTable_custom.csv` (
     `FormTable_cldf_id` TEXT,

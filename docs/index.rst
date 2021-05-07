@@ -6,11 +6,20 @@
 Welcome to pycldf's documentation!
 ==================================
 
+For installation instructions, a quick overview and details about
+the CLI, see
+`the README <https://github.com/cldf/pycldf/blob/master/README.md>`_
+
+Follow the links below for documentation of the pycldf Python API.
+
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    dataset
+   orm
+   db
 
 
 Indices and tables

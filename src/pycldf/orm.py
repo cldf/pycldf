@@ -2,38 +2,43 @@
 Object oriented (read-only) access to CLDF data
 
 To read ORM objects from a `pycldf.Dataset`, use two methods
-- `pycldf.Dataset.objects`
-- `pycldf.Dataset.get_object`
+
+* `pycldf.Dataset.objects`
+* `pycldf.Dataset.get_object`
 
 Both will return default implementations of the objects, i.e. instances of the corresponding
 class defined in this module. To customize these objects,
-- subclass the default and specify
-  the appropriate component (i.e. the table of the CLDF dataset which holds rows to be transformed
-  to this type):
 
-  ```python
-  from pycldf.orm import Language
+1. subclass the default and specify \
+   the appropriate component (i.e. the table of the CLDF dataset which holds rows to be transformed\
+   to this type):
 
-  class Variety(Language):
-      __component__ = 'LanguageTable'
+   .. code-block:: python
 
-      def custom_method(self):
-          pass
-  ```
-- pass the class into the `objects` or `get_object` method.
+      from pycldf.orm import Language
+
+      class Variety(Language):
+          __component__ = 'LanguageTable'
+
+          def custom_method(self):
+              pass
+
+2. pass the class into the `objects` or `get_object` method.
 
 Limitations:
-- We only support foreign key constraints for CLDF reference properties targeting either a
-  component's CLDF id or its primary key. This is because CSVW does not support unique constraints
+------------
+* We only support foreign key constraints for CLDF reference properties targeting either a \
+  component's CLDF id or its primary key. This is because CSVW does not support unique constraints \
   other than the one implied by the primary key declaration.
-- This functionality comes with the typical "more convenient API vs. less performance and bigger
-  memory footprint" trade-off. If you are running into problems with this, you might want to load
-  your data into a SQLite db using the `pycldf.db` module, and access via SQL.
-  Some numbers (to be interpreted relative to each other):
+* This functionality comes with the typical "more convenient API vs. less performance and bigger \
+  memory footprint" trade-off. If you are running into problems with this, you might want to load \
+  your data into a SQLite db using the `pycldf.db` module, and access via SQL. \
+  Some numbers (to be interpreted relative to each other): \
   Reading ~400,000 rows from a ValueTable of a StructureDataset takes
-  - ~2secs with csvcut, i.e. only making sure it's valid CSV
-  - ~15secs iterating over pycldf.Dataset['ValueTable']
-  - ~35secs iterating over pycldf.Dataset.objects('ValueTable')
+
+  * ~2secs with csvcut, i.e. only making sure it's valid CSV
+  * ~15secs iterating over pycldf.Dataset['ValueTable']
+  * ~35secs iterating over pycldf.Dataset.objects('ValueTable')
 """
 import argparse
 import collections
