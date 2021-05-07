@@ -1,4 +1,5 @@
 import re
+import typing
 import pathlib
 import argparse
 import collections
@@ -28,6 +29,9 @@ class Writer(BaseWriter):
 
 
 class Source(BaseSource):
+    """
+    A bibliograhical record, specifying a source for some data in a CLDF dataset.
+    """
     @property
     def entry(self):
         persons = collections.OrderedDict([
@@ -76,7 +80,11 @@ class Source(BaseSource):
 
 
 class Reference(object):
-    def __init__(self, source, desc):
+    """
+    A reference connects a piece of data with a `Source`, typically adding some citation context \
+    often page numbers, or similar.
+    """
+    def __init__(self, source: Source, desc: typing.Union[str, None]):
         if desc and ('[' in desc or ']' in desc or ';' in desc):
             raise ValueError('invalid ref description: %s' % desc)
         self.source = source
@@ -84,6 +92,11 @@ class Reference(object):
         self.description = desc
 
     def __str__(self):
+        """
+        String representation of a reference according to the CLDF specification.
+
+        .. seealso:: https://github.com/cldf/cldf#sources
+        """
         res = self.source.id if hasattr(self.source, 'id') else self.source
         if self.description:
             res += '[%s]' % self.description
@@ -94,6 +107,9 @@ class Reference(object):
 
 
 class Sources(object):
+    """
+    A `dict` like container for all sources linked to data in a CLDF dataset.
+    """
     def __init__(self):
         self._bibdata = database.BibliographyData()
 
@@ -141,7 +157,12 @@ class Sources(object):
         return ['%s' % ref for ref in refs]
 
     @staticmethod
-    def parse(ref):
+    def parse(ref: str) -> typing.Tuple[str, str]:
+        """
+        Parse the string representation of a reference into source ID and context.
+
+        :raises ValueError: if the reference does not match the expected format.
+        """
         sid, pages = ref.strip(), None
         if '[' in sid:
             sid, pages = [ss.strip() for ss in sid.split('[', 1)]
@@ -155,7 +176,19 @@ class Sources(object):
             if sid not in self.keys():
                 raise ValueError('missing source key: {0}'.format(sid))
 
-    def expand_refs(self, refs, **kw):
+    def expand_refs(self, refs: typing.Iterable[str], **kw) -> typing.Iterable[Reference]:
+        """
+        Turn a list of string references into proper :class:`Reference` instances, looking up \
+        sources in `self`.
+
+        This can be used from a :class:`pycldf.Dataset` as follows:
+
+        .. code-block:: python
+
+            >>> for row in dataset.iter_rows('ValueTable', 'source'):
+            ...     for ref in dataset.sources.expand_refs(row['source']):
+            ...         print(ref.source)
+        """
         for sid, pages in map(
                 self.parse, [refs] if isinstance(refs, str) else refs):
             if sid not in self and GLOTTOLOG_ID_PATTERN.match(sid):
@@ -200,9 +233,9 @@ class Sources(object):
                 Writer().write_stream(bibdata, fp)
             return fname
 
-    def add(self, *entries, **kw):
+    def add(self, *entries: typing.Union[str, Source], **kw):
         """
-        Add a source, either specified by glottolog reference id, or as bibtex record.
+        Add a source, either specified as BibTeX string or as :class:`Source`.
         """
         for entry in entries:
             if isinstance(entry, str):

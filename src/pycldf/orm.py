@@ -42,6 +42,7 @@ Limitations:
 """
 import argparse
 import collections
+import typing
 
 import csvw.metadata
 from tabulate import tabulate
@@ -49,17 +50,28 @@ from clldutils.misc import lazyproperty
 
 from pycldf.terms import TERMS, term_uri
 from pycldf.util import DictTuple
+from pycldf.sources import Reference
 
 
 class Object:
     """
     Represents a row of a CLDF component table.
+
+    Subclasses of `Object` are instantiated when calling `Dataset.objects` or `Dataset.get_object`.
+
+    :ivar dataset: Reference to the `Dataset` instance, this object was loaded from.
+    :ivar data: An `OrderedDict` with a copy of the row the object was instantiated with.
+    :ivar cldf: A `dict` with CLDF-specified properties of the row, keyed with CLDF terms.
+    :ivar id: The value of the CLDF id property of the row.
+    :ivar name: The value of the CLDF name property of the row.
+    :ivar description: The value of the CLDF description property of the row.
+    :ivar pk: The value of the column specified as primary key for the table. (May differ from id)
     """
     # If a subclass name can not be used to derive the CLDF component name, the component can be
     # specified here:
     __component__ = None
 
-    def __init__(self, dataset, row):
+    def __init__(self, dataset, row: dict):
         # Get a mapping of column names to pairs (CLDF property name, list-valued) for columns
         # present in the component specified by class name.
         cldf_cols = {
@@ -89,11 +101,15 @@ class Object:
         return '<{}.{} id="{}">'.format(self.__class__.__module__, self.__class__.__name__, self.id)
 
     @classmethod
-    def component_name(cls):
+    def component_name(cls) -> str:
         return cls.__component__ or (cls.__name__ + 'Table')
 
     @property
-    def component(self):
+    def component(self) -> str:
+        """
+        Name of the CLDF component the object belongs to. Can be used to lookup the corresponding \
+        table via `obj.dataset[obj.component_name()]`.
+        """
         return self.__class__.component_name()
 
     @property
@@ -119,23 +135,32 @@ class Object:
         if getattr(col, attr, None):
             return getattr(col, attr).expand(**variables)
 
-    def aboutUrl(self, col='id'):
+    def aboutUrl(self, col='id') -> typing.Union[str, None]:
+        """
+        The table's `aboutUrl` property, expanded with the object's row as context.
+        """
         return self._expand_uritemplate('aboutUrl', col)
 
     def valueUrl(self, col='id'):
+        """
+        The table's `valueUrl` property, expanded with the object's row as context.
+        """
         return self._expand_uritemplate('valueUrl', col)
 
     def propertyUrl(self, col='id'):
+        """
+        The table's `propertyUrl` property, expanded with the object's row as context.
+        """
         return self._expand_uritemplate('propertyUrl', col)
 
     @lazyproperty
-    def references(self):
+    def references(self) -> typing.Tuple[Reference]:
         """
+        `pycldf.Reference` instances associated with the object.
+
         >>> obj.references[0].source['title']
         >>> obj.references[0].fields.title
         >>> obj.references[0].description  # The "context", typically cited pages
-
-        :return: `list` of `pycldf.sources.Reference` objects.
         """
         return DictTuple(
             self.dataset.sources.expand_refs(getattr(self.cldf, 'source', []) or []),
@@ -143,7 +168,7 @@ class Object:
             multi=True,
         )
 
-    def related(self, relation):
+    def related(self, relation: str):
         """
         The CLDF ontology specifies several "reference properties". This method returns the first
         related object specified by such a property.
@@ -165,7 +190,7 @@ class Object:
                 raise NotImplementedError('pycldf does not support foreign key constraints '
                                           'referencing columns other than CLDF id or primary key.')
 
-    def all_related(self, relation):
+    def all_related(self, relation: str) -> typing.Union[DictTuple, list]:
         """
         CLDF reference properties can be list-valued. This method returns all related objects for
         such a property.
@@ -178,7 +203,7 @@ class Object:
         return []
 
 
-class WithLanguageMixin:
+class _WithLanguageMixin:
     @property
     def language(self):
         return self.related('languageReference')
@@ -188,7 +213,7 @@ class WithLanguageMixin:
         return self.all_related('languageReference')
 
 
-class WithParameterMixin:
+class _WithParameterMixin:
     @lazyproperty
     def parameter(self):
         return self.related('parameterReference')
@@ -208,7 +233,7 @@ class Borrowing(Object):
         return self.related('sourceFormReference')
 
 
-class Code(Object, WithParameterMixin):
+class Code(Object, _WithParameterMixin):
     pass
 
 
@@ -226,13 +251,13 @@ class Cognate(Object):
         return self.related('cognatesetReference')
 
 
-class Entry(Object, WithLanguageMixin):
+class Entry(Object, _WithLanguageMixin):
     @property
     def senses(self):
         return DictTuple(v for v in self.dataset.objects('SenseTable') if self in v.entries)
 
 
-class Example(Object, WithLanguageMixin):
+class Example(Object, _WithLanguageMixin):
     @property
     def metaLanguage(self):
         return self.related('metaLanguageReference')
@@ -246,7 +271,7 @@ class Example(Object, WithLanguageMixin):
         )
 
 
-class Form(Object, WithLanguageMixin, WithParameterMixin):
+class Form(Object, _WithLanguageMixin, _WithParameterMixin):
     pass
 
 
@@ -338,7 +363,7 @@ class Sense(Object):
         return self.all_related('entryReference')
 
 
-class Value(Object, WithLanguageMixin, WithParameterMixin):
+class Value(Object, _WithLanguageMixin, _WithParameterMixin):
     @property
     def typed_value(self):
         if self.parameter.datatype:

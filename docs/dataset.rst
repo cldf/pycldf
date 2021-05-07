@@ -102,3 +102,26 @@ may not be known in advance where in a zip archive the metadata file may reside.
 
 .. autofunction:: pycldf.iter_datasets
 
+
+Sources
+~~~~~~~
+
+When constructing sources for a CLDF dataset in Python code, you may pass
+:class:`pycldf.Source` instances into :meth:`pycldf.Dataset.add_sources`,
+or use :meth:`pycldf.Reference.__str__` to format a row's `source` value
+properly.
+
+Direct access to :class:`pycldf.dataset.Sources` is rarely necessary (hence
+it is not available as import from `pycldf` directly), because each
+:class:`pycldf.Dataset` provides access to an apprpriately initialized instance
+in its `sources` attribute.
+
+.. autoclass:: pycldf.Source
+   :members:
+
+.. autoclass:: pycldf.Reference
+   :members: __str__
+
+.. autoclass:: pycldf.dataset.Sources
+   :members:
+

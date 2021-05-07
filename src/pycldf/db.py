@@ -39,6 +39,7 @@ while a list-valued foreign key to a custom table may result in something like t
     FOREIGN KEY(`custom.csv_id`) REFERENCES `custom.csv`(`id`) ON DELETE CASCADE
   );
 """
+import typing
 import pathlib
 import functools
 import collections
@@ -49,6 +50,8 @@ import csvw.db
 
 from pycldf.terms import TERMS
 from pycldf.sources import Reference, Sources, Source
+
+__all__ = ['Database']
 
 PRIMARY_KEY_NAMES = ['id', 'pk']
 BIBTEX_FIELDS = [
@@ -83,11 +86,14 @@ BIBTEX_FIELDS = [
 
 @attr.s
 class TableTranslation(object):
+    """
+    Specifies column name translations for a table.
+    """
     name = attr.ib(default=None)
     columns = attr.ib(default=attr.Factory(dict))
 
 
-def translate(d, table, col=None):
+def translate(d: typing.Dict[str, TableTranslation], table: str, col=None) -> str:
     """
     Translate a db object name.
 
@@ -114,9 +120,18 @@ def clean_bibtex_key(s):
 
 
 class Database(csvw.db.Database):
+    """
+    Extend the functionality provided by `csvw.db.Database` by
+
+    - providing consistent naming of schema objects according to CLDF semantics,
+    - integrating sources into the DB schema.
+    """
     source_table_name = 'SourceTable'
 
     def __init__(self, dataset, **kw):
+        """
+        :param dataset: a `pycldf.Dataset` instance.
+        """
         self.dataset = dataset
         self._retranslate = collections.defaultdict(dict)
         self._source_cols = ['id', 'genre'] + BIBTEX_FIELDS
@@ -225,7 +240,10 @@ class Database(csvw.db.Database):
         return csvw.db.Database.write(
             self, _force=False, _exists_ok=False, _skip_extra=True, **items)
 
-    def write_from_tg(self, _force=False, _exists_ok=False):
+    def write_from_tg(self, _force: bool = False, _exists_ok: bool = False):
+        """
+        Write the data from `self.dataset` to the database.
+        """
         items = {
             tname: list(t.iterdicts())
             for tname, t in self.tg.tabledict.items() if tname != self.source_table_name}
@@ -237,7 +255,10 @@ class Database(csvw.db.Database):
             items[self.source_table_name].append(item)
         return self.write(_force=_force, _exists_ok=_exists_ok, **items)
 
-    def query(self, sql, params=None):
+    def query(self, sql: str, params=None) -> list:
+        """
+        Run `sql` on the database, returning the list of results.
+        """
         with self.connection() as conn:
             cu = conn.execute(sql, params or ())
             return list(cu.fetchall())
@@ -261,12 +282,12 @@ class Database(csvw.db.Database):
                 item[attr_] = round(item[attr_], precision)
         return item
 
-    def to_cldf(self, dest, mdname='cldf-metadata.json', coordinate_precision=4):
+    def to_cldf(self, dest, mdname='cldf-metadata.json', coordinate_precision=4) -> pathlib.Path:
         """
         Write the data from the db to a CLDF dataset according to the metadata in `self.dataset`.
 
-        :param dest:
-        :param mdname:
+        :param dest: Destination directory for the CLDF data.
+        :param mdname: Name to use for the CLDF metadata file.
         :return: path of the metadata file
         """
         dest = pathlib.Path(dest)

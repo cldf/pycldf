@@ -95,6 +95,10 @@ For a specification of the resulting database schema refer to the documentation 
 
 ## Python API
 
+For a detailed documentation of the Python API, refer to the
+[docs on ReadTheDocs](https://pycldf.readthedocs.io/en/latest/index.html).
+
+
 ### Reading CLDF
 
 As an example, we'll read data from [WALS Online, v2020](https://github.com/cldf-datasets/wals/tree/v2020):
