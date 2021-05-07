@@ -80,6 +80,9 @@ class Object:
         self.name = getattr(self.cldf, 'name', None)
         self.description = getattr(self.cldf, 'name', None)
 
+    def __repr__(self):
+        return '<{}.{} id="{}">'.format(self.__class__.__module__, self.__class__.__name__, self.id)
+
     @classmethod
     def component_name(cls):
         return cls.__component__ or (cls.__name__ + 'Table')

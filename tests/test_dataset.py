@@ -95,6 +95,13 @@ def test_primary_table(ds):
     assert ds.primary_table is None
 
 
+def test_components(ds):
+    ds.add_component('LanguageTable')
+    ds.add_table('custom1.csv', 'id', **{'dc:conformsTo': None})
+    ds.add_table('custom2.csv', 'id', **{'dc:conformsTo': 'http://example.org'})
+    assert len(ds.components) == 1
+
+
 def test_column_access(ds):
     with pytest.raises(KeyError):
         assert ds['']

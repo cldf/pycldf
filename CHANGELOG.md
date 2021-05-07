@@ -8,3 +8,6 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 - More convenient access to targets of foreign key constraints via
   `Dataset.get_foreign_key_reference`
 - Existence of components/columns can now be checked with `name in Dataset`  
+- Added `Dataset.components` property, to allow convenient access to components
+  specified in a dataset.
+- Enhanced and refactored documentation.  

@@ -6,6 +6,7 @@ import collections
 import urllib.parse
 
 import attr
+import csvw
 from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url
 from csvw import datatypes
 from csvw.dsv import iterrows
@@ -21,13 +22,19 @@ from pycldf import orm
 
 __all__ = [
     'Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset',
-    'iter_datasets']
+    'iter_datasets', 'sniff']
 
 MD_SUFFIX = '-metadata.json'
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
 
 
 def sniff(p):
+    """
+    Determine whether a file contains CLDF metadata.
+
+    :param p: `pathlib.Path` object for an existing file.
+    :return: `True` if the file contains CLDF metadata, `False` otherwise.
+    """
     with p.open('rb') as fp:
         c = fp.read(10)
         try:
@@ -142,12 +149,117 @@ class Dataset(object):
     API to access a CLDF dataset.
     """
 
-    def __init__(self, tablegroup):
+    def __init__(self, tablegroup: csvw.TableGroup):
+        """
+        A `Dataset` is initialized passing a TableGroup. For convenience methods to get such a
+        TableGroup, see the factory methods below.
+        """
         self.tablegroup = tablegroup
         self.auto_constraints()
         self.sources = Sources.from_file(self.bibpath)
         self._objects = collections.defaultdict(collections.OrderedDict)
         self._objects_by_pk = collections.defaultdict(collections.OrderedDict)
+
+    #
+    # Factory methods to create `Dataset` instances.
+    #
+    @classmethod
+    def in_dir(cls, d, empty_tables=False):
+        """
+        Create a `Dataset` in a (possibly empty or even non-existing) directory.
+
+        The dataset will be initialized with the default metadata for the respective module.
+        """
+        fname = pathlib.Path(d)
+        if not fname.exists():
+            fname.mkdir()
+        assert fname.is_dir()
+        res = cls.from_metadata(fname)
+        if empty_tables:
+            del res.tables[:]
+        return res
+
+    @classmethod
+    def from_metadata(cls, fname):
+        """
+        Initialize a `Dataset` with the metadata found at `fname`.
+
+        :param fname: A URL (`str`) or a local path (`str` or `pathlib.Path`). \
+        If `fname` points to a directory, the default metadata for the respective module will be \
+        read.
+        """
+        if is_url(fname):
+            tablegroup = TableGroup.from_url(fname)
+        else:
+            fname = pathlib.Path(fname)
+            if fname.is_dir():
+                name = '{0}{1}'.format(cls.__name__, MD_SUFFIX)
+                tablegroup = TableGroup.from_file(pkg_path('modules', name))
+                # adapt the path of the metadata file such that paths to tables are resolved
+                # correctly:
+                tablegroup._fname = fname.joinpath(name)
+            else:
+                tablegroup = TableGroup.from_file(fname)
+
+        comps = collections.Counter()
+        for table in tablegroup.tables:
+            try:
+                dt = Dataset.get_tabletype(table)
+                if dt:
+                    comps.update([dt])
+            except ValueError:
+                pass
+        if comps and comps.most_common(1)[0][1] > 1:
+            raise ValueError('{0}: duplicate components!'.format(fname))
+
+        for mod in get_modules():
+            if mod.match(tablegroup):
+                return mod.cls(tablegroup)
+        return cls(tablegroup)
+
+    @classmethod
+    def from_data(cls, fname):
+        """
+        Initialize a `Dataset` from a single CLDF data file.
+
+        See https://github.com/cldf/cldf#metadata-free-conformance
+        """
+        fname = pathlib.Path(fname)
+        colnames = next(iterrows(fname), [])
+        if not colnames:
+            raise ValueError('empty data file!')
+        if cls is Dataset:
+            try:
+                cls = next(mod.cls for mod in get_modules() if mod.match(fname))
+            except StopIteration:
+                raise ValueError('{0} does not match a CLDF module spec'.format(fname))
+            assert issubclass(cls, Dataset) and cls is not Dataset
+
+        res = cls.from_metadata(fname.parent)
+        required_cols = {
+            c.name for c in res[res.primary_table].tableSchema.columns
+            if c.required}
+        if not required_cols.issubset(colnames):
+            raise ValueError('missing columns: %r' % sorted(required_cols.difference(colnames)))
+        return res
+
+    #
+    # Accessing dataset metadata
+    #
+    @property
+    def directory(self):
+        return self.tablegroup._fname.parent if self.tablegroup._fname else self.tablegroup.base
+
+    @property
+    def module(self):
+        return self.properties['dc:conformsTo'].split('#')[1]
+
+    @property
+    def version(self):
+        return self.properties['dc:conformsTo'].split('/')[3]
+
+    def __repr__(self):
+        return '<cldf:%s:%s at %s>' % (self.version, self.module, self.directory)
 
     @property
     def metadata_dict(self):
@@ -158,8 +270,135 @@ class Dataset(object):
         return self.tablegroup.common_props
 
     @property
+    def bibpath(self):
+        # Specifying "dc:source": "" means lookup the default location.
+        if is_url(self.directory):
+            return urllib.parse.urljoin(
+                self.directory, self.properties.get('dc:source') or 'sources.bib')
+        return self.directory.joinpath(self.properties.get('dc:source') or 'sources.bib')
+
+    @property
+    def bibname(self):
+        if is_url(self.bibpath):
+            return pathlib.Path(urllib.parse.urlparse(self.bibpath).path).name
+        return self.bibpath.name
+
+    #
+    # Accessing schema objects (components, tables, columns, foreign keys)
+    #
+    @property
     def tables(self):
         return self.tablegroup.tables
+
+    @property
+    def components(self):
+        res = collections.OrderedDict()
+        for table in self.tables:
+            comp = None
+            try:
+                comp = self.get_tabletype(table)
+            except ValueError:
+                pass
+            if comp:
+                res[comp] = table
+        return res
+
+    @staticmethod
+    def get_tabletype(table):
+        if table.common_props.get('dc:conformsTo', '') is None:
+            return None
+        if '#' in table.common_props.get('dc:conformsTo', ''):
+            res = table.common_props['dc:conformsTo'].split('#')[1]
+            if res in TERMS:
+                return res
+        raise ValueError("Type {:} of table {:} is not a valid term.".format(
+            table.common_props.get('dc:conformsTo'),
+            table.url))
+
+    @property
+    def primary_table(self):
+        if self.tables:
+            try:
+                return self.get_tabletype(self.tables[0])
+            except ValueError:
+                return None
+
+    def __getitem__(self, item):
+        """
+        Access to tables and columns.
+
+        If a pair (table-spec, column-spec) is passed as `item`, a Column will be
+        returned, otherwise `item` is assumed to be a table-spec.
+
+        A table-spec may be
+        - a CLDF ontology URI matching the dc:conformsTo property of a table
+        - the local name of a CLDF ontology URI, where the complete URI matches the
+          the dc:conformsTo property of a table
+        - a filename matching the `url` property of a table
+
+        A column-spec may be
+        - a CLDF ontology URI matching the propertyUrl of a column
+        - the local name of a CLDF ontology URI, where the complete URI matches the
+          propertyUrl of a column
+        - the name of a column
+        """
+        if isinstance(item, tuple):
+            table, column = item
+        else:
+            table, column = item, None
+
+        if isinstance(table, Link):
+            table = table.string
+
+        if not isinstance(table, Table):
+            uri = term_uri(table, terms=TERMS.by_uri)
+            for t in self.tables:
+                if (uri and t.common_props.get('dc:conformsTo') == uri) \
+                        or t.url.string == table:
+                    break
+            else:
+                raise KeyError(table)
+        else:
+            t = table
+
+        if not column:
+            return t
+
+        uri = term_uri(column, terms=TERMS.by_uri)
+        for c in t.tableSchema.columns:
+            if (c.propertyUrl and c.propertyUrl.uri == uri) or c.header == column:
+                return c
+
+        raise KeyError(column)
+
+    def __contains__(self, item):
+        try:
+            self.__getitem__(item)
+            return True
+        except KeyError:
+            return False
+
+    def get(self, item, default=None):
+        try:
+            return self[item]
+        except KeyError:
+            return default
+
+    def get_foreign_key_reference(self, table, column):
+        """
+        Retrieve the reference of a foreign key constraint for the specified column.
+
+        :param table: Source table, specified by filename, component name or as `Table` instance.
+        :param column: Source column, specified by column name, CLDF term or as `Column` instance.
+        :return: A pair (`Table`, `Column`) specifying the reference column - or `None`.
+        """
+        table = self[table]
+        column = self[table, column]
+
+        for fk in table.tableSchema.foreignKeys:
+            if len(fk.columnReference) == 1 and fk.columnReference[0] == column.name:
+                return self[fk.reference.resource], \
+                    self[fk.reference.resource, fk.reference.columnReference[0]]
 
     @property
     def column_names(self):
@@ -185,6 +424,9 @@ class Dataset(object):
         """
         return get_column_names(self, use_component_names=True, with_multiplicity=True)
 
+    #
+    # Editing dataset metadata or schema
+    #
     def add_provenance(self, **kw):
         """
         Add metadata about the dataset's provenance.
@@ -213,9 +455,6 @@ class Dataset(object):
                         old.append(vv)
                 v = old
             self.tablegroup.common_props[k] = v
-
-    def add_sources(self, *sources, **kw):
-        self.sources.add(*sources, **kw)
 
     def add_table(self, url, *cols, **kw):
         """
@@ -398,21 +637,119 @@ class Dataset(object):
                 table.add_foreign_key(
                     col.name, ref.url.string, idcol.name if idcol is not None else 'ID')
 
-    @property
-    def bibpath(self):
-        # Specifying "dc:source": "" means lookup the default location.
-        if is_url(self.directory):
-            return urllib.parse.urljoin(
-                self.directory, self.properties.get('dc:source') or 'sources.bib')
-        return self.directory.joinpath(self.properties.get('dc:source') or 'sources.bib')
+    #
+    # Add data
+    #
+    def add_sources(self, *sources, **kw):
+        self.sources.add(*sources, **kw)
 
-    @property
-    def bibname(self):
-        if is_url(self.bibpath):
-            return pathlib.Path(urllib.parse.urlparse(self.bibpath).path).name
-        return self.bibpath.name
+    #
+    # Methods to read data
+    #
+    def iter_rows(self, table, *cols):
+        """
+        Iterate rows in a table, resolving CLDF property names to local column names.
 
+        :param table: Table name.
+        :param cols: List of CLDF property terms which must be resolved in resulting `dict`s.
+        :return: Generator
+        """
+        cmap = {self[table, col].name: col for col in cols}
+        for item in self[table]:
+            for k, v in cmap.items():
+                # Add CLDF properties as aliases for the corresponding values:
+                item[v] = item[k]
+            yield item
+
+    def get_row(self, table, id_):
+        """
+        Retrieve a row specified by table and id.
+        """
+        id_col = self[table, TERMS['id']]
+        for row in self[table]:
+            if row[id_col.name] == id_:
+                return row
+        raise ValueError(id_)  # pragma: no cover
+
+    def get_row_url(self, table, row):
+        """
+        Get a URL associated with a row. Tables can specify associated row URLs by
+        - listing **one** column with datatype `anyURI` or
+        - specfying a `valueUrl` property for their ID column.
+
+        For rows representing objects in web applications, this may be the objects URL. For
+        rows representing media files, it may be a URL locating the file on a media server.
+
+        :param table: Table specified in a way that `__getitem__` understands.
+        :param row: A row specified by ID or as `dict` as returned when iterating over a table.
+        :return: a `str` representing a URL or `None`.
+        """
+        row = row if isinstance(row, dict) else self.get_row(table, row)
+        id_col = None
+        for col in self[table].tableSchema.columns:
+            if col.datatype and col.datatype.base == datatypes.anyURI.__name__:
+                # If one of the columns in the table explicitly spacifies anyURI as datatype, we
+                # return the value of this column.
+                return row[col.name]
+            if str(col.propertyUrl) == 'http://cldf.clld.org/v1.0/terms.rdf#id':
+                # Otherwise we fall back to looking up the `valueUrl` property on the ID column.
+                id_col = col
+        assert id_col, 'no ID column found in table {}'.format(table)
+        if id_col.valueUrl:
+            return id_col.valueUrl.expand(**row)
+
+    def objects(self, table, cls=None):
+        """
+        Read data of a CLDF component as `pycldf.orm.Object` instances.
+
+        :param table: table to read, specified as component name.
+        :param cls: `orm.Object` subclass to instantiate objects with.
+        :return:
+        """
+        cls = cls or ORM_CLASSES[table]
+
+        # ORM usage is read-only, so we can cache the objects.
+        if table not in self._objects:
+            for item in self[table]:
+                item = cls(self, item)
+                self._objects[table][item.id] = item
+                if item.pk:
+                    self._objects_by_pk[table][item.pk] = item
+
+        return DictTuple(self._objects[table].values())
+
+    def get_object(self, table, id_, cls=None, pk=False):
+        if table not in self._objects:
+            self.objects(table, cls=cls)
+        return self._objects[table][id_] if not pk else self._objects_by_pk[table][id_]
+
+    #
+    # Methods for writing (meta)data to files:
+    #
+    def write_metadata(self, fname=None):
+        return self.tablegroup.to_file(fname or self.tablegroup._fname)
+
+    def write_sources(self):
+        return self.sources.write(self.bibpath)
+
+    def write(self, fname=None, **table_items):
+        if self.sources and not self.properties.get('dc:source'):
+            self.properties['dc:source'] = 'sources.bib'
+        self.write_sources()
+        for table_type, items in table_items.items():
+            table = self[table_type]
+            table.common_props['dc:extent'] = table.write(items)
+        self.write_metadata(fname)
+
+    #
+    # Reporting
+    #
     def validate(self, log=None, validators=None, ontology_path=None):
+        """
+        Validate schema and data of a `Dataset`:
+        - Make sure the schema follows the CLDF specification and
+        - make sure the data is consistent with the schema.
+        """
         terms = Terms(ontology_path) or TERMS
         validators = validators or []
         validators.extend(VALIDATORS)
@@ -522,218 +859,6 @@ class Dataset(object):
 
         return success
 
-    @property
-    def directory(self):
-        return self.tablegroup._fname.parent if self.tablegroup._fname else self.tablegroup.base
-
-    @property
-    def module(self):
-        return self.properties['dc:conformsTo'].split('#')[1]
-
-    @property
-    def version(self):
-        return self.properties['dc:conformsTo'].split('/')[3]
-
-    @classmethod
-    def in_dir(cls, d, empty_tables=False):
-        fname = pathlib.Path(d)
-        if not fname.exists():
-            fname.mkdir()
-        assert fname.is_dir()
-        res = cls.from_metadata(fname)
-        if empty_tables:
-            del res.tables[:]
-        return res
-
-    #
-    # Factory methods to create `Dataset` instances.
-    #
-    @classmethod
-    def from_metadata(cls, fname):
-        if is_url(fname):
-            tablegroup = TableGroup.from_url(fname)
-        else:
-            fname = pathlib.Path(fname)
-            if fname.is_dir():
-                name = '{0}{1}'.format(cls.__name__, MD_SUFFIX)
-                tablegroup = TableGroup.from_file(pkg_path('modules', name))
-                # adapt the path of the metadata file such that paths to tables are resolved
-                # correctly:
-                tablegroup._fname = fname.joinpath(name)
-            else:
-                tablegroup = TableGroup.from_file(fname)
-
-        comps = collections.Counter()
-        for table in tablegroup.tables:
-            try:
-                dt = Dataset.get_tabletype(table)
-                if dt:
-                    comps.update([dt])
-            except ValueError:
-                pass
-        if comps and comps.most_common(1)[0][1] > 1:
-            raise ValueError('{0}: duplicate components!'.format(fname))
-
-        for mod in get_modules():
-            if mod.match(tablegroup):
-                return mod.cls(tablegroup)
-        return cls(tablegroup)
-
-    @classmethod
-    def from_data(cls, fname):
-        fname = pathlib.Path(fname)
-        colnames = next(iterrows(fname), [])
-        if not colnames:
-            raise ValueError('empty data file!')
-        if cls is Dataset:
-            try:
-                cls = next(mod.cls for mod in get_modules() if mod.match(fname))
-            except StopIteration:
-                raise ValueError('{0} does not match a CLDF module spec'.format(fname))
-            assert issubclass(cls, Dataset) and cls is not Dataset
-
-        res = cls.from_metadata(fname.parent)
-        required_cols = {
-            c.name for c in res[res.primary_table].tableSchema.columns
-            if c.required}
-        if not required_cols.issubset(colnames):
-            raise ValueError('missing columns: %r' % sorted(required_cols.difference(colnames)))
-        return res
-
-    def __repr__(self):
-        return '<cldf:%s:%s at %s>' % (self.version, self.module, self.directory)
-
-    def __getitem__(self, item):
-        """
-        Access to tables and columns.
-
-        If a pair (table-spec, column-spec) is passed as `item`, a Column will be
-        returned, otherwise `item` is assumed to be a table-spec.
-
-        A table-spec may be
-        - a CLDF ontology URI matching the dc:conformsTo property of a table
-        - the local name of a CLDF ontology URI, where the complete URI matches the
-          the dc:conformsTo property of a table
-        - a filename matching the `url` property of a table
-
-        A column-spec may be
-        - a CLDF ontology URI matching the propertyUrl of a column
-        - the local name of a CLDF ontology URI, where the complete URI matches the
-          propertyUrl of a column
-        - the name of a column
-        """
-        if isinstance(item, tuple):
-            table, column = item
-        else:
-            table, column = item, None
-
-        if isinstance(table, Link):
-            table = table.string
-
-        if not isinstance(table, Table):
-            uri = term_uri(table, terms=TERMS.by_uri)
-            for t in self.tables:
-                if (uri and t.common_props.get('dc:conformsTo') == uri) \
-                        or t.url.string == table:
-                    break
-            else:
-                raise KeyError(table)
-        else:
-            t = table
-
-        if not column:
-            return t
-
-        uri = term_uri(column, terms=TERMS.by_uri)
-        for c in t.tableSchema.columns:
-            if (c.propertyUrl and c.propertyUrl.uri == uri) or c.header == column:
-                return c
-
-        raise KeyError(column)
-
-    def __contains__(self, item):
-        try:
-            self.__getitem__(item)
-            return True
-        except KeyError:
-            return False
-
-    def get(self, item, default=None):
-        try:
-            return self[item]
-        except KeyError:
-            return default
-
-    def get_foreign_key_reference(self, table, column):
-        """
-        Retrieve the reference of a foreign key constraint for the specified column.
-
-        :param table: Source table, specified by filename, component name or as `Table` instance.
-        :param column: Source column, specified by column name, CLDF term or as `Column` instance.
-        :return: A pair (`Table`, `Column`) specifying the reference column - or `None`.
-        """
-        table = self[table]
-        column = self[table, column]
-
-        for fk in table.tableSchema.foreignKeys:
-            if len(fk.columnReference) == 1 and fk.columnReference[0] == column.name:
-                return self[fk.reference.resource], \
-                    self[fk.reference.resource, fk.reference.columnReference[0]]
-
-    def get_row(self, table, id_):
-        id_col = self[table, TERMS['id']]
-        for row in self[table]:
-            if row[id_col.name] == id_:
-                return row
-        raise ValueError(id_)  # pragma: no cover
-
-    def get_row_url(self, table, row):
-        """
-        Get a URL associated with a row. Tables can specify associated row URLs by
-        - listing **one** column with datatype `anyURI` or
-        - specfying a `valueUrl` property for their ID column.
-
-        For rows representing objects in web applications, this may be the objects URL. For
-        rows representing media files, it may be a URL locating the file on a media server.
-
-        :param table: Table specified in a way that `__getitem__` understands.
-        :param row: A row specified by ID or as `dict` as returned when iterating over a table.
-        :return: a `str` representing a URL or `None`.
-        """
-        row = row if isinstance(row, dict) else self.get_row(table, row)
-        id_col = None
-        for col in self[table].tableSchema.columns:
-            if col.datatype and col.datatype.base == datatypes.anyURI.__name__:
-                # If one of the columns in the table explicitly spacifies anyURI as datatype, we
-                # return the value of this column.
-                return row[col.name]
-            if str(col.propertyUrl) == 'http://cldf.clld.org/v1.0/terms.rdf#id':
-                # Otherwise we fall back to looking up the `valueUrl` property on the ID column.
-                id_col = col
-        assert id_col, 'no ID column found in table {}'.format(table)
-        if id_col.valueUrl:
-            return id_col.valueUrl.expand(**row)
-
-    @staticmethod
-    def get_tabletype(table):
-        if table.common_props.get('dc:conformsTo', '') is None:
-            return None
-        if '#' in table.common_props.get('dc:conformsTo', ''):
-            res = table.common_props['dc:conformsTo'].split('#')[1]
-            if res in TERMS:
-                return res
-        raise ValueError("Type {:} of table {:} is not a valid term.".format(
-            table.common_props.get('dc:conformsTo'),
-            table.url))
-
-    @property
-    def primary_table(self):
-        if self.tables:
-            try:
-                return self.get_tabletype(self.tables[0])
-            except ValueError:
-                return None
-
     def stats(self, exact=False):
         res = []
         for table in self.tables:
@@ -748,61 +873,6 @@ class Dataset(object):
         if self.sources:
             res.append((self.bibname, 'Sources', len(self.sources)))
         return res
-
-    def write_metadata(self, fname=None):
-        return self.tablegroup.to_file(fname or self.tablegroup._fname)
-
-    def write_sources(self):
-        return self.sources.write(self.bibpath)
-
-    def write(self, fname=None, **table_items):
-        if self.sources and not self.properties.get('dc:source'):
-            self.properties['dc:source'] = 'sources.bib'
-        self.write_sources()
-        for table_type, items in table_items.items():
-            table = self[table_type]
-            table.common_props['dc:extent'] = table.write(items)
-        self.write_metadata(fname)
-
-    def iter_rows(self, table, *cols):
-        """
-        Iterate rows in a table, resolving CLDF property names to local column names.
-
-        :param table: Table name.
-        :param cols: List of CLDF property terms which must be resolved in resulting `dict`s.
-        :return: Generator
-        """
-        cmap = {self[table, col].name: col for col in cols}
-        for item in self[table]:
-            for k, v in cmap.items():
-                # Add CLDF properties as aliases for the corresponding values:
-                item[v] = item[k]
-            yield item
-
-    def objects(self, table, cls=None):
-        """
-        Read data of a CLDF component as `pycldf.orm.Object` instances.
-
-        :param table: table to read, specified as component name.
-        :param cls: `orm.Object` subclass to instantiate objects with.
-        :return:
-        """
-        cls = cls or ORM_CLASSES[table]
-
-        # ORM usage is read-only, so we can cache the objects.
-        if table not in self._objects:
-            for item in self[table]:
-                item = cls(self, item)
-                self._objects[table][item.id] = item
-                if item.pk:
-                    self._objects_by_pk[table][item.pk] = item
-
-        return DictTuple(self._objects[table].values())
-
-    def get_object(self, table, id_, cls=None, pk=False):
-        if table not in self._objects:
-            self.objects(table, cls=cls)
-        return self._objects[table][id_] if not pk else self._objects_by_pk[table][id_]
 
 
 class Generic(Dataset):

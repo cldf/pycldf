@@ -8,36 +8,167 @@ A python package to read and write [CLDF](http://cldf.clld.org) datasets.
 [![PyPI](https://img.shields.io/pypi/v/pycldf.svg)](https://pypi.org/project/pycldf)
 
 
-## Reading CLDF
+## Install
 
-```python
->>> from pycldf.dataset import Dataset
->>> dataset = Dataset.from_metadata('mydataset/Wordlist-metadata.json')
->>> print(dataset)
+Install `pycldf` from [PyPI](https://pypi.org/project/pycldf):
+```shell
+pip install pycldf
+```
+
+
+## Command line usage
+
+Installing the `pycldf` package will also install a command line interface `cldf`, which provides some sub-commands to manage CLDF datasets.
+
+
+### Summary statistics
+
+```shell
+$ cldf stats mydataset/Wordlist-metadata.json 
 <cldf:v1.0:Wordlist at mydataset>
 
-# what is the type of dataset?
->>> print(dataset.module)
-'Wordlist'
-
-# iterate over forms:
->>> for form in dataset['FormTable']:
->>>    print(form)
->>> [('ID', '1'), ('Language_ID', 'abcd1234'), ('Parameter_ID', '1277'), ('Value', 'word'), ('Segments', []), ('Comment', None), ('Source', ['Meier2005[3-7]'])]
-...
-
-# or get all of them
->>> forms = list(dataset['FormTable'])
->>> forms[0]
-OrderedDict([('ID', '1'), ('Language_ID', 'abcd1234'), ('Parameter_ID', '1277'), ('Value', 'word'), ('Segments', []), ('Comment', None), ('Source', ['Meier2005[3-7]'])])
-
-# references
->>> refs = list(dataset.sources.expand_refs(forms[0]['Source']))
->>> refs
-[<Reference Meier2005[3-7]>]
->>> print(refs[0].source)
-Meier, Hans. 2005. The Book.
+Path                   Type          Rows
+---------------------  ----------  ------
+forms.csv              Form Table       1
+mydataset/sources.bib  Sources          1
 ```
+
+
+### Validation
+
+Arguably the most important functionality of `pycldf` is validating CLDF datasets.
+
+By default, data files are read in strict-mode, i.e. invalid rows will result in an exception
+being raised. To validate a data file, it can be read in validating-mode.
+
+For example the following output is generated
+
+```sh
+$ cldf validate mydataset/forms.csv
+WARNING forms.csv: duplicate primary key: (u'1',)
+WARNING forms.csv:4:Source missing source key: Mei2005
+```
+
+when reading the file
+
+```
+ID,Language_ID,Parameter_ID,Value,Segments,Comment,Source
+1,abcd1234,1277,word,,,Meier2005[3-7]
+1,stan1295,1277,hand,,,Meier2005[3-7]
+2,stan1295,1277,hand,,,Mei2005[3-7]
+```
+
+
+### Extracting human readable metadata
+
+The information in a CLDF metadata file can be converted to [markdown](https://en.wikipedia.org/wiki/Markdown)
+(a human readable markup language) running
+```shell
+cldf markdown PATH/TO/metadata.json
+```
+A typical usage of this feature is to create a `README.md` for your dataset
+(which, when uploaded to e.g. GitHub will be rendered nicely in the browser).
+
+
+### Converting a CLDF dataset to an SQLite database
+
+A very useful feature of CSVW in general and CLDF in particular is that it
+provides enough metadata for a set of CSV files to load them into a relational
+database - including relations between tables. This can be done running the
+`cldf createdb` command:
+
+```shell script
+$ cldf createdb -h
+usage: cldf createdb [-h] [--infer-primary-keys] DATASET SQLITE_DB_PATH
+
+Load a CLDF dataset into a SQLite DB
+
+positional arguments:
+  DATASET               Dataset specification (i.e. path to a CLDF metadata
+                        file or to the data file)
+  SQLITE_DB_PATH        Path to the SQLite db file
+```
+
+For a specification of the resulting database schema refer to the documentation in
+[`src/pycldf/db.py`](src/pycldf/db.py).
+
+
+## Python API
+
+### Reading CLDF
+
+As an example, we'll read data from [WALS Online, v2020](https://github.com/cldf-datasets/wals/tree/v2020):
+
+```python
+>>> from pycldf import Dataset
+>>> wals2020 = Dataset.from_metadata('https://raw.githubusercontent.com/cldf-datasets/wals/v2020/cldf/StructureDataset-metadata.json')
+```
+
+For exploratory purposes, accessing a remote dataset over HTTP is fine. But for real analysis, you'd want to download
+the datasets first and then access them locally, passing a local file path to `Dataset.from_metadata`.
+
+Let's look at what we got:
+```python
+>>> print(wals2020)
+<cldf:v1.0:StructureDataset at https://raw.githubusercontent.com/cldf-datasets/wals/v2020/cldf/StructureDataset-metadata.json>
+>>> for c in wals2020.components:
+  ...     print(c)
+...
+ValueTable
+ParameterTable
+CodeTable
+LanguageTable
+ExampleTable
+```
+As expected, we got a [StructureDataset](https://github.com/cldf/cldf/tree/master/modules/StructureDataset), and in
+addition to the required `ValueTable`, we also have a couple more [components](https://github.com/cldf/cldf#cldf-components).
+
+We can investigate the values using [`pycldf`'s ORM](src/pycldf/orm.py) functionality, i.e. mapping rows in the CLDF
+data files to convenient python objects. (Take note of the limitations describe in [orm.py](src/pycldf/orm.py), though.)
+
+```python
+>>> for value in wals2020.objects('ValueTable'):
+  ...     break
+...
+>>> value
+<pycldf.orm.Value id="81A-aab">
+>>> value.language
+<pycldf.orm.Language id="aab">
+>>> value.language.cldf
+Namespace(glottocode=None, id='aab', iso639P3code=None, latitude=Decimal('-3.45'), longitude=Decimal('142.95'), macroarea=None, name='Arapesh (Abu)')
+>>> value.parameter
+<pycldf.orm.Parameter id="81A">
+>>> value.parameter.cldf
+Namespace(description=None, id='81A', name='Order of Subject, Object and Verb')
+>>> value.references
+(<Reference Nekitel-1985[94]>,)
+>>> value.references[0]
+<Reference Nekitel-1985[94]>
+>>> print(value.references[0].source.bibtex())
+@misc{Nekitel-1985,
+    olac_field = {syntax; general_linguistics; typology},
+    school     = {Australian National University},
+    title      = {Sociolinguistic Aspects of Abu', a Papuan Language of the Sepik Area, Papua New Guinea},
+    wals_code  = {aab},
+    year       = {1985},
+    author     = {Nekitel, Otto I. M. S.}
+}
+```
+
+If performance is important, you can just read rows of data as python `dict`s, in which case the references between
+tables must be resolved "by hand":
+
+```python
+>>> params = {r['id']: r for r in wals2020.iter_rows('ParameterTable', 'id', 'name')}
+>>> for v in wals2020.iter_rows('ValueTable', 'parameterReference'):
+    ...     print(params[v['parameterReference']]['name'])
+...     break
+...
+Order of Subject, Object and Verb
+```
+
+Note that we passed names of CLDF terms to `Dataset.iter_rows` (e.g. `id`) specifying which columns we want to access 
+by CLDF term - rather than by the column names they are mapped to in the dataset.
 
 
 ## Writing CLDF
@@ -136,70 +267,6 @@ details.
 The [`pycldf.db`](src/pycldf/db.py) module implements functionality
 to load CLDF data into a [SQLite](https://sqlite.org) database. Read its docstring for
 details.
-
-
-## Command line usage
-
-Installing the `pycldf` package will also install a command line interface `cldf`, which provides some sub-commands to manage CLDF datasets.
-
-
-### Summary statistics
-
-```sh
-$ cldf stats mydataset/Wordlist-metadata.json 
-<cldf:v1.0:Wordlist at mydataset>
-
-Path                   Type          Rows
----------------------  ----------  ------
-forms.csv              Form Table       1
-mydataset/sources.bib  Sources          1
-```
-
-
-### Validation
-
-By default, data files are read in strict-mode, i.e. invalid rows will result in an exception
-being raised. To validate a data file, it can be read in validating-mode.
-
-For example the following output is generated
-
-```sh
-$ cldf validate mydataset/forms.csv
-WARNING forms.csv: duplicate primary key: (u'1',)
-WARNING forms.csv:4:Source missing source key: Mei2005
-```
-
-when reading the file
-
-```
-ID,Language_ID,Parameter_ID,Value,Segments,Comment,Source
-1,abcd1234,1277,word,,,Meier2005[3-7]
-1,stan1295,1277,hand,,,Meier2005[3-7]
-2,stan1295,1277,hand,,,Mei2005[3-7]
-```
-
-
-### Converting a CLDF dataset to an SQLite database
-
-A very useful feature of CSVW in general and CLDF in particular is that it
-provides enough metadata for a set of CSV files to load them into a relational
-database - including relations between tables. This can be done running the
-`cldf createdb` command:
-
-```shell script
-$ cldf createdb -h
-usage: cldf createdb [-h] [--infer-primary-keys] DATASET SQLITE_DB_PATH
-
-Load a CLDF dataset into a SQLite DB
-
-positional arguments:
-  DATASET               Dataset specification (i.e. path to a CLDF metadata
-                        file or to the data file)
-  SQLITE_DB_PATH        Path to the SQLite db file
-```
-
-For a specification of the resulting database schema refer to the documentation in
-[`src/pycldf/db.py`](src/pycldf/db.py).
 
 
 ## See also

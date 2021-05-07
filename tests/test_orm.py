@@ -32,7 +32,9 @@ def test_custom_object_class(dataset2):
         def id_name(self):
             return '{} [{}]'.format(self.name, self.id)
 
-    assert dataset2.get_object('LanguageTable', 'l1', Variety).id_name() == 'Language 1 [l1]'
+    obj = dataset2.get_object('LanguageTable', 'l1', Variety)
+    assert obj.id_name() == 'Language 1 [l1]'
+    assert 'Variety' in repr(obj)
 
 
 def test_Object(dataset2):
