@@ -293,7 +293,7 @@ class Dataset(object):
                 raise ValueError('Duplicate column name: {0}'.format(col.name))
             if col.propertyUrl and col.propertyUrl.uri in existing:
                 raise ValueError('Duplicate column property: {0}'.format(col.propertyUrl.uri))
-            table.tableSchema.columns.append(make_column(col))
+            table.tableSchema.columns.append(col)
         self.auto_constraints()
 
     def remove_columns(self, table, *cols):
