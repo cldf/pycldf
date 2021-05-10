@@ -16,6 +16,7 @@ Releasing pycldf
 - Update the version number, by removing the trailing `.dev0` in:
   - `setup.py`
   - `src/pycldf/__init__.py`
+  - `docs/conf.py`
   - and edit `CHANGELOG.md`
 
 - Create the release commit:
@@ -47,6 +48,7 @@ Releasing pycldf
 - Change version for the next release cycle, i.e. incrementing and adding .dev0
   - `setup.py`
   - `src/pycldf/__init__.py`
+  - `docs/conf.py`
 
 - Commit/push the version change:
   ```shell
