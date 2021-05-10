@@ -4,6 +4,9 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+
+## [1.21.0] - 2021-05-10
+
 - Support for "typed values" in `StructureDataset`s
 - More convenient access to targets of foreign key constraints via
   `Dataset.get_foreign_key_reference`
