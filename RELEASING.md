@@ -13,6 +13,12 @@ Releasing pycldf
   flake8 src
   ```
 
+- Make sure the docs render:
+  ```shell
+  cd docs
+  make clean html
+  ```
+
 - Update the version number, by removing the trailing `.dev0` in:
   - `setup.py`
   - `src/pycldf/__init__.py`
