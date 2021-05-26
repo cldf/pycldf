@@ -5,6 +5,11 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 
+## [1.21.1] - 2021-05-26
+
+- Updates to account for CLDF 1.1.2
+
+
 ## [1.21.0] - 2021-05-10
 
 - Support for "typed values" in `StructureDataset`s
