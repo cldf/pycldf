@@ -5,6 +5,11 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 
+## [1.21.2] - 2021-05-28
+
+- Fixed regression (see #140)
+
+
 ## [1.21.1] - 2021-05-26
 
 - Updates to account for CLDF 1.1.2
