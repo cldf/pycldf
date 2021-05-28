@@ -11,7 +11,7 @@ from pybtex.database.output.bibtex import Writer as BaseWriter
 from clldutils.source import Source as BaseSource
 from clldutils.source import ID_PATTERN
 
-__all__ = ['Source', 'Reference']
+__all__ = ['Source', 'Sources', 'Reference']
 
 GLOTTOLOG_ID_PATTERN = re.compile('^[1-9][0-9]*$')
 
