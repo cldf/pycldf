@@ -1,10 +1,10 @@
+import shutil
 import logging
 import warnings
 
 import pytest
 
 from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Link, Datatype
-from clldutils.path import copy
 
 from pycldf.terms import term_uri, TERMS
 from pycldf.dataset import (
@@ -432,7 +432,7 @@ def test_modules(tmp_path):
 
 def test_Dataset_from_scratch(tmp_path, data):
     # An unknown file name cannot be used with Dataset.from_data:
-    copy(data / 'ds1.csv', tmp_path / 'xyz.csv')
+    shutil.copy(data / 'ds1.csv', tmp_path / 'xyz.csv')
     with pytest.raises(ValueError):
         Dataset.from_data(tmp_path / 'xyz.csv')
 
@@ -443,7 +443,7 @@ def test_Dataset_from_scratch(tmp_path, data):
         ds = Dataset.from_data(tmp_path / 'values.csv')
 
     # A known file name will determine the CLDF module of the dataset:
-    copy(data / 'ds1.csv', tmp_path / 'values.csv')
+    shutil.copy(data / 'ds1.csv', tmp_path / 'values.csv')
     with warnings.catch_warnings(record=True):
         warnings.simplefilter("always")
         ds = Dataset.from_data(tmp_path / 'values.csv')
@@ -727,7 +727,7 @@ def test_Dataset_write(tmp_path):
 
 
 def test_validators(tmp_path, data, caplog):
-    copy(str(data / 'invalid.csv'), tmp_path / 'values.csv')
+    shutil.copy(str(data / 'invalid.csv'), tmp_path / 'values.csv')
     ds = Dataset.from_data(tmp_path / 'values.csv')
 
     with pytest.raises(ValueError):

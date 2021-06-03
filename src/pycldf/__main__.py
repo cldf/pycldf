@@ -1,7 +1,9 @@
+import csv
 import sys
 import contextlib
 
-from clldutils.clilib import register_subcommands, get_parser_and_subparsers, ParserError
+from clldutils.clilib import (
+    register_subcommands, get_parser_and_subparsers, ParserError, add_csv_field_size_limit)
 from clldutils.loglib import Logging
 
 import pycldf.commands
@@ -9,6 +11,7 @@ import pycldf.commands
 
 def main(args=None, catch_all=False, parsed_args=None, log=None):
     parser, subparsers = get_parser_and_subparsers('cldf')
+    add_csv_field_size_limit(parser, default=csv.field_size_limit())
     register_subcommands(subparsers, pycldf.commands)
 
     args = parsed_args or parser.parse_args(args=args)
