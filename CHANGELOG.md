@@ -5,6 +5,13 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 
+##  [1.22.0] - 2021-06-04
+
+- Fixed bug whereby CSV files with large field content could not be read due to
+  Python's `csv.field_size_limit`. Would have been a patch release, but requires
+  `clldutils>=3.9` now, making this a minor change.
+
+
 ## [1.21.2] - 2021-05-28
 
 - Fixed regression (see #140)

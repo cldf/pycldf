@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pycldf',
-    version='1.21.3.dev0',
+    version='1.22.0',
     author='Robert Forkel',
     author_email='robert_forkel@eva.mpg.de',
     description='A python library to read and write CLDF datasets',
@@ -36,7 +36,7 @@ setup(
             'pyglottolog',
             'pyconcepticon',
         ],
-        'dev': ['flake8', 'wheel', 'twine'],
+        'dev': ['tox', 'flake8', 'wheel', 'twine'],
         'test': [
             'cldfcatalog',
             'pyglottolog',
@@ -46,10 +46,16 @@ setup(
             'pytest-cov',
             'coverage>=4.2',
         ],
+        'docs': [
+            'sphinx',
+            'sphinx-autodoc-typehints',
+            'sphinx-rtd-theme',
+        ],
     },
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
         'Operating System :: OS Independent',
