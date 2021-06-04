@@ -17,6 +17,7 @@ Releasing pycldf
   ```shell
   cd docs
   make clean html
+  cd ..
   ```
 
 - Update the version number, by removing the trailing `.dev0` in:
@@ -35,13 +36,10 @@ Releasing pycldf
   git tag -a v<VERSION> -m"<VERSION> release"
   ```
 
-- Release to PyPI (see https://github.com/di/markdown-description-example/issues/1#issuecomment-374474296):
+- Release to PyPI:
   ```shell
   rm dist/*
-  python setup.py sdist
-  twine upload dist/*
-  rm dist/*
-  python setup.py bdist_wheel
+  python setup.py sdist bdist_wheel
   twine upload dist/*
   ```
 
