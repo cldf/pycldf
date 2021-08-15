@@ -4,6 +4,11 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+##  [1.23.0] - 2021-08-15
+
+- Support copying datasets (see #143)
+- Added `Source.refkey` method (see #142)
+
 
 ##  [1.22.0] - 2021-06-04
 
