@@ -793,3 +793,30 @@ def test_Dataset_get_foreign_key_target(tmp_path):
     assert c.name == 'ID'
 
     assert ds.get_foreign_key_reference('values.csv', 'Value') is None
+
+
+def test_Dataset_copy(tmp_path):
+    tmp_path.joinpath('data').mkdir()
+    ds = StructureDataset.in_dir(tmp_path)
+    ds.add_table('data/sets.csv', 'ID', 'Name')
+    ds.add_columns('ValueTable', 'Set_ID')
+    ds.add_foreign_key('ValueTable', 'Set_ID', 'data/sets.csv', 'ID')
+    ds.properties['dc:source'] = 'data/s.bib'
+    ds.add_sources('@book{src1,\ntitle="the Book"}')
+    ds.write(
+        fname=tmp_path / 'meta.js',
+        ValueTable=[dict(
+            ID='1', Value='x', Language_ID='l', Parameter_ID='p', Source=['src1'], Set_ID='s')],
+        **{'data/sets.csv': [dict(ID='s', Name='the set')]}
+    )
+    ds = Dataset.from_metadata(tmp_path / 'meta.js')
+    assert ds.validate()
+
+    dest = tmp_path / 'new' / 'location'
+    ds.copy(dest, mdname='md.json')
+    copy = Dataset.from_metadata(dest / 'md.json')
+    assert copy.validate()
+
+    # Make sure all file references are relative:
+    shutil.copytree(dest, tmp_path / 'moved')
+    assert Dataset.from_metadata(tmp_path / 'moved' / 'md.json').validate()

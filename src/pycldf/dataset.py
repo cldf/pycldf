@@ -1,13 +1,15 @@
-import argparse
-import logging
 import sys
 import json
+import shutil
 import typing
+import logging
 import pathlib
+import argparse
 import itertools
 import collections
 import collections.abc
 import urllib.parse
+import urllib.request
 
 import attr
 import csvw
@@ -776,7 +778,7 @@ class Dataset(object):
         """
         return self.sources.write(self.bibpath)
 
-    def write(self, fname=None, **table_items: typing.Dict[str, typing.List[dict]]):
+    def write(self, fname=None, **table_items: typing.List[dict]):
         """
         Write metadata, sources and data. Metadata will be written to `fname` (as interpreted in
         :meth:`pycldf.dataset.Dataset.write_metadata`); data files will be written to the file
@@ -792,6 +794,55 @@ class Dataset(object):
             table = self[table_type]
             table.common_props['dc:extent'] = table.write(items)
         self.write_metadata(fname)
+
+    def copy(self, dest: typing.Union[str, pathlib.Path], mdname: str = None) -> pathlib.Path:
+        """
+        Copy metadata, data and sources to files in `dest`.
+
+        :param dest: Destination directory.
+        :param mdname: Name of the new metadata file.
+        :return: Path of the new CLDF metadata file.
+
+        This can be used together with :func:`iter_datasets` to extract CLDF data from their
+        curation context, e.g. cldfbench-curated datasets from the repository they are curated in.
+
+        .. code-block:: python
+
+            >>> from pycldf import iter_datasets
+            >>> for ds in iter_datasets('tests/data'):
+            ...     if 'with_examples' in ds.directory.name:
+            ...         ds.copy('some_directory', mdname='md.json')
+        """
+        dest = pathlib.Path(dest)
+        if not dest.exists():
+            dest.mkdir(parents=True)
+
+        from_url = is_url(self.tablegroup.base)
+        ds = Dataset.from_metadata(self.tablegroup.base if from_url else self.tablegroup._fname)
+
+        _getter = urllib.request.urlretrieve if from_url else shutil.copy
+        try:
+            _getter(self.bibpath, dest / self.bibname)
+            ds.properties['dc:source'] = self.bibname
+        except:  # pragma: no cover # noqa
+            # Sources are optional
+            pass
+
+        for table in ds.tables:
+            fname = table.url.resolve(table.base)
+            name = pathlib.Path(urllib.parse.urlparse(fname).path).name if from_url else fname.name
+            _getter(fname, dest / name)
+            table.url = Link(name)
+
+            for fk in table.tableSchema.foreignKeys:
+                fk.reference.resource = Link(pathlib.Path(fk.reference.resource.string).name)
+        mdpath = dest.joinpath(
+            mdname or  # noqa: W504
+            (self.tablegroup.base.split('/')[-1] if from_url else self.tablegroup._fname.name))
+        if from_url:
+            del ds.tablegroup.at_props['base']  # pragma: no cover
+        ds.write_metadata(fname=mdpath)
+        return mdpath
 
     #
     # Reporting
