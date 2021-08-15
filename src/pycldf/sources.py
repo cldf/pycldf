@@ -78,6 +78,15 @@ class Source(BaseSource):
                 else:
                     yield database.Person(name)
 
+    def refkey(self):
+        persons = self.entry.persons.get('author') or self.entry.persons.get('editor', [])
+        s = ' '.join(persons[0].last_names) if persons else 'n.a.'
+        if len(persons) == 2:
+            s += ' and {}'.format(' '.join(persons[1].last_names))
+        elif len(persons) > 2:
+            s += ' et al.'
+        return s.replace('{', '').replace('}', '') + ' ({})'.format(self.get('year', 'n.d.'))
+
 
 class Reference(object):
     """
