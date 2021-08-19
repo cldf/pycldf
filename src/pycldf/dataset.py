@@ -676,7 +676,7 @@ class Dataset(object):
     #
     # Methods to read data
     #
-    def iter_rows(self, table, *cols) -> typing.Iterable[dict]:
+    def iter_rows(self, table, *cols) -> typing.Iterator[dict]:
         """
         Iterate rows in a table, resolving CLDF property names to local column names.
 
@@ -1081,7 +1081,7 @@ def sniff(p: pathlib.Path) -> bool:
     return d.get('dc:conformsTo', '').startswith(TERMS_URL)
 
 
-def iter_datasets(d: pathlib.Path) -> typing.Iterable[Dataset]:
+def iter_datasets(d: pathlib.Path) -> typing.Iterator[Dataset]:
     """
     Discover CLDF datasets - by identifying metadata files - in a directory.
 
