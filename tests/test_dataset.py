@@ -9,7 +9,7 @@ from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Li
 from pycldf.terms import term_uri, TERMS
 from pycldf.dataset import (
     Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, GitRepository,
-    make_column, get_modules, iter_datasets)
+    make_column, get_modules, iter_datasets, SchemaError)
 
 
 @pytest.fixture
@@ -106,15 +106,31 @@ def test_column_access(ds):
     with pytest.raises(KeyError):
         assert ds['']
 
-    ds.add_component('ValueTable', url='datapoints.csv')
+    with pytest.raises(SchemaError):
+        _ = ds['ValueTable', 'xyz']
+
+    t = ds.add_component('ValueTable', url='datapoints.csv')
     assert 'ValueTable' in ds
+    assert t in ds
+    assert not Table.fromvalue({'url': 'abc.csv'}) in ds
     assert ds['ValueTable'] == ds['datapoints.csv']
 
     assert ('ValueTable', 'colx') not in ds
     with pytest.raises(KeyError):
         assert ds['ValueTable', 'colx']
 
+    with pytest.raises(SchemaError) as e:
+        _ = ds['ValueTable', Column.fromvalue({"name": "xyz"})]
+    assert "xyz" in str(e) and "datapoints.csv" in str(e)
+    t = ds['ValueTable']
+    assert all((t, c) in ds for c in t.tableSchema.columns)
     assert ds['ValueTable', 'Language_ID'] == ds['datapoints.csv', 'languageReference']
+
+    del ds['ValueTable', 'Language_ID']
+    assert ('ValueTable', 'Language_ID') not in ds
+
+    del ds[t]
+    assert 'ValueTable' not in ds
 
 
 def test_tabletype_none(ds):

@@ -28,10 +28,14 @@ from pycldf import orm
 
 __all__ = [
     'Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset',
-    'iter_datasets', 'sniff']
+    'iter_datasets', 'sniff', 'SchemaError']
 
 MD_SUFFIX = '-metadata.json'
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
+
+
+class SchemaError(KeyError):
+    pass
 
 
 @attr.s
@@ -349,7 +353,7 @@ class Dataset(object):
           propertyUrl of a column
         - the name of a column
 
-        :raises KeyError: If no matching table or column is found.
+        :raises SchemaError: If no matching table or column is found.
         """
         if isinstance(item, tuple):
             table, column = item
@@ -366,19 +370,36 @@ class Dataset(object):
                         or t.url.string == table:
                     break
             else:
-                raise KeyError(table)
+                raise SchemaError('Dataset has no table "{}"'.format(table))
         else:
-            t = table
+            if any(table is tt for tt in self.tables):
+                t = table
+            else:
+                raise SchemaError('Dataset has no table "{}"'.format(table))
 
         if not column:
             return t
+
+        if isinstance(column, Column):
+            if any(column is c for c in t.tableSchema.columns):
+                return column
+            else:
+                raise SchemaError('Dataset has no column "{}" in table "{}"'.format(
+                    column.name, t.url))
 
         uri = term_uri(column, terms=TERMS.by_uri)
         for c in t.tableSchema.columns:
             if (c.propertyUrl and c.propertyUrl.uri == uri) or c.header == column:
                 return c
 
-        raise KeyError(column)
+        raise SchemaError('Dataset has no column "{}" in table "{}"'.format(column, t.url))
+
+    def __delitem__(self, key):
+        thing = self[key]
+        if isinstance(thing, Column):
+            self.remove_columns(self[key[0]], thing)
+        else:
+            self.remove_table(thing)
 
     def __contains__(self, item) -> bool:
         """
@@ -396,7 +417,7 @@ class Dataset(object):
         """
         try:
             return self[item]
-        except KeyError:
+        except SchemaError:
             return default
 
     def get_foreign_key_reference(self, table, column) \
@@ -524,7 +545,6 @@ class Dataset(object):
             if other_table.url == component.url:
                 raise ValueError('tables must have distinct url properties')
 
-        self.add_columns(component, *cols)
         try:
             table_type = self.get_tabletype(component)
         except ValueError:
@@ -537,8 +557,9 @@ class Dataset(object):
                     continue
                 if other_table_type == table_type:
                     raise ValueError('components must not be added twice')
-
         self.tables.append(component)
+        self.add_columns(component, *cols)
+
         component._parent = self.tablegroup
         self.auto_constraints(component)
         return component
