@@ -256,22 +256,25 @@ passing
 Columns in a dataset can be referenced using a `Dataset`'s `__getitem__` method,
 passing a tuple `(<TABLE>, <COLUMN>)` where `<TABLE>` specifies a table as explained
 above and `<COLUMN>` is
-- a full CLD Ontolgy URI used as `propertyUrl` of the column,
+- a full CLDF Ontolgy URI used as `propertyUrl` of the column,
 - the `name` property of the column.
+
+See also https://pycldf.readthedocs.io/en/latest/dataset.html#accessing-schema-objects-components-tables-columns-etc
 
 
 ## Object oriented access to CLDF data
 
 The [`pycldf.orm`](src/pycldf/orm.py) module implements functionality
-to access CLDF data via an [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping). Read its docstring for
+to access CLDF data via an [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping).
+See https://pycldf.readthedocs.io/en/latest/orm.html for
 details.
 
 
 ## Accessing CLDF data via SQL
 
 The [`pycldf.db`](src/pycldf/db.py) module implements functionality
-to load CLDF data into a [SQLite](https://sqlite.org) database. Read its docstring for
-details.
+to load CLDF data into a [SQLite](https://sqlite.org) database. See https://pycldf.readthedocs.io/en/latest/db.html
+for details.
 
 
 ## See also

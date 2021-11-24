@@ -4,6 +4,10 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+- Don't leak git credentials from remote URLs into CLDF metadata
+- Fleshed out and documented access to schema objects in a CLDF dataset
+
+
 ##  [1.23.0] - 2021-08-15
 
 - Support copying datasets (see #143)
