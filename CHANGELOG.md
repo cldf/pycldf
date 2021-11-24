@@ -4,6 +4,10 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+
+## [1.24.0] - 2021-11-24
+
+- Add python 3.10 to supported versions
 - Don't leak git credentials from remote URLs into CLDF metadata
 - Fleshed out and documented access to schema objects in a CLDF dataset
 
