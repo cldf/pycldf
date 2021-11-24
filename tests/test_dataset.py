@@ -65,7 +65,7 @@ def test_column_names(ds_wl):
 
 
 def test_provenance(ds, tmp_path):
-    ds.add_provenance(wasDerivedFrom=[GitRepository('http://example.org'), 'other'])
+    ds.add_provenance(wasDerivedFrom=[GitRepository('http://u:p@example.org'), 'other'])
     assert ds.properties['prov:wasDerivedFrom'][0]['rdf:about'] == 'http://example.org'
 
     ds.add_provenance(wasDerivedFrom='abc')

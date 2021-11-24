@@ -21,7 +21,7 @@ from clldutils.misc import log_or_raise, lazyproperty
 from clldutils import jsonlib
 
 from pycldf.sources import Sources
-from pycldf.util import pkg_path, resolve_slices, DictTuple
+from pycldf.util import pkg_path, resolve_slices, DictTuple, sanitize_url
 from pycldf.terms import term_uri, Terms, TERMS, get_column_names, URL as TERMS_URL
 from pycldf.validators import VALIDATORS
 from pycldf import orm
@@ -102,7 +102,10 @@ def make_column(spec):
 
 class GitRepository(object):
     def __init__(self, url, clone=None, version=None, **dc):
-        self.url = url
+        # We remove credentials from the URL immediately to make sure this isn't leaked into
+        # CLDF metadata. Such credentials might be present in URLs read via gitpython from
+        # remotes.
+        self.url = sanitize_url(url)
         self.clone = clone
         self.version = version
         self.dc = dc

@@ -2,12 +2,25 @@ import html
 import pathlib
 import itertools
 import collections
+import urllib.parse
 
 from clldutils.misc import slug
 import pycldf
 
 __all__ = [
-    'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown', 'qname2url']
+    'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown', 'qname2url',
+    'sanitize_url']
+
+
+def sanitize_url(url):
+    """
+    Removes auth credentials from a URL.
+    """
+    u = urllib.parse.urlparse(url)
+    host = u.hostname
+    if u.port:
+        host += ':{}'.format(u.port)
+    return urllib.parse.urlunsplit((u.scheme, host, u.path, u.query, u.fragment)) or None
 
 
 def pkg_path(*comps):

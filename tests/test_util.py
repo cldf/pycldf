@@ -18,3 +18,14 @@ def test_DictTuple():
 
     t = DictTuple([1, 2, 3, 4, 3, 2], key=lambda i: str(i), multi=True)
     assert t['2'] == [2, 2]
+
+
+@pytest.mark.parametrize("url,expected", [
+    ('name', 'name'),
+    (None, None),
+    ('http://example.com:123/p?q=1#f', 'http://example.com:123/p?q=1#f'),
+    ('http://user@example.com/', 'http://example.com/'),
+    ('http://user:pwd@example.com/', 'http://example.com/'),
+])
+def test_sanitize_url(url, expected):
+    assert sanitize_url(url) == expected
