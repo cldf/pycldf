@@ -159,7 +159,7 @@ def test_example_validators(ds):
             'separator': '\t'},
     )
     ds.write(examples=[{'morphemes': ['a'], 'gloss': ['a', 'b']}])
-    with pytest.raises(ValueError, match='number of morphemes'):
+    with pytest.raises(ValueError, match='number of words'):
         ds.validate()
 
 
