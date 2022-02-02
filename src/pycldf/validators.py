@@ -19,13 +19,13 @@ def valid_regex(pattern, name, dataset, table, column, row):
 
 
 def valid_igt(dataset, table, column, row):
-    gloss, morphemes = row[column.name], None
+    word_glosses, words = row[column.name], None
     col = table.get_column('http://cldf.clld.org/v1.0/terms.rdf#analyzedWord')
     if col:
-        morphemes = row[col.name]
+        words = row[col.name]
 
-    if gloss and morphemes and len(gloss) != len(morphemes):
-        raise ValueError('number of morphemes and glosses does not match')
+    if word_glosses and words and len(word_glosses) != len(words):
+        raise ValueError('number of words and word glosses does not match')
 
 
 VALIDATORS = [
