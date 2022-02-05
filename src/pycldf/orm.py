@@ -238,7 +238,9 @@ class Code(Object, _WithParameterMixin):
 
 
 class Cognateset(Object):
-    pass
+    @property
+    def cognates(self):
+        return DictTuple(v for v in self.dataset.objects('CognateTable') if v.cognateset == self)
 
 
 class Cognate(Object):
@@ -331,6 +333,10 @@ class Parameter(Object):
                 and self.dataset['ParameterTable', 'datatype'].datatype.base == 'json':
             if self.data['datatype']:
                 return csvw.metadata.Datatype.fromvalue(self.data['datatype'])
+
+    @property
+    def codes(self):
+        return DictTuple(v for v in self.dataset.objects('CodeTable') if v.parameter == self)
 
     @property
     def values(self):

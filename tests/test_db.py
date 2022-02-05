@@ -16,8 +16,7 @@ def md(tmp_path):
 def test_db_geocoords():
     item = dict(cldf_latitude=decimal.Decimal(3.123456))
     assert pytest.approx(
-        Database.round_geocoordinates(item)['cldf_latitude'],
-        decimal.Decimal(3.1235))
+        Database.round_geocoordinates(item)['cldf_latitude']) == decimal.Decimal(3.1235)
 
 
 def test_db_write(tmp_path, data):
