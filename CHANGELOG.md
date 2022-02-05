@@ -5,6 +5,11 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 
+## [1.25.0] - 2022-02-05
+
+- Enhanced ORM to make it more usable for e.g. templating.
+
+
 ## [1.24.0] - 2021-11-24
 
 - Add python 3.10 to supported versions
