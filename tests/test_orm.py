@@ -52,6 +52,7 @@ def test_Object_references(dataset):
 def test_cognacy(wordlist_with_cognates):
     cog = wordlist_with_cognates.get_object('CognateTable', 'c1')
     assert cog.form and cog.cognateset
+    assert cog in cog.cognateset.cognates
     assert not wordlist_with_cognates.get_object('ParameterTable', 'p2').all_related(
         'concepticonReference')
 
@@ -61,6 +62,11 @@ def test_borrowings(wordlist_with_borrowings):
     assert b.targetForm.language != b.sourceForm.language
     assert len(b.targetForm.language.forms) == 1
     assert len(b.targetForm.parameter.forms) == 2
+
+
+def test_parameter(structuredataset_with_examples):
+    p = structuredataset_with_examples.get_object('ParameterTable', 'p1')
+    assert len(p.codes) == 2
 
 
 def test_examples(structuredataset_with_examples):
