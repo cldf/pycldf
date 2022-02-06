@@ -5,6 +5,12 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 
+## [1.25.1] - 2022-02-06
+
+- Fixed bug whereby some last name parts of authors would not be included
+  in `pycldf.source.Source.refkey`.
+
+
 ## [1.25.0] - 2022-02-05
 
 - Enhanced ORM to make it more usable for e.g. templating.
