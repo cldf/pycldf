@@ -31,16 +31,20 @@ def test_from_entry():
 
 
 @pytest.mark.parametrize(
-    'fields,res',
+    'fields,kw,res',
     [
-        (dict(), 'n.a. (n.d.)'),
-        (dict(editor='Meier, A.'), 'Meier (n.d.)'),
-        (dict(author='Meier, A. and Huber, B', year='1999'), 'Meier and Huber (1999)'),
-        (dict(author='Meier, A. and Huber, B. and Max, M.'), 'Meier et al. (n.d.)'),
+        (dict(), {}, 'n.a. (n.d.)'),
+        (dict(editor='Meier, A.'), {}, 'Meier (n.d.)'),
+        (dict(author='Meier, A. and Huber, B', year='1999'), {}, 'Meier and Huber (1999)'),
+        (dict(author='Meier, A. and Huber, B. and Max, M.'), {}, 'Meier et al. (n.d.)'),
+        (
+            dict(author='Nicole van der Sijs', year='2009'),
+            {'year_brackets': None},
+            'van der Sijs 2009')
     ]
 )
-def test_refkey(fields, res):
-    assert Source('book', '1', **fields).refkey() == res
+def test_refkey(fields, kw, res):
+    assert Source('book', '1', **fields).refkey(**kw) == res
 
 
 def test_field_order(bib):

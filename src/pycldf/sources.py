@@ -78,14 +78,16 @@ class Source(BaseSource):
                 else:
                     yield database.Person(name)
 
-    def refkey(self):
+    def refkey(self, year_brackets='round'):
+        brackets = {None: ('', ''), 'round': ('(', ')'), 'square': ('[', ']'), 'curly': ('{', '}')}
         persons = self.entry.persons.get('author') or self.entry.persons.get('editor', [])
-        s = ' '.join(persons[0].last_names) if persons else 'n.a.'
+        s = ' '.join(persons[0].prelast_names + persons[0].last_names) if persons else 'n.a.'
         if len(persons) == 2:
             s += ' and {}'.format(' '.join(persons[1].last_names))
         elif len(persons) > 2:
             s += ' et al.'
-        return s.replace('{', '').replace('}', '') + ' ({})'.format(self.get('year', 'n.d.'))
+        return s.replace('{', '').replace('}', '') + ' {}{}{}'.format(
+            brackets[year_brackets][0], self.get('year', 'n.d.'), brackets[year_brackets][1])
 
 
 class Reference(object):
