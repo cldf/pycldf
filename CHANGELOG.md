@@ -5,6 +5,12 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 
+## [1.26.0] - 2022-05-19
+
+- Dropped python 3.6 support
+- Support for media download
+
+
 ## [1.25.1] - 2022-02-06
 
 - Fixed bug whereby some last name parts of authors would not be included
