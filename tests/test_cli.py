@@ -64,6 +64,20 @@ def test_check(data, glottolog_repos, concepticon_repos, caplog, tmp_path):
     assert 'Empty ' in caplog.records[-1].message
 
 
+def test_downloadmedia(tmp_path, data):
+    from pycldf import Dataset
+    from pycldf.media import Media
+
+    md = data / 'dataset_with_media' / 'metadata.json'
+    main(['downloadmedia', str(md), str(tmp_path), "Name=x"])
+    assert len(list(tmp_path.glob('*'))) == 1
+
+    main(['downloadmedia', str(md), str(tmp_path)])
+    files = list(Media(Dataset.from_metadata(md)))
+    assert files[0].read(tmp_path) == 'Hello, World!'
+    assert files[1].read(tmp_path) == 'äöü'
+
+
 def test_validate(tmp_path, caplog):
     tmp_path.joinpath('md.json').write_text("""{
   "@context": ["http://www.w3.org/ns/csvw", {"@language": "en"}],

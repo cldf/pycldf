@@ -19,6 +19,7 @@ Follow the links below for documentation of the pycldf Python API.
 
    dataset
    orm
+   media
    db
 
 

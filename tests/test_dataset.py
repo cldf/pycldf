@@ -767,7 +767,7 @@ def test_get_modules():
 
 @pytest.mark.filterwarnings('ignore::UserWarning')
 def test_iter_datasets(data, tmp_path):
-    assert len(list(iter_datasets(data))) == 8
+    assert len(list(iter_datasets(data))) == 9
 
     tmp_path.joinpath('f1').write_text('äöü', encoding='latin1')
     tmp_path.joinpath('f2').write_text('{x', encoding='utf8')

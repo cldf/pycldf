@@ -71,6 +71,19 @@ A typical usage of this feature is to create a `README.md` for your dataset
 (which, when uploaded to e.g. GitHub will be rendered nicely in the browser).
 
 
+### Downloading media listed in a dataset's MediaTable
+
+Typically, CLDF datasets only reference media items. The *MediaTable* provides enough information, though,
+to download and save an item's content. This can be done running
+```shell
+cldf downloadmedia PATH/TO/metadata.json PATH/TO/DOWNLOAD/DIR
+```
+To minimize bandwidth usage, relevant items can be filtered by passing selection criteria in the form
+`COLUMN_NAME=SUBSTRING` as optional arguments. E.g. downloading could be limited to audio files passing
+`Media_Type=audio/` (provided, `Media_Type` is the name of the column with `propertyUrl` 
+http://cldf.clld.org/v1.0/terms.rdf#mediaType)
+
+
 ### Converting a CLDF dataset to an SQLite database
 
 A very useful feature of CSVW in general and CLDF in particular is that it
