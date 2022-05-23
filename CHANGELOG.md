@@ -5,6 +5,11 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 
+## [1.26.1] - 2022-05-23
+
+- Fixed bug whereby zipped tables were not detected/evaluated during validation.
+
+
 ## [1.26.0] - 2022-05-19
 
 - Dropped python 3.6 support
