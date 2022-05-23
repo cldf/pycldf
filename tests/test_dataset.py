@@ -1,5 +1,6 @@
 import shutil
 import logging
+import zipfile
 import warnings
 
 import pytest
@@ -248,6 +249,29 @@ def test_duplicate_component(ds, tmp_path):
         md.write_text(json.replace('COMPS', ', '.join([comp, comp])), encoding='utf8')
         with pytest.raises(ValueError, match='duplicate component'):
             Dataset.from_metadata(str(md))
+
+
+def test_with_zipped_table(data, tmp_path, caplog):
+    from pycldf.db import Database
+
+    dsdir = tmp_path / 'ds'
+    shutil.copytree(data / 'structuredataset_with_examples', dsdir)
+    ds = Dataset.from_metadata(dsdir / 'metadata.json')
+    assert ds.validate()
+
+    # Now replace a table with its zipped content:
+    with zipfile.ZipFile(dsdir / 'values.csv.zip', 'w') as zipf:
+        zipf.write(dsdir / 'values.csv', arcname='values.csv')
+    dsdir.joinpath('values.csv').unlink()
+    assert not dsdir.joinpath('values.csv').exists()
+
+    assert len(ds.objects('ValueTable')) == 3
+    with caplog.at_level(logging.INFO):
+        assert ds.validate(log=logging.getLogger(__name__))
+    assert 'values.csv' in caplog.records[0].msg
+    db = Database(ds, fname=tmp_path / 'db.sqlite')
+    db.write_from_tg()
+    assert db.query('select count(*) from valuetable')[0][0] == 3
 
 
 def test_foreign_key_creation(ds):

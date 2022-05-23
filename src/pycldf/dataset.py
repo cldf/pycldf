@@ -977,7 +977,12 @@ class Dataset(object):
                         validators_.append((col, v_))
 
             fname = pathlib.Path(table.url.resolve(table._parent.base))
-            if fname.exists():
+            fexists = fname.exists()
+            if (not fexists) and fname.parent.joinpath('{}.zip'.format(fname.name)).exists():
+                if log:
+                    log.info('Reading data from zipped table: {}.zip'.format(fname))
+                fexists = True  # csvw already handles this case, no need to adapt paths.
+            if fexists:
                 for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
                     for col, validate in validators_:
                         try:
