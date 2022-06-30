@@ -3,6 +3,8 @@ import pathlib
 import urllib.parse
 
 import pytest
+import csvw
+import packaging.version
 
 from pycldf import Dataset
 
@@ -14,13 +16,25 @@ def data():
     return DATA
 
 
+@pytest.fixture(scope='session')
+def csvw3():
+    return packaging.version.parse(csvw.__version__) > packaging.version.parse('2.0.0')
+
+
 @pytest.fixture
-def urlopen(mocker, data):
+def urlopen(mocker, data, csvw3):
+    import requests_mock
+
     def _urlopen(url):
         return io.BytesIO(data.joinpath(urllib.parse.urlparse(url).path[1:]).read_bytes())
 
     mocker.patch('pycldf.sources.urlopen', _urlopen)
-    mocker.patch('csvw.metadata.urlopen', _urlopen)
+    if not csvw3:  # pragma: no cover
+        mocker.patch('csvw.metadata.urlopen', _urlopen)
+    else:
+        mock = requests_mock.Mocker()
+        mock.__enter__()
+        mock.get(requests_mock.ANY, content=lambda req, _: _urlopen(req.url).read())
 
 
 @pytest.fixture(scope='module')

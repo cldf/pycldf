@@ -38,11 +38,13 @@ setup(
         ],
         'dev': ['tox', 'flake8', 'wheel>=0.36', 'twine'],
         'test': [
+            'packaging',
             'cldfcatalog',
             'pyglottolog',
             'pyconcepticon',
             'pytest>=5',
             'pytest-mock',
+            'requests-mock',
             'pytest-cov',
             'coverage>=4.2',
         ],

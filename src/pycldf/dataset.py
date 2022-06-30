@@ -953,7 +953,7 @@ class Dataset(object):
             # FIXME: check whether table.common_props['dc:conformsTo'] is in validators!
             validators_, propertyUrls, colnames = [], set(), set()
             for col in table.tableSchema.columns:
-                if col.header in colnames:
+                if col.header in colnames:  # pragma: no cover
                     log_or_raise(
                         'Duplicate column name in table schema: {} {}'.format(
                             table.url, col.header),
@@ -963,7 +963,7 @@ class Dataset(object):
                     col_uri = col.propertyUrl.uri
                     try:
                         terms.is_cldf_uri(col_uri)
-                        if col_uri in propertyUrls:
+                        if col_uri in propertyUrls:  # pragma: no cover
                             log_or_raise(
                                 'Duplicate CLDF property in table schema: {} {}'.format(
                                     table.url, col_uri),
@@ -1119,4 +1119,8 @@ def iter_datasets(d: pathlib.Path) -> typing.Iterator[Dataset]:
     """
     for p in walk(d, mode='files'):
         if sniff(p):
-            yield Dataset.from_metadata(p)
+            try:
+                yield Dataset.from_metadata(p)
+            except ValueError as e:
+                logging.getLogger(__name__).warning(
+                    "Reading {} failed: {}".format(p, e))

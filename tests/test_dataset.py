@@ -2,6 +2,7 @@ import shutil
 import logging
 import zipfile
 import warnings
+import contextlib
 
 import pytest
 
@@ -691,10 +692,14 @@ def test_Dataset_validate_missing_table(tmp_path, caplog):
 
 
 @pytest.mark.filterwarnings('ignore::UserWarning')
-def test_Dataset_validate_duplicate_columns(data, caplog):
-    ds = Dataset.from_metadata(data / 'dataset_with_duplicate_columns' / 'metadata.json')
-    ds.validate(log=logging.getLogger(__name__))
-    assert len(caplog.records) == 2 and all('uplicate' in r.message for r in caplog.records)
+def test_Dataset_validate_duplicate_columns(data, caplog, csvw3):
+    with contextlib.ExitStack() as stack:
+        if csvw3:  # pragma: no cover
+            stack.enter_context(pytest.raises(ValueError))
+        ds = Dataset.from_metadata(data / 'dataset_with_duplicate_columns' / 'metadata.json')
+        ds.validate(log=logging.getLogger(__name__))  # pragma: no cover
+    if not csvw3:  # pragma: no cover
+        assert len(caplog.records) == 2 and all('uplicate' in r.message for r in caplog.records)
 
 
 def test_stats(dataset):
@@ -790,8 +795,11 @@ def test_get_modules():
 
 
 @pytest.mark.filterwarnings('ignore::UserWarning')
-def test_iter_datasets(data, tmp_path):
-    assert len(list(iter_datasets(data))) == 9
+def test_iter_datasets(data, tmp_path, csvw3, caplog):
+    assert len(list(iter_datasets(data))) == 8 if csvw3 else 9
+
+    if csvw3:
+        assert 'Reading' in caplog.records[0].msg
 
     tmp_path.joinpath('f1').write_text('äöü', encoding='latin1')
     tmp_path.joinpath('f2').write_text('{x', encoding='utf8')
