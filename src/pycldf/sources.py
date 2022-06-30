@@ -1,7 +1,7 @@
 import re
+import types
 import typing
 import pathlib
-import argparse
 import collections
 from urllib.request import urlopen
 
@@ -99,7 +99,7 @@ class Reference(object):
         if desc and ('[' in desc or ']' in desc or ';' in desc):
             raise ValueError('invalid ref description: %s' % desc)
         self.source = source
-        self.fields = argparse.Namespace(**self.source) if isinstance(self.source, dict) else {}
+        self.fields = types.SimpleNamespace(**self.source) if isinstance(self.source, dict) else {}
         self.description = desc
 
     def __str__(self):

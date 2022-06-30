@@ -40,9 +40,9 @@ Limitations:
   * ~15secs iterating over pycldf.Dataset['ValueTable']
   * ~35secs iterating over pycldf.Dataset.objects('ValueTable')
 """
-import argparse
-import collections
+import types
 import typing
+import collections
 
 import csvw.metadata
 from tabulate import tabulate
@@ -87,7 +87,7 @@ class Object:
             if k in cldf_cols:
                 self.cldf[cldf_cols[k][0]] = v
         # Make cldf properties accessible as attributes:
-        self.cldf = argparse.Namespace(**self.cldf)
+        self.cldf = types.SimpleNamespace(**self.cldf)
         self.dataset = dataset
         self.id = self.cldf.id
         self.pk = None

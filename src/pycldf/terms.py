@@ -1,6 +1,6 @@
 import re
 import json
-import argparse
+import types
 import warnings
 import urllib.parse
 from xml.etree import ElementTree
@@ -160,7 +160,7 @@ def get_column_names(dataset, use_component_names=False, with_multiplicity=False
     comp_names = {
         k: k if use_component_names else k.replace('Table', '').lower() + 's'
         for k in TERMS.components}
-    name_map = argparse.Namespace(**{k: None for k in comp_names.values()})
+    name_map = types.SimpleNamespace(**{k: None for k in comp_names.values()})
     for term, attr_ in comp_names.items():
         try:
             table = dataset[term]
@@ -174,7 +174,7 @@ def get_column_names(dataset, use_component_names=False, with_multiplicity=False
                         props[k] = col.name
                 except KeyError:
                     props[k] = None
-            setattr(name_map, attr_, argparse.Namespace(**props))
+            setattr(name_map, attr_, types.SimpleNamespace(**props))
         except KeyError:
             pass
     return name_map

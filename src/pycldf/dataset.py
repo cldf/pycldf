@@ -1,10 +1,10 @@
 import sys
 import json
+import types
 import shutil
 import typing
 import logging
 import pathlib
-import argparse
 import itertools
 import collections
 import collections.abc
@@ -39,7 +39,7 @@ class SchemaError(KeyError):
 
 
 @attr.s
-class Module(object):
+class Module:
     """
     Class representing a CLDF Module.
 
@@ -50,13 +50,13 @@ class Module(object):
     cls = attr.ib(default=None)
 
     @property
-    def id(self):
+    def id(self) -> str:
         """
         The local part of the term URI is interpreted as Module identifier.
         """
         return self.uri.split('#')[1]
 
-    def match(self, thing):
+    def match(self, thing) -> bool:
         if isinstance(thing, TableGroup):
             return thing.common_props.get('dc:conformsTo') == term_uri(self.id)
         if hasattr(thing, 'name'):
@@ -67,7 +67,7 @@ class Module(object):
 _modules = []
 
 
-def get_modules():
+def get_modules() -> typing.List[Module]:
     """
     We read supported CLDF modules from the default metadata files distributed with `pycldf`.
     """
@@ -88,7 +88,7 @@ def get_modules():
     return _modules
 
 
-def make_column(spec):
+def make_column(spec: typing.Union[str, dict, Column]) -> Column:
     if isinstance(spec, str):
         if spec in TERMS.by_uri:
             return TERMS.by_uri[spec].to_column()
@@ -100,7 +100,7 @@ def make_column(spec):
     raise TypeError(spec)
 
 
-class GitRepository(object):
+class GitRepository:
     def __init__(self, url, clone=None, version=None, **dc):
         # We remove credentials from the URL immediately to make sure this isn't leaked into
         # CLDF metadata. Such credentials might be present in URLs read via gitpython from
@@ -123,15 +123,15 @@ class GitRepository(object):
         return res
 
 
-class Dataset(object):
+class Dataset:
     """
     API to access a CLDF dataset.
     """
 
     def __init__(self, tablegroup: csvw.TableGroup):
         """
-        A :class:`~pycldf.dataset.Dataset` is initialized passing a TableGroup. For convenience \
-        methods to get such a TableGroup, see the factory methods
+        A :class:`~pycldf.dataset.Dataset` is initialized passing a `TableGroup`. For convenience \
+        methods to get such a `TableGroup` instance, see the factory methods
 
         - :meth:`~pycldf.dataset.Dataset.in_dir`
         - :meth:`~pycldf.dataset.Dataset.from_metadata`
@@ -147,7 +147,7 @@ class Dataset(object):
     # Factory methods to create `Dataset` instances.
     #
     @classmethod
-    def in_dir(cls, d: typing.Union[str, pathlib.Path], empty_tables=False):
+    def in_dir(cls, d: typing.Union[str, pathlib.Path], empty_tables=False) -> 'Dataset':
         """
         Create a :class:`~pycldf.dataset.Dataset` in a (possibly empty or even non-existing) \
         directory.
@@ -166,7 +166,7 @@ class Dataset(object):
         return res
 
     @classmethod
-    def from_metadata(cls, fname: typing.Union[str, pathlib.Path]):
+    def from_metadata(cls, fname: typing.Union[str, pathlib.Path]) -> 'Dataset':
         """
         Initialize a :class:`~pycldf.dataset.Dataset` with the metadata found at `fname`.
 
@@ -205,7 +205,7 @@ class Dataset(object):
         return cls(tablegroup)
 
     @classmethod
-    def from_data(cls, fname):
+    def from_data(cls, fname: typing.Union[str, pathlib.Path]) -> 'Dataset':
         """
         Initialize a :class:`~pycldf.dataset.Dataset` from a single CLDF data file.
 
@@ -251,7 +251,7 @@ class Dataset(object):
         return self.properties['dc:conformsTo'].split('#')[1]
 
     @property
-    def version(self):
+    def version(self) -> str:
         return self.properties['dc:conformsTo'].split('/')[3]
 
     def __repr__(self):
@@ -441,7 +441,7 @@ class Dataset(object):
                     self[fk.reference.resource, fk.reference.columnReference[0]]
 
     @property
-    def column_names(self) -> argparse.Namespace:
+    def column_names(self) -> types.SimpleNamespace:
         """
         In-direction layer, mapping ontology terms to local column names (or `None`).
 
@@ -449,18 +449,18 @@ class Dataset(object):
         schema may have changed). So when accessing a dataset for reading only, calling code
         should use `readonly_column_names`.
 
-        :return: an `argparse.Namespace` object, with attributes `<object>s` for each component \
+        :return: an `types.SimpleNamespace` object, with attributes `<object>s` for each component \
         `<Object>Table` defined in the ontology. Each such attribute evaluates to `None` if the \
-        dataset does not contain the component. Otherwise, it's an `argparse.Namespace` object \
+        dataset does not contain the component. Otherwise, it's an `types.SimpleNamespace` object \
         mapping each property defined in the ontology to `None` - if no such column is specified \
         in the component - and the local column name if it is.
         """
         return get_column_names(self)
 
     @lazyproperty
-    def readonly_column_names(self) -> argparse.Namespace:
+    def readonly_column_names(self) -> types.SimpleNamespace:
         """
-        :return: `argparse.Namespace` with component names as attributes.
+        :return: `types.SimpleNamespace` with component names as attributes.
         """
         return get_column_names(self, use_component_names=True, with_multiplicity=True)
 
@@ -611,7 +611,7 @@ class Dataset(object):
         """
         Add a foreign key constraint.
 
-        Note: Composite keys are not supported yet.
+        ..note:: Composite keys are not supported yet.
 
         :param foreign_t: Table reference for the linking table.
         :param foreign_c: Column reference for the link.
@@ -787,7 +787,8 @@ class Dataset(object):
     #
     # Methods for writing (meta)data to files:
     #
-    def write_metadata(self, fname=None):
+    def write_metadata(
+            self, fname: typing.Optional[typing.Union[str, pathlib.Path]] = None) -> pathlib.Path:
         """
         Write the CLDF metadata to a JSON file.
 
@@ -1025,17 +1026,27 @@ class Dataset(object):
 
 
 class Generic(Dataset):
+    """
+    Generic datasets have no primary table.
+
+    .. seealso:: `<https://github.com/cldf/cldf/tree/master/modules/Generic>`_
+    """
     @property
     def primary_table(self):
         return None
 
 
 class Wordlist(Dataset):
+    """
+    Wordlists have support for segment slice notation.
+
+    .. seealso:: `<https://github.com/cldf/cldf/tree/master/modules/Wordlist>`_
+    """
     @property
     def primary_table(self):
         return 'FormTable'
 
-    def get_segments(self, row, table='FormTable'):
+    def get_segments(self, row, table='FormTable') -> typing.List[str]:
         col = self[table].get_column("http://cldf.clld.org/v1.0/terms.rdf#segments")
         sounds = row[col.name]
         if isinstance(sounds, str):
@@ -1043,13 +1054,12 @@ class Wordlist(Dataset):
             sounds = [sounds]
         return list(itertools.chain(*[s.split() for s in sounds]))
 
-    def get_subsequence(self, cognate, form=None):
+    def get_subsequence(self, cognate: dict, form=None) -> typing.List[str]:
         """
         Compute the subsequence of the morphemes of a form which is specified in a partial
         cognate assignment.
 
-        :param partial_cognate:
-        :return:
+        :param cognate: A `dict` holding the data of a row from a `CognateTable`.
         """
         return resolve_slices(
             cognate,

@@ -2,7 +2,7 @@
 ================
 
 The core object of the API, bundling most access to CLDF data, is
-the `pycldf.Dataset`. In the following we'll describe its
+the :class:`pycldf.Dataset` . In the following we'll describe its
 attributes and methods, bundled into thematic groups.
 
 
@@ -28,29 +28,37 @@ Similar to *capability checks* in programming languages that use
 `duck typing <https://en.wikipedia.org/wiki/Duck_typing>`_, it is often necessary
 to access a datasets schema, i.e. its tables and columns to figure out whether
 the dataset fits a certain purpose. This is supported via a `dict`-like interface provided
-by `pycldf.Dataset`, where the keys are table specifiers or pairs (table specifier, column specifier).
+by :class:`pycldf.Dataset`, where the keys are table specifiers or pairs (table specifier, column specifier).
 A *table specifier* can be a table's component name or its `url`, a *column specifier* can be a column
 name or its `propertyUrl`.
 
 * check existence with `in`:
 
-    >>> if 'ValueTable' in dataset: pass
-    >>> if ('ValueTable', 'Language_ID') in dataset: pass
+    ..code-block:: python
+
+        if 'ValueTable' in dataset: pass
+        if ('ValueTable', 'Language_ID') in dataset: pass
 
 * retrieve a schema object with item access:
 
-    >>> table = dataset['ValueTable']
-    >>> column = dataset['ValueTable', 'Language_ID']
+    ..code-block:: python
+
+        table = dataset['ValueTable']
+        column = dataset['ValueTable', 'Language_ID']
 
 * retrieve a schema object or a default with `.get`:
 
-    >>> table_or_none = dataset.get('ValueTableX')
-    >>> column_or_none = dataset.get(('ValueTable', 'Language_ID'))
+    ..code-block:: python
+
+        table_or_none = dataset.get('ValueTableX')
+        column_or_none = dataset.get(('ValueTable', 'Language_ID'))
 
 * remove a schema object with `del`:
 
-    >>> del dataset['ValueTable', 'Language_ID']
-    >>> del dataset['ValueTable']
+    ..code-block:: python
+
+        del dataset['ValueTable', 'Language_ID']
+        del dataset['ValueTable']
 
 Note: Adding schema objects is **not** supported via key assignment, but with a set of specialized
 methods described in :ref:`Editing metadata and schema`.
@@ -157,3 +165,12 @@ in its `sources` attribute.
 .. autoclass:: pycldf.dataset.Sources
    :members:
 
+
+Subclasses supporting specific CLDF modules
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: pycldf.Generic
+    :members:
+
+.. autoclass:: pycldf.Wordlist
+    :members:
