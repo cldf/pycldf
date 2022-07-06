@@ -44,12 +44,15 @@ def test_db_write(tmp_path, data):
 
 def test_db_write_extra_tables(md):
     ds = Generic.in_dir(md.parent)
-    ds.add_table('extra.csv', 'ID', 'Name')
-    ds.write(md, **{'extra.csv': [dict(ID=1, Name='Name')]})
+    ds.add_table('extra.csv', 'ID', 'Name', {'name': 'x', 'separator': '#'})
+    ds.write(md, **{'extra.csv': [dict(ID=1, Name='Name', x=['a', 'b', 'c'])]})
 
     db = Database(ds, fname=md.parent / 'db.sqlite')
     db.write_from_tg()
-    assert len(db.query("""select * from "extra.csv" """)) == 1
+    rows = db.query("""select x from "extra.csv" """)
+    assert len(rows) == 1
+    assert rows[0][0] == 'a#b#c'
+    assert db.split_value('extra.csv', 'x', rows[0][0]) == ['a', 'b', 'c']
 
 
 def test_db_write_extra_columns(md):
