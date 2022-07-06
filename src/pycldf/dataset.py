@@ -22,7 +22,7 @@ from clldutils.misc import log_or_raise, lazyproperty
 from clldutils import jsonlib
 
 from pycldf.sources import Sources
-from pycldf.util import pkg_path, resolve_slices, DictTuple, sanitize_url
+from pycldf.util import pkg_path, resolve_slices, DictTuple, sanitize_url, iter_uritemplates
 from pycldf.terms import term_uri, Terms, TERMS, get_column_names, URL as TERMS_URL
 from pycldf.validators import VALIDATORS
 from pycldf import orm
@@ -618,21 +618,15 @@ class Dataset:
         table = self[table]
         col = self[table, col]
 
-        def iter_templates(t):
-            props = ['aboutUrl', 'valueUrl']
-            for obj in [t, t.tableSchema] + t.tableSchema.columns:
-                for prop in props:
-                    if getattr(obj, prop):
-                        yield obj, prop
-
-        for obj, prop in iter_templates(table):
-            old = str(getattr(obj, prop))
-            new = re.sub(
-                r'{([^}]+)}',
-                lambda m: '{' + re.sub(re.escape(col.name), name, m.groups()[0]) + '}',
-                old)
-            if old != new:
-                setattr(obj, prop, URITemplate(new))
+        for obj, prop, tmpl in iter_uritemplates(table):
+            if col.name in tmpl.variable_names:
+                old = str(tmpl)
+                new = re.sub(
+                    r'{([^}]+)}',
+                    lambda m: '{' + re.sub(re.escape(col.name), name, m.groups()[0]) + '}',
+                    old)
+                if old != new:
+                    setattr(obj, prop, URITemplate(new))
 
         if col.name in table.tableSchema.primaryKey:
             table.tableSchema.primaryKey = [
@@ -975,6 +969,13 @@ class Dataset:
                                 table_uri, uri, cardinality), log=log)
 
         for table in self.tables:
+            vars = set(col.name for col in table.tableSchema.columns)
+            for obj, prop, tmpl in iter_uritemplates(table):
+                if not {n for n in tmpl.variable_names if not n.startswith('_')}.issubset(vars):
+                    if log:
+                        log.warning('Unknown variables in URI template: {}:{}:{}'.format(
+                            obj, prop, tmpl))
+
             type_uri = table.common_props.get('dc:conformsTo')
             if type_uri:
                 try:

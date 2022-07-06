@@ -9,7 +9,16 @@ import pycldf
 
 __all__ = [
     'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown', 'qname2url',
-    'sanitize_url']
+    'sanitize_url', 'iter_uritemplates']
+
+
+def iter_uritemplates(table):
+    props = ['aboutUrl', 'valueUrl']
+    for obj in [table, table.tableSchema] + table.tableSchema.columns:
+        for prop in props:
+            tmpl = getattr(obj, prop)
+            if tmpl:
+                yield obj, prop, tmpl
 
 
 def sanitize_url(url):

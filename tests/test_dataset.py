@@ -194,6 +194,13 @@ def test_regex_validator_for_listvalued_column2(ds):
         ds.validate()
 
 
+def test_unknown_uritemplate_variable(ds, caplog):
+    ds.add_table('test', {'name': 'col', 'valueUrl': 'http://example.org/{xyz}'})
+    ds.write(test=[{'col': 'abcd'}])
+    ds.validate(log=logging.getLogger(__name__))
+    assert 'Unknown variables' in caplog.records[0].msg
+
+
 def test_duplicate_component(ds, tmp_path):
     # adding a component twice is not possible:
     t = ds.add_component('ValueTable')
