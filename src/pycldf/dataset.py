@@ -1,3 +1,4 @@
+import re
 import sys
 import json
 import types
@@ -13,7 +14,7 @@ import urllib.request
 
 import attr
 import csvw
-from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url
+from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url, URITemplate
 from csvw import datatypes
 from csvw.dsv import iterrows
 from clldutils.path import git_describe, walk
@@ -606,6 +607,48 @@ class Dataset:
                 table.tableSchema.primaryKey = None
 
         table.tableSchema.columns = [c for c in table.tableSchema.columns if str(c) not in cols]
+
+    def rename_column(self, table, col, name):
+        """
+        Assign a new name to an existing column, cascading this change to foreign keys.
+
+        This functionality can be used to change the names of columns added automatically by
+        :meth:`Dataset.add_component`
+        """
+        table = self[table]
+        col = self[table, col]
+
+        def iter_templates(t):
+            props = ['aboutUrl', 'valueUrl']
+            for obj in [t, t.tableSchema] + t.tableSchema.columns:
+                for prop in props:
+                    if getattr(obj, prop):
+                        yield obj, prop
+
+        for obj, prop in iter_templates(table):
+            old = str(getattr(obj, prop))
+            new = re.sub(
+                r'{([^}]+)}',
+                lambda m: '{' + re.sub(re.escape(col.name), name, m.groups()[0]) + '}',
+                old)
+            if old != new:
+                setattr(obj, prop, URITemplate(new))
+
+        if col.name in table.tableSchema.primaryKey:
+            table.tableSchema.primaryKey = [
+                name if n == col.name else n for n in table.tableSchema.primaryKey]
+
+        for t in self.tables:
+            for fk in t.tableSchema.foreignKeys:
+                if fk.reference.resource == table.url and col.name in fk.reference.columnReference:
+                    fk.reference.columnReference = [
+                        name if n == col.name else n for n in fk.reference.columnReference]
+
+                if t.url == table.url and col.name in fk.columnReference:
+                    # We also need to check the columnReference
+                    fk.columnReference = [name if n == col.name else n for n in fk.columnReference]
+
+        col.name = name
 
     def add_foreign_key(self, foreign_t, foreign_c, primary_t, primary_c=None):
         """

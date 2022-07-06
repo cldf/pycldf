@@ -21,7 +21,7 @@ Releasing pycldf
   ```
 
 - Update the version number, by removing the trailing `.dev0` in:
-  - `setup.py`
+  - `setup.cfg`
   - `src/pycldf/__init__.py`
   - `docs/conf.py`
   - and edit `CHANGELOG.md`
@@ -50,7 +50,7 @@ Releasing pycldf
   ```
 
 - Change version for the next release cycle, i.e. incrementing and adding .dev0
-  - `setup.py`
+  - `setup.cfg`
   - `src/pycldf/__init__.py`
   - `docs/conf.py`
 
