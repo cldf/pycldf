@@ -868,3 +868,26 @@ def test_Dataset_copy(tmp_path):
     # Make sure all file references are relative:
     shutil.copytree(dest, tmp_path / 'moved')
     assert Dataset.from_metadata(tmp_path / 'moved' / 'md.json').validate()
+
+
+def test_Dataset_rename_column(ds):
+    lt = ds.add_component('LanguageTable')
+    lt.aboutUrl = URITemplate('{#ID}.md')
+    vt = ds.add_component('ValueTable')
+    ds.rename_column(lt, 'ID', 'X')
+    ds.rename_column(lt, 'Glottocode', 'GC')
+    assert '{GC}' in str(ds['LanguageTable', 'glottocode'].valueUrl)
+    assert '{#X}.md' == str(ds['LanguageTable'].aboutUrl)
+    ds.rename_column(vt, 'Language_ID', '')
+    assert ds['LanguageTable', 'id'].name == 'X'
+    assert lt.tableSchema.primaryKey == ['X']
+    lfk = [
+        fk.reference for fk in ds['ValueTable'].tableSchema.foreignKeys
+        if fk.reference.resource == lt.url][0]
+    assert 'X' in lfk.columnReference
+    # Adding a component after the renaming will also respect the new name:
+    ex = ds.add_component('ExampleTable')
+    lfk = [
+        fk.reference for fk in ex.tableSchema.foreignKeys
+        if 'Language_ID' in fk.columnReference][0]
+    assert 'X' in lfk.columnReference
