@@ -5,6 +5,13 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 
+## [1.27.0] - 2022-07-07
+
+- Updates to account for CLDF 1.1.3
+- Support for renaming columns
+- Validation of URITemplate properties when validating
+
+
 ## [1.26.1] - 2022-05-23
 
 - Fixed bug whereby zipped tables were not detected/evaluated during validation.

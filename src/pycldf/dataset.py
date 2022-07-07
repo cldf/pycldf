@@ -33,6 +33,9 @@ __all__ = [
 
 MD_SUFFIX = '-metadata.json'
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
+TableType = typing.Union[str, Table]
+ColType = typing.Union[str, Column]
+PathType = typing.Union[str, pathlib.Path]
 
 
 class SchemaError(KeyError):
@@ -148,7 +151,7 @@ class Dataset:
     # Factory methods to create `Dataset` instances.
     #
     @classmethod
-    def in_dir(cls, d: typing.Union[str, pathlib.Path], empty_tables=False) -> 'Dataset':
+    def in_dir(cls, d: PathType, empty_tables: bool = False) -> 'Dataset':
         """
         Create a :class:`~pycldf.dataset.Dataset` in a (possibly empty or even non-existing) \
         directory.
@@ -167,7 +170,7 @@ class Dataset:
         return res
 
     @classmethod
-    def from_metadata(cls, fname: typing.Union[str, pathlib.Path]) -> 'Dataset':
+    def from_metadata(cls, fname: PathType) -> 'Dataset':
         """
         Initialize a :class:`~pycldf.dataset.Dataset` with the metadata found at `fname`.
 
@@ -206,7 +209,7 @@ class Dataset:
         return cls(tablegroup)
 
     @classmethod
-    def from_data(cls, fname: typing.Union[str, pathlib.Path]) -> 'Dataset':
+    def from_data(cls, fname: PathType) -> 'Dataset':
         """
         Initialize a :class:`~pycldf.dataset.Dataset` from a single CLDF data file.
 
@@ -424,7 +427,7 @@ class Dataset:
         except SchemaError:
             return default
 
-    def get_foreign_key_reference(self, table, column) \
+    def get_foreign_key_reference(self, table: TableType, column: ColType) \
             -> typing.Union[typing.Tuple[csvw.Table, csvw.Column], None]:
         """
         Retrieve the reference of a foreign key constraint for the specified column.
@@ -513,7 +516,7 @@ class Dataset:
                 kw.pop('primaryKey'))
         return t
 
-    def remove_table(self, table):
+    def remove_table(self, table: TableType):
         """
         Removes the table specified by `table` from the dataset.
         """
@@ -568,7 +571,7 @@ class Dataset:
         self.auto_constraints(component)
         return component
 
-    def add_columns(self, table, *cols) -> None:
+    def add_columns(self, table: TableType, *cols) -> None:
         """
         Add columns specified by `cols` to the table specified by `table`.
         """
@@ -585,11 +588,11 @@ class Dataset:
             table.tableSchema.columns.append(col)
         self.auto_constraints()
 
-    def remove_columns(self, table, *cols):
+    def remove_columns(self, table: TableType, *cols):
         """
         Remove `cols` from `table`'s schema.
 
-        Note: Foreign keys pointing to any of the removed columns are removed as well.
+        .. note:: Foreign keys pointing to any of the removed columns are removed as well.
         """
         table = self[table]
         cols = [str(self[table, col]) for col in cols]
@@ -608,9 +611,9 @@ class Dataset:
 
         table.tableSchema.columns = [c for c in table.tableSchema.columns if str(c) not in cols]
 
-    def rename_column(self, table, col, name):
+    def rename_column(self, table: TableType, col: ColType, name: str):
         """
-        Assign a new name to an existing column, cascading this change to foreign keys.
+        Assign a new `name` to an existing column, cascading this change to foreign keys.
 
         This functionality can be used to change the names of columns added automatically by
         :meth:`Dataset.add_component`
@@ -644,7 +647,12 @@ class Dataset:
 
         col.name = name
 
-    def add_foreign_key(self, foreign_t, foreign_c, primary_t, primary_c=None):
+    def add_foreign_key(
+            self,
+            foreign_t: TableType,
+            foreign_c: ColType,
+            primary_t: TableType,
+            primary_c: typing.Optional[ColType] = None):
         """
         Add a foreign key constraint.
 
@@ -737,7 +745,7 @@ class Dataset:
     #
     # Methods to read data
     #
-    def iter_rows(self, table, *cols) -> typing.Iterator[dict]:
+    def iter_rows(self, table: TableType, *cols) -> typing.Iterator[dict]:
         """
         Iterate rows in a table, resolving CLDF property names to local column names.
 
@@ -753,7 +761,7 @@ class Dataset:
                 item[v] = item[k]
             yield item
 
-    def get_row(self, table, id_) -> dict:
+    def get_row(self, table: TableType, id_) -> dict:
         """
         Retrieve a row specified by table and CLDF id.
 
@@ -765,7 +773,7 @@ class Dataset:
                 return row
         raise ValueError(id_)  # pragma: no cover
 
-    def get_row_url(self, table, row) -> typing.Union[str, None]:
+    def get_row_url(self, table: TableType, row) -> typing.Union[str, None]:
         """
         Get a URL associated with a row. Tables can specify associated row URLs by
 
@@ -793,7 +801,7 @@ class Dataset:
         if id_col.valueUrl:
             return id_col.valueUrl.expand(**row)
 
-    def objects(self, table, cls=None) -> DictTuple:
+    def objects(self, table: str, cls: typing.Optional[typing.Type] = None) -> DictTuple:
         """
         Read data of a CLDF component as :class:`pycldf.orm.Object` instances.
 

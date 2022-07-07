@@ -85,7 +85,7 @@ and columns.
 
 .. autoclass:: pycldf.Dataset
    :noindex:
-   :members: add_table, remove_table, add_component, add_columns, remove_columns, add_foreign_key, add_provenance,
+   :members: add_table, remove_table, add_component, add_columns, remove_columns, rename_column, add_foreign_key, add_provenance,
 
 
 Adding data
