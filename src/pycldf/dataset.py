@@ -248,6 +248,14 @@ class Dataset:
         return self.tablegroup._fname.parent if self.tablegroup._fname else self.tablegroup.base
 
     @property
+    def filename(self) -> str:
+        """
+        :return: The name of the metadata file.
+        """
+        return self.tablegroup._fname.name if self.tablegroup._fname else \
+            pathlib.Path(urllib.parse.urlparse(self.tablegroup.base).path).name
+
+    @property
     def module(self) -> str:
         """
         :return: The name of the CLDF module of the dataset.

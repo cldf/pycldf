@@ -1,7 +1,18 @@
+import pathlib
+import argparse
+
 from clldutils.clilib import PathType
+from csvw.utils import is_url
+import requests
 
 from pycldf import Dataset, Database
 
+__all__ = [
+    'add_dataset', 'get_dataset',
+    'UrlOrPathType', 'FlagOrPathType', 'strtobool',
+    'add_database', 'get_database',
+    'add_catalog_spec',
+]
 
 #
 # Copied from distutils.util - because we don't want to deal with deprecation warnings.
@@ -30,17 +41,29 @@ class FlagOrPathType(PathType):
             return super().__call__(string)
 
 
+class UrlOrPathType(PathType):
+    def __call__(self, string):
+        if is_url(string):
+            if self._must_exist:
+                sc = requests.head(string).status_code
+                if sc != 200:
+                    raise argparse.ArgumentTypeError(
+                        'URL {} does not exist [HTTP {}]!'.format(string, sc))
+            return string
+        return super().__call__(string)
+
+
 def add_dataset(parser):
     parser.add_argument(
         'dataset',
         metavar='DATASET',
-        help="Dataset specification (i.e. path to a CLDF metadata file or to the data file)",
-        type=PathType(type='file'),
+        help="Dataset specification (i.e. URL or path to a CLDF metadata file or to the data file)",
+        type=UrlOrPathType(type='file'),
     )
 
 
 def get_dataset(args):
-    if args.dataset.suffix == '.json':
+    if pathlib.Path(args.dataset).suffix == '.json':
         return Dataset.from_metadata(args.dataset)
     return Dataset.from_data(args.dataset)
 

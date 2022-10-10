@@ -822,6 +822,7 @@ def test_Dataset_iter_rows(dataset):
 
 def test_Dataset_get_row_url(data):
     dataset = Dataset.from_metadata(data / 'ds1.csv-metadata.json')
+    assert dataset.filename == 'ds1.csv-metadata.json'
     assert dataset.get_row_url('ValueTable', '2') is None
 
     dataset = Dataset.from_metadata(data / 'ds1.csv-metadata.json')
@@ -835,6 +836,7 @@ def test_Dataset_get_row_url(data):
 
 def test_Dataset_from_url(urlopen):
     ds = Dataset.from_metadata('http://example.org/ds1.csv-metadata.json')
+    assert ds.filename == 'ds1.csv-metadata.json'
     assert ds.bibpath == 'http://example.org/ds1.bib'
     assert ds.bibname == 'ds1.bib'
     assert len(ds.sources) == 3
