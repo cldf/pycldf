@@ -14,6 +14,7 @@ __all__ = [
     'add_catalog_spec',
 ]
 
+
 #
 # Copied from distutils.util - because we don't want to deal with deprecation warnings.
 #
