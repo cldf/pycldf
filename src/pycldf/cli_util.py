@@ -1,3 +1,6 @@
+"""
+Functionality to use in commandline tools which need to access CLDF datasets.
+"""
 import pathlib
 import argparse
 
@@ -18,7 +21,7 @@ __all__ = [
 #
 # Copied from distutils.util - because we don't want to deal with deprecation warnings.
 #
-def strtobool(val):  # pragma: no cover
+def strtobool(val: str) -> int:  # pragma: no cover
     """Convert a string representation of truth to true (1) or false (0).
 
     True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
@@ -54,7 +57,10 @@ class UrlOrPathType(PathType):
         return super().__call__(string)
 
 
-def add_dataset(parser):
+def add_dataset(parser: argparse.ArgumentParser):
+    """
+    Adds a positional argument named `dataset` to the parser to specify a CLDF dataset.
+    """
     parser.add_argument(
         'dataset',
         metavar='DATASET',
@@ -63,7 +69,10 @@ def add_dataset(parser):
     )
 
 
-def get_dataset(args):
+def get_dataset(args: argparse.Namespace) -> Dataset:
+    """
+    Uses the dataset specification in `args` to return a corresponding `Dataset` instance.
+    """
     if pathlib.Path(args.dataset).suffix == '.json':
         return Dataset.from_metadata(args.dataset)
     return Dataset.from_data(args.dataset)

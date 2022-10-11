@@ -21,6 +21,7 @@ Follow the links below for documentation of the pycldf Python API.
    orm
    media
    db
+   cli_util
 
 
 Indices and tables

@@ -4,6 +4,9 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+
+## [1.28.0] - 2022-10-11
+
 - Added `pycldf.Dataset.filename` property, to retrieve the name of the metadat file for both cases, local and remote datasets.
 - Enhanced cli utilities to make dataset specification and retrieval by URL possible.
 
