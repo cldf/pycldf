@@ -148,6 +148,11 @@ def test_tabletype_none(ds):
     assert ds.get_tabletype(t) is None
 
 
+def test_example_separators(ds):
+    ds.add_component('ExampleTable')
+    assert ds['ExampleTable', 'Gloss'].separator == '\t'
+
+
 def test_example_validators(ds):
     ds.add_table(
         'examples',
