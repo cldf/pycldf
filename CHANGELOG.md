@@ -4,6 +4,8 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+- Added support to write datasets with (individually) zipped table CSV files.
+
 
 ## [1.28.0] - 2022-10-11
 

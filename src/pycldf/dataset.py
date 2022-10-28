@@ -856,22 +856,29 @@ class Dataset:
         """
         return self.sources.write(self.bibpath)
 
-    def write(self, fname=None, **table_items: typing.List[dict]):
+    def write(self,
+              fname: typing.Optional[pathlib.Path] = None,
+              zipped: typing.Optional[typing.Iterable] = None,
+              **table_items: typing.List[dict]) -> pathlib.Path:
         """
         Write metadata, sources and data. Metadata will be written to `fname` (as interpreted in
         :meth:`pycldf.dataset.Dataset.write_metadata`); data files will be written to the file
         specified by `csvw.Table.url` of the corresponding table, interpreted as path relative
         to :meth:`~pycldf.dataset.Dataset.directory`.
 
+        :param zipped: Iterable listing keys of `table_items` for which the table file should \
+        be zipped.
         :param table_items: Mapping of table specifications to lists of row dicts.
+        :return: Path of the CLDF metadata file as written to disk.
         """
+        zipped = zipped or set()
         if self.sources and not self.properties.get('dc:source'):
             self.properties['dc:source'] = 'sources.bib'
         self.write_sources()
         for table_type, items in table_items.items():
             table = self[table_type]
-            table.common_props['dc:extent'] = table.write(items)
-        self.write_metadata(fname)
+            table.common_props['dc:extent'] = table.write(items, _zipped=table_type in zipped)
+        return self.write_metadata(fname)
 
     def copy(self, dest: typing.Union[str, pathlib.Path], mdname: str = None) -> pathlib.Path:
         """

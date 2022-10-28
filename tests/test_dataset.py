@@ -264,8 +264,13 @@ def test_duplicate_component(ds, tmp_path):
             Dataset.from_metadata(str(md))
 
 
-def test_with_zipped_table(data, tmp_path, caplog):
+def test_with_zipped_table(ds, data, tmp_path, caplog):
     from pycldf.db import Database
+
+    ds.add_component('LanguageTable')
+    md = ds.write(LanguageTable=[dict(ID='l1')], zipped=['LanguageTable'])
+    assert md.parent.joinpath('languages.csv.zip').exists()
+    assert len(list(Dataset.from_metadata(md)['LanguageTable'])) == 1
 
     dsdir = tmp_path / 'ds'
     shutil.copytree(data / 'structuredataset_with_examples', dsdir)
