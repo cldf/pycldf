@@ -1,9 +1,11 @@
 """
-This module provides a function - :func:`get_database` to create and use a CLDF SQL compliant
+This module provides a function - :func:`get_database` - to create and use a CLDF SQL compliant
 SQLite database.
 """
 from pycldf import Database
 from .discovery import get_dataset
+
+__all__ = ['get_database']
 
 
 def get_database(locator, download_dir=None, fname=None, base=None) -> Database:

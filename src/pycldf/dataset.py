@@ -29,7 +29,7 @@ from pycldf import orm
 
 __all__ = [
     'Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset',
-    'iter_datasets', 'sniff', 'SchemaError']
+    'iter_datasets', 'sniff', 'SchemaError', 'ComponentWithValidation']
 
 MD_SUFFIX = '-metadata.json'
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
@@ -950,6 +950,11 @@ class Dataset:
         :raises ValueError: if a validation error is encountered (and `log` is `None`).
         :return: Flag signaling whether schema and data are valid.
         """
+        from pycldf.media import MediaTable
+        from pycldf.trees import TreeTable
+
+        assert MediaTable and TreeTable
+
         terms = Terms(ontology_path) or TERMS
         validators = validators or []
         validators.extend(VALIDATORS)
@@ -1069,6 +1074,10 @@ class Dataset:
         if not self.tablegroup.check_referential_integrity(log=log):
             success = False
 
+        for cls in ComponentWithValidation.__subclasses__():
+            if cls.__name__ in self:
+                success = cls(self).validate(success, log=log)
+
         return success
 
     def stats(self, exact=False) -> typing.List[typing.Tuple[str, str, int]]:
@@ -1163,6 +1172,16 @@ class StructureDataset(Dataset):
     @property
     def primary_table(self):
         return 'ValueTable'
+
+
+class ComponentWithValidation:
+    def __init__(self, ds: Dataset):
+        self.ds = ds
+        self.component = self.__class__.__name__
+        self.table = ds[self.component]
+
+    def validate(self, success: bool = True, log: logging.Logger = None) -> bool:
+        return success  # pragma: no cover
 
 
 def sniff(p: pathlib.Path) -> bool:

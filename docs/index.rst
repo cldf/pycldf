@@ -20,6 +20,7 @@ Follow the links below for documentation of the pycldf Python API.
    dataset
    orm
    media
+   trees
    cli_util
    ext_discovery
    ext_markdown

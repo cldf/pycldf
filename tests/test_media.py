@@ -1,10 +1,12 @@
+import logging
+import zipfile
 import urllib.parse
 
 import pytest
 
 from pycldf import Generic
 from csvw.metadata import URITemplate
-from pycldf.media import read_data_url, read_file_url, read_http_url, Mimetype, Media, File
+from pycldf.media import read_data_url, read_file_url, read_http_url, Mimetype, MediaTable, File
 
 
 @pytest.fixture
@@ -22,7 +24,7 @@ def ds_factory(tmp_path):
 def file_factory(ds_factory):
     def factory(media_item):
         ds = ds_factory(media_item)
-        return list(Media(ds))[0]
+        return list(MediaTable(ds))[0]
     return factory
 
 
@@ -136,16 +138,16 @@ def test_Media(tmp_path, ds_factory):
     assert File.from_dataset(
         ds,
         ds.get_object('MediaTable', '123')).mimetype.type == 'text'
-    media = Media(ds)
+    media = MediaTable(ds)
     tmp_path.joinpath('test.txt').write_bytes('äöü'.encode('latin1'))
     assert 'äöü' == list(media)[0].read()
 
     ds['MediaTable', 'Download_URL'].propertyUrl = ''  # Now the valueUrl kicks in!
-    media = Media(ds)
+    media = MediaTable(ds)
     assert '123' == list(media)[0].read()
 
     ds['MediaTable', 'ID'].valueUrl = URITemplate('')
-    media = Media(ds)
+    media = MediaTable(ds)
     assert list(media)[0].read() is None
 
     ds = ds_factory(dict(
@@ -154,13 +156,46 @@ def test_Media(tmp_path, ds_factory):
         Media_Type='text/plain;charset=ISO-8859-1'))
     ds['MediaTable', 'Download_URL'].propertyUrl = ''
     ds['MediaTable', 'url'].propertyUrl = URITemplate('http://www.w3.org/ns/dcat#downloadUrl')
-    media = Media(ds)
+    media = MediaTable(ds)
     assert 'äöü' == list(media)[0].read()
 
     ds = ds_factory(dict(
         ID='123',
         Download_URL='filex:/test.txt',
         Media_Type='text/plain;charset=ISO-8859-1'))
-    media = Media(ds)
+    media = MediaTable(ds)
     with pytest.raises(ValueError):
         list(media)[0].read()
+
+    with zipfile.ZipFile(str(tmp_path / '123.zip'), 'w') as zf:
+        zf.writestr('arc/name', 'äöü'.encode('utf8'))
+    ds = ds_factory(dict(
+        ID='123',
+        Download_URL="file:///123.zip",
+        Media_Type='text/plain',
+        Path_In_Zip='arc/name',
+    ))
+    assert list(MediaTable(ds))[0].read() == 'äöü'
+    assert list(MediaTable(ds))[0].read(d=tmp_path) == 'äöü'
+
+
+def test_save_read_zipped_media(dataset_with_trees, tmp_path):
+    zipped = None
+    for f in MediaTable(dataset_with_trees):
+        f.save(tmp_path)
+        if f.path_in_zip:
+            zipped = f
+    zfs = list(tmp_path.glob('*.zip'))
+    assert len(zfs) == 1
+    with zipfile.ZipFile(zfs[0]) as zf:
+        assert 'nexus.trees' in zf.namelist()
+    assert zipped.read(tmp_path).startswith('#NEXUS')
+
+
+def test_Media_validate(tmp_path):
+    ds = Generic.in_dir(tmp_path)
+    ds.add_component('MediaTable')
+    ds.remove_columns('MediaTable', 'Download_URL')
+    ds['MediaTable', 'ID'].valueUrl = ''
+    ds.write(MediaTable=[dict(ID='123', Media_Type='text/plain')])
+    assert not ds.validate(log=logging.getLogger('test'))

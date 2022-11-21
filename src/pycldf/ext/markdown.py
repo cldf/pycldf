@@ -6,9 +6,11 @@ For an example, see :class:`FilenameToComponent`.
 import re
 import typing
 import pathlib
+import warnings
 
 import attr
 import frontmatter
+import clldutils
 from clldutils.markup import MarkdownLink
 
 from .discovery import get_dataset
@@ -176,11 +178,21 @@ class CLDFMarkdownText:
         """
         raise NotImplementedError()  # pragma: no cover
 
-    def render(self) -> str:
+    def render(self,
+               simple_link_detection: bool = True,
+               markdown_kw: typing.Optional[dict] = None) -> str:
         """
         A markdown string with CLDF Markdown links replaced.
         """
-        return CLDFMarkdownLink.replace(self.text, self._render_link)
+        if tuple(map(int, clldutils.__version__.split('.')[:2])) < (3, 14):  # pragma: no cover
+            if simple_link_detection or markdown_kw:
+                warnings.warn(
+                    'Extended markdown link detection is only supported with clldutils>=3.14',
+                    category=UserWarning)
+            kw = {}
+        else:
+            kw = dict(simple=simple_link_detection, markdown_kw=markdown_kw)
+        return CLDFMarkdownLink.replace(self.text, self._render_link, **kw)
 
 
 class FilenameToComponent(CLDFMarkdownText):
@@ -192,6 +204,4 @@ class FilenameToComponent(CLDFMarkdownText):
         Rewrites to URL of CLDF Markdown links, using the component name for the part before the
         fragment.
         """
-        cldf_link.url = CLDFMarkdownLink.format_url(
-            cldf_link.component(cldf=self.dataset_mapping), cldf_link.objid, dsid=cldf_link.dsid)
-        return cldf_link
+        return cldf_link.update_url(path=cldf_link.component(cldf=self.dataset_mapping))

@@ -66,14 +66,14 @@ def test_check(data, glottolog_repos, concepticon_repos, caplog, tmp_path):
 
 def test_downloadmedia(tmp_path, data):
     from pycldf import Dataset
-    from pycldf.media import Media
+    from pycldf.media import MediaTable
 
     md = data / 'dataset_with_media' / 'metadata.json'
     main(['downloadmedia', str(md), str(tmp_path), "Name=x"])
     assert len(list(tmp_path.glob('*'))) == 1
 
     main(['downloadmedia', str(md), str(tmp_path)])
-    files = list(Media(Dataset.from_metadata(md)))
+    files = list(MediaTable(Dataset.from_metadata(md)))
     assert files[0].read(tmp_path) == 'Hello, World!'
     assert files[1].read(tmp_path) == 'äöü'
 
