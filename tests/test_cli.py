@@ -1,6 +1,8 @@
+import pathlib
 import sys
 import shutil
 import logging
+import sqlite3
 import warnings
 
 import pytest
@@ -127,3 +129,15 @@ def test_all(capsys, tmp_path, mocker, data):
 
     with pytest.raises(SystemExit):
         main(['createdb', str(md), str(tmp_path / 'test.sqlite')], log=log)
+
+
+def test_createdb_locator(data, tmp_path):
+    db = tmp_path / 'db.sqlite'
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        main(['createdb', str(data) + '#rdf:ID=dswm', str(db)])
+    assert db.exists()
+    conn = sqlite3.connect(str(db))
+    cu = conn.cursor()
+    cu.execute('select count(*) from mediatable')
+    assert cu.fetchone()[0] > 0

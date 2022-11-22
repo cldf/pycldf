@@ -9,6 +9,11 @@ register additional :class:`DatasetResolver` subclasses using the entry point
 
 - :class:`LocalResolver`
 - :class:`GenericUrlResolver`
+
+Additional resolvers:
+
+- The `cldfzenodo <https://pypi.org/project/cldfzenodo>`_ package (>=1.0) provides a dataset
+  resolver for DOI URLs pointing to the Zenodo archive.
 """
 import typing
 import pathlib

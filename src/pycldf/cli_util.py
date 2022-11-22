@@ -1,14 +1,14 @@
 """
 Functionality to use in commandline tools which need to access CLDF datasets.
 """
-import pathlib
 import argparse
 
-from clldutils.clilib import PathType
+from clldutils.clilib import PathType, ParserError
 from csvw.utils import is_url
 import requests
 
 from pycldf import Dataset, Database
+from pycldf.ext import discovery
 
 __all__ = [
     'add_dataset', 'get_dataset',
@@ -54,7 +54,8 @@ class UrlOrPathType(PathType):
                     raise argparse.ArgumentTypeError(
                         'URL {} does not exist [HTTP {}]!'.format(string, sc))
             return string
-        return super().__call__(string)
+        super().__call__(string.partition('#')[0])
+        return string
 
 
 def add_dataset(parser: argparse.ArgumentParser):
@@ -64,8 +65,17 @@ def add_dataset(parser: argparse.ArgumentParser):
     parser.add_argument(
         'dataset',
         metavar='DATASET',
-        help="Dataset specification (i.e. URL or path to a CLDF metadata file or to the data file)",
-        type=UrlOrPathType(type='file'),
+        help="Dataset locator (i.e. URL or path to a CLDF metadata file or to the data file). "
+             "Resolving dataset locators like DOI URLs might require installation of third-party "
+             "packages, registering such functionality using the `pycldf_dataset_resolver` "
+             "entry point.",
+        type=UrlOrPathType(),
+    )
+    parser.add_argument(
+        '--download-dir',
+        type=PathType(type='dir'),
+        help='An existing directory to use for downloading a dataset (if necessary).',
+        default=None,
     )
 
 
@@ -73,9 +83,13 @@ def get_dataset(args: argparse.Namespace) -> Dataset:
     """
     Uses the dataset specification in `args` to return a corresponding `Dataset` instance.
     """
-    if pathlib.Path(args.dataset).suffix == '.json':
-        return Dataset.from_metadata(args.dataset)
-    return Dataset.from_data(args.dataset)
+    try:
+        return discovery.get_dataset(args.dataset, download_dir=args.download_dir)
+    except TypeError as e:  # pragma: no cover
+        if 'PathLike' in str(e):
+            raise ParserError(
+                'The dataset locator may require downloading, so you should specify --download-dir')
+        raise
 
 
 def add_database(parser, must_exist=True):

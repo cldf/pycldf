@@ -122,6 +122,8 @@ def metadata2markdown(ds, path, rel_path='./'):
     :param rel_path: `str` to use a relative path when creating links to data files
     :return: `str` with markdown formatted text
     """
+    path = pathlib.Path(path)
+
     def qname2link(qname, html=False):
         url = qname2url(qname)
         if url:

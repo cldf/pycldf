@@ -5,6 +5,7 @@ import contextlib
 from clldutils.clilib import (
     register_subcommands, get_parser_and_subparsers, ParserError, add_csv_field_size_limit)
 from clldutils.loglib import Logging
+from termcolor import colored
 
 import pycldf.commands
 
@@ -30,7 +31,7 @@ def main(args=None, catch_all=False, parsed_args=None, log=None):
         except KeyboardInterrupt:  # pragma: no cover
             return 0
         except ParserError as e:
-            print(e)
+            print(colored(str(e), 'red'))
             return main([args._command, '-h'])
         except Exception as e:  # pragma: no cover
             if catch_all:

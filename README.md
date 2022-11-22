@@ -20,6 +20,51 @@ pip install pycldf
 Installing the `pycldf` package will also install a command line interface `cldf`, which provides some sub-commands to manage CLDF datasets.
 
 
+### Dataset discovery
+
+`cldf` subcommands support dataset discovery as specified in the [standard](https://github.com/cldf/cldf/blob/master/extensions/discovery.md).
+
+So a typical workflow involving a remote dataset could look as follows.
+
+Create a local directory to which to download the dataset (ideally including version info):
+```shell
+$ mkdir wacl-1.0.0
+```
+
+Validating a dataset from Zenodo will implicitly download it, so running
+```shell
+$ cldf validate https://zenodo.org/record/7322688#rdf:ID=wacl --download-dir wacl-1.0.0/
+```
+will download the dataset to `wacl-1.0.0`.
+
+Subsequently we can access the data locally for better performance:
+```shell
+$ cldf stats wacl-1.0.0/#rdf:ID=wacl
+<cldf:v1.0:StructureDataset at wacl-1.0.0/cldf>
+                          value
+------------------------  --------------------------------------------------------------------
+dc:bibliographicCitation  Her, One-Soon, Harald Hammarström and Marc Allassonnière-Tang. 2022.
+dc:conformsTo             http://cldf.clld.org/v1.0/terms.rdf#StructureDataset
+dc:identifier             https://wacl.clld.org
+dc:license                https://creativecommons.org/licenses/by/4.0/
+dc:source                 sources.bib
+dc:title                  World Atlas of Classifier Languages
+dcat:accessURL            https://github.com/cldf-datasets/wacl
+rdf:ID                    wacl
+rdf:type                  http://www.w3.org/ns/dcat#Distribution
+
+                Type              Rows
+--------------  --------------  ------
+values.csv      ValueTable        3338
+parameters.csv  ParameterTable       1
+languages.csv   LanguageTable     3338
+codes.csv       CodeTable            2
+sources.bib     Sources           2000
+```
+
+(Note that locating datasets on Zenodo requires installation of [cldfzenodo](https:pypi.org/project/cldfzenodo).)
+
+
 ### Summary statistics
 
 ```shell

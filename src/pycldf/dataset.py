@@ -1191,14 +1191,17 @@ def sniff(p: pathlib.Path) -> bool:
     :param p: `pathlib.Path` object for an existing file.
     :return: `True` if the file contains CLDF metadata, `False` otherwise.
     """
-    with p.open('rb') as fp:
-        c = fp.read(10)
-        try:
-            c = c.decode('utf8').strip()
-        except UnicodeDecodeError:
-            return False
-        if not c.startswith('{'):
-            return False
+    try:
+        with p.open('rb') as fp:
+            c = fp.read(10)
+            try:
+                c = c.decode('utf8').strip()
+            except UnicodeDecodeError:
+                return False
+            if not c.startswith('{'):
+                return False
+    except FileNotFoundError:  # pragma: no cover
+        return False
     try:
         d = jsonlib.load(p)
     except json.decoder.JSONDecodeError:
