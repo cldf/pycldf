@@ -102,6 +102,8 @@ class CLDFMarkdownLink(MarkdownLink):
 
         if name == cldf.bibname or name == 'Source':
             return 'Source'
+        if name == cldf.filename:
+            return 'Metadata'
         try:
             return cldf.get_tabletype(cldf[name])
         except (KeyError, ValueError):

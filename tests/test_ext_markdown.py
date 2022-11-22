@@ -50,5 +50,9 @@ cldf-datasets: {}#dc:conformsTo=http://cldf.clld.org/v1.0/terms.rdf#StructureDat
 def test_FilenameToComponent(data):
     ds = Dataset.from_metadata(
         data / 'dataset_with_listvalued_foreign_keys_to_component' / 'metadata.json')
+
     res = FilenameToComponent('[](custom.csv#cldf:1)', ds).render()
     assert 'custom.csv' in res
+
+    res = FilenameToComponent('[](metadata.json#cldf:"dc:title")', ds).render()
+    assert 'Metadata' in res
