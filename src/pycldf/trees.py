@@ -26,15 +26,12 @@ import logging
 import pathlib
 
 from clldutils.misc import log_or_raise
+import newick
+import nexus
 
 import pycldf
 from pycldf.media import MediaTable, File
 
-try:
-    import newick
-    import nexus
-except ImportError:  # pragma: no cover
-    newick = nexus = None
 
 __all__ = ['Tree', 'TreeTable']
 
@@ -58,10 +55,6 @@ class Tree:
         :meth:`pycldf.media.File.save`.
         :return: `newick.Node` representing the root of the associated tree.
         """
-        if not newick or (not nexus):  # pragma: no cover
-            raise ValueError(
-                'Reading newick strings requires installing pycldf with trees, '
-                'running `pip install pycldf[tree]`')
         content = self.file.read(d=d)
         if self.file.mimetype == 'text/x-nh':
             for index, tree in enumerate(newick.loads(content), start=1):
