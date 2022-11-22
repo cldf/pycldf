@@ -1,5 +1,6 @@
 import pytest
 
+from pycldf import Dataset
 from pycldf.ext.markdown import *
 
 
@@ -44,3 +45,10 @@ cldf-datasets: {}#dc:conformsTo=http://cldf.clld.org/v1.0/terms.rdf#StructureDat
 
     with pytest.raises(ValueError):
         _ = Renderer('text', dataset_mapping={'-': structuredataset_with_examples})
+
+
+def test_FilenameToComponent(data):
+    ds = Dataset.from_metadata(
+        data / 'dataset_with_listvalued_foreign_keys_to_component' / 'metadata.json')
+    res = FilenameToComponent('[](custom.csv#cldf:1)', ds).render()
+    assert 'custom.csv' in res

@@ -185,7 +185,7 @@ class CLDFMarkdownText:
         A markdown string with CLDF Markdown links replaced.
         """
         if tuple(map(int, clldutils.__version__.split('.')[:2])) < (3, 14):  # pragma: no cover
-            if simple_link_detection or markdown_kw:
+            if not simple_link_detection or markdown_kw:
                 warnings.warn(
                     'Extended markdown link detection is only supported with clldutils>=3.14',
                     category=UserWarning)
@@ -204,4 +204,7 @@ class FilenameToComponent(CLDFMarkdownText):
         Rewrites to URL of CLDF Markdown links, using the component name for the part before the
         fragment.
         """
-        return cldf_link.update_url(path=cldf_link.component(cldf=self.dataset_mapping))
+        comp = cldf_link.component(cldf=self.dataset_mapping)
+        if comp:
+            return cldf_link.update_url(path=cldf_link.component(cldf=self.dataset_mapping))
+        return cldf_link

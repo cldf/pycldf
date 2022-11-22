@@ -4,6 +4,9 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+- Fix bug whereby CLDF Markdown links to rows in custom tables were erased by
+  FilenameToComponent.
+
 
 ## [1.31.0] - 2022-11-22
 
