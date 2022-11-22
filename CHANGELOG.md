@@ -2,6 +2,9 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+
 ## [1.30.0] - 2022-11-22
 
 Fully supports CLDF 1.2 now, including [CLDF extensions](https://github.com/cldf/cldf#extensions).
