@@ -29,3 +29,7 @@ def test_DictTuple():
 ])
 def test_sanitize_url(url, expected):
     assert sanitize_url(url) == expected
+
+
+def test_url_without_fragment():
+    assert url_without_fragment('http://example.org/p#frag#ment') == 'http://example.org/p'

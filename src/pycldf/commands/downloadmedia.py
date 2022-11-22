@@ -6,7 +6,7 @@ Filenames will be the item's ID with a suffix added according to media type.
 from clldutils.clilib import PathType
 
 from pycldf.cli_util import add_dataset, get_dataset
-from pycldf.media import Media
+from pycldf.media import MediaTable
 
 
 def register(parser):
@@ -27,6 +27,6 @@ def run(args):
     for s in args.filters:
         col, _, substring = s.partition('=')
         filters.append((col, substring))
-    for item in Media(get_dataset(args)):
+    for item in MediaTable(get_dataset(args)):
         if all(substring in item[col] for col, substring in filters):
             item.save(args.output)

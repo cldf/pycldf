@@ -70,3 +70,8 @@ def wordlist_with_borrowings(data):
 @pytest.fixture(scope='module')
 def wordlist_with_cognates(data):
     return Dataset.from_metadata(data / 'wordlist_with_cognates' / 'metadata.json')
+
+
+@pytest.fixture(scope='module')
+def dataset_with_trees(data):
+    return Dataset.from_metadata(data / 'dataset_with_trees' / 'metadata.json')

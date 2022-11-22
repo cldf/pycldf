@@ -1,4 +1,5 @@
 import html
+import typing
 import pathlib
 import itertools
 import collections
@@ -9,7 +10,13 @@ import pycldf
 
 __all__ = [
     'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown', 'qname2url',
-    'sanitize_url', 'iter_uritemplates']
+    'sanitize_url', 'iter_uritemplates', 'url_without_fragment']
+
+
+def url_without_fragment(url: typing.Union[str, urllib.parse.ParseResult]) -> str:
+    if isinstance(url, str):
+        url = urllib.parse.urlparse(url)
+    return urllib.parse.urlunparse(list(url[:5]) + [''])
 
 
 def iter_uritemplates(table):

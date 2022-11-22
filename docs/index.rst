@@ -20,8 +20,11 @@ Follow the links below for documentation of the pycldf Python API.
    dataset
    orm
    media
-   db
+   trees
    cli_util
+   ext_discovery
+   ext_markdown
+   ext_sql
 
 
 Indices and tables

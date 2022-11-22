@@ -1,0 +1,3 @@
+ID,Name,Description,Media_Type,Download_URL,Path_In_Zip
+newick,x,y,text/x-nh,file:///newick.nwk,
+nexus,y,x,text/plain,file:///nexus.trees.zip,nexus.trees
