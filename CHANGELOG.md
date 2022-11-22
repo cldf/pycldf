@@ -2,7 +2,9 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.31.0] - 2022-11-22
+
+Support data locators as input for all `cldf` subcommands.
 
 
 ## [1.30.0] - 2022-11-22
