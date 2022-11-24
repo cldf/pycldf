@@ -50,24 +50,41 @@ class Tree:
             setattr(self, attrib, row.get(trees.cols[prop].name) if trees.cols[prop] else None)
         self.trees = trees
 
-    def newick(self, d: typing.Optional[pathlib.Path] = None):
+    def newick_string(self, d: typing.Optional[pathlib.Path] = None) -> str:
         """
+        Retrieve the Newick representation of the tree from the associated tree file.
+
         :param d: Directory where the tree file was saved earlier, using \
         :meth:`pycldf.media.File.save`.
-        :return: `newick.Node` representing the root of the associated tree.
+        :return: Newick representation of the associated tree.
         """
         if self.file.id not in self.trees._parsed_files:
             content = self.file.read(d=d)
             if self.file.mimetype == 'text/x-nh':
                 self.trees._parsed_files[self.file.id] = {
-                    str(index): nwk for index, nwk in enumerate(newick.loads(content), start=1)}
+                    str(index): nwk for index, nwk in enumerate(
+                        [t.strip() for t in content.split(';') if t.strip()], start=1)}
             else:
                 assert content.startswith('#NEXUS')
                 self.trees._parsed_files[self.file.id] = {
-                    tree.name: tree.newick_tree
+                    tree.name: tree.newick_string
                     for tree in nexus.NexusReader.from_string(content).trees}
 
         return self.trees._parsed_files[self.file.id][self.name]
+
+    def newick(self,
+               d: typing.Optional[pathlib.Path] = None,
+               strip_comments: bool = False) -> newick.Node:
+        """
+        Retrieve a `newick.Node` instance for the tree from the associated tree file.
+
+        :param d: Directory where the tree file was saved earlier, using \
+        :meth:`pycldf.media.File.save`.
+        :param strip_comments: Flag signaling whether to strip comments enclosed in square \
+        brackets.
+        :return: `newick.Node` representing the root of the associated tree.
+        """
+        return newick.loads(self.newick_string(d=d), strip_comments=strip_comments)[0]
 
 
 class TreeTable(pycldf.ComponentWithValidation):

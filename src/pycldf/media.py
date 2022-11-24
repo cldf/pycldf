@@ -208,8 +208,23 @@ class MediaTable(pycldf.ComponentWithValidation):
     def validate(self, success: bool = True, log: logging.Logger = None) -> bool:
         for file in self:
             if not file.url:
-                log_or_raise('File without URL: {}'.format(file.id), log=log)
                 success = False
+                log_or_raise('File without URL: {}'.format(file.id), log=log)
+            elif file.scheme == 'file':
+                try:
+                    file.read()
+                except FileNotFoundError:
+                    success = False
+                    log_or_raise('Non-existing local file referenced: {}'.format(file.id), log=log)
+                except Exception as e:  # pragma: no cover
+                    success = False
+                    log_or_raise('Error reading {}: {}'.format(file.id, e), log=log)
+            elif file.scheme == 'data':
+                try:
+                    file.read()
+                except Exception as e:  # pragma: no cover
+                    success = False
+                    log_or_raise('Error reading {}: {}'.format(file.id, e), log=log)
 
         return success
 

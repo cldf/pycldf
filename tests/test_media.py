@@ -126,6 +126,15 @@ def test_read_http_url(mocker):
     assert read_http_url(urllib.parse.urlparse('u'), Mimetype('image/jpg')) == 'äöü'.encode('utf8')
 
 
+def test_Media_invalid(ds_factory):
+    ds = ds_factory(dict(
+        ID='123',
+        Download_URL='data:text/plain;base64,abc',
+        Media_Type='text/plain;charset=ISO-8859-1'))
+    with pytest.raises(ValueError):
+        ds.validate()
+
+
 def test_Media(tmp_path, ds_factory):
     ds = ds_factory(dict(
         ID='123',
@@ -138,8 +147,11 @@ def test_Media(tmp_path, ds_factory):
     assert File.from_dataset(
         ds,
         ds.get_object('MediaTable', '123')).mimetype.type == 'text'
+    with pytest.raises(ValueError) as e:
+        ds.validate()
     media = MediaTable(ds)
     tmp_path.joinpath('test.txt').write_bytes('äöü'.encode('latin1'))
+    assert ds.validate()
     assert 'äöü' == list(media)[0].read()
 
     ds['MediaTable', 'Download_URL'].propertyUrl = ''  # Now the valueUrl kicks in!

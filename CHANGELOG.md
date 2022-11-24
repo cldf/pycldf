@@ -4,7 +4,10 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+- Allow access to the unparsed Newick string for a tree.
 - Cache parsed tree files in `TreeTable` for efficient validation.
+- Validate existince of local files referenced in MediaTable.
+- Validate readability of file and data URLs referenced in MediaTable.
 
 
 ## [1.32.0] - 2022-11-23
