@@ -148,7 +148,7 @@ class File:
             return self.mimetype.read(self.local_path(d).read_bytes())
         if self.url:
             try:
-                return self.url_reader[self.scheme](self.parsed_url, self.mimetype)
+                return self.url_reader[self.scheme or 'file'](self.parsed_url, self.mimetype)
             except KeyError:
                 raise ValueError('Unsupported URL scheme: {}'.format(self.scheme))
 
@@ -283,10 +283,16 @@ def read_data_url(url: urllib.parse.ParseResult, mimetype: Mimetype):
     return data
 
 
-def read_file_url(d: pathlib.Path, url: urllib.parse.ParseResult, mimetype: Mimetype):
+def read_file_url(d: typing.Union[pathlib.Path, str],
+                  url: urllib.parse.ParseResult,
+                  mimetype: Mimetype) -> typing.Union[str, bytes]:
     path = url.path
     while path.startswith('/'):
         path = path[1:]
+    if isinstance(d, str):  # pragma: no cover
+        # We are accessing media of dataset which has been accessed over HTTP.
+        assert urllib.parse.urlparse(d).scheme.startswith('http')
+        return read_http_url(urllib.parse.urlparse(urllib.parse.urljoin(d, path)), mimetype)
     return mimetype.read(d.joinpath(path).read_bytes())
 
 
