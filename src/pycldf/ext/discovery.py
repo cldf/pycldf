@@ -87,6 +87,7 @@ class GenericUrlResolver(DatasetResolver):
             try:
                 return Dataset.from_metadata(loc)
             except:  # noqa: E722 # pragma: no cover
+                raise
                 pass
 
 

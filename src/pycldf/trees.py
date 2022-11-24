@@ -48,6 +48,7 @@ class Tree:
         for prop in ['description', 'treeType', 'treeIsRooted', 'treeBranchLengthUnit']:
             attrib = ''.join('_' + c.lower() if c.isupper() else c for c in prop)
             setattr(self, attrib, row.get(trees.cols[prop].name) if trees.cols[prop] else None)
+        self.trees = trees
 
     def newick(self, d: typing.Optional[pathlib.Path] = None):
         """
@@ -55,19 +56,18 @@ class Tree:
         :meth:`pycldf.media.File.save`.
         :return: `newick.Node` representing the root of the associated tree.
         """
-        content = self.file.read(d=d)
-        if self.file.mimetype == 'text/x-nh':
-            for index, tree in enumerate(newick.loads(content), start=1):
-                if str(index) == self.name:
-                    return tree
-        else:
-            assert content.startswith('#NEXUS')
-            for tree in nexus.NexusReader.from_string(content).trees:
-                if self.name == tree.name:
-                    if tree.rooted is not None and self.tree_is_rooted is not None:
-                        assert tree.rooted == self.tree_is_rooted, "conflicting rooting info"
-                    return tree.newick_tree
-        raise KeyError('No matching tree found in tree file')
+        if self.file.id not in self.trees._parsed_files:
+            content = self.file.read(d=d)
+            if self.file.mimetype == 'text/x-nh':
+                self.trees._parsed_files[self.file.id] = {
+                    str(index): nwk for index, nwk in enumerate(newick.loads(content), start=1)}
+            else:
+                assert content.startswith('#NEXUS')
+                self.trees._parsed_files[self.file.id] = {
+                    tree.name: tree.newick_tree
+                    for tree in nexus.NexusReader.from_string(content).trees}
+
+        return self.trees._parsed_files[self.file.id][self.name]
 
 
 class TreeTable(pycldf.ComponentWithValidation):
@@ -82,6 +82,8 @@ class TreeTable(pycldf.ComponentWithValidation):
             prop: self.ds.get((self.table, prop)) for prop in [
                 'id', 'name', 'description', 'mediaReference',
                 'treeIsRooted', 'treeType', 'treeBranchLengthUnit']}
+        # Since reading and parsing tree files is expensive, we cache them.
+        self._parsed_files = {}
 
     def __iter__(self) -> typing.Generator[Tree, None, None]:
         for row in self.table:
@@ -101,10 +103,6 @@ class TreeTable(pycldf.ComponentWithValidation):
                 log_or_raise(
                     'No newick tree found for name "{}"'.format(tree.name),
                     log=log)
-                success = False
-                nwk = None
-            except AssertionError as e:
-                log_or_raise(str(e), log=log)
                 success = False
                 nwk = None
 

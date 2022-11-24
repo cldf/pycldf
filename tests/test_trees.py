@@ -36,5 +36,4 @@ def test_Trees_validate(tmp_path, caplog):
     assert len(caplog.records) == 3
     assert caplog.records[0].message.startswith('No newick')
     assert caplog.records[1].message.startswith('Newick node label')
-    assert caplog.records[2].message.startswith('conflicting')
     assert not ds.validate(log=logging.getLogger('test'))

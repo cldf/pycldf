@@ -4,6 +4,8 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+- Cache parsed tree files in `TreeTable` for efficient validation.
+
 
 ## [1.32.0] - 2022-11-23
 
