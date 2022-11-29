@@ -850,9 +850,13 @@ class Dataset:
         """
         return self.tablegroup.to_file(fname or self.tablegroup._fname)
 
-    def write_sources(self, zipped=False):
+    def write_sources(self, zipped: bool = False) -> typing.Union[None, pathlib.Path]:
         """
         Write the sources BibTeX file to :meth:`~pycldf.dataset.Dataset.bibpath`
+
+        :return: `None`, if no BibTeX file was written (because no source items were added), \
+        `pathlib.Path` of the written BibTeX file otherwise. Note that this path does not need \
+        to exist, because the content may have been added to a zip archive.
         """
         return self.sources.write(self.bibpath, zipped=zipped)
 

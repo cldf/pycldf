@@ -28,7 +28,7 @@ def iter_uritemplates(table):
                 yield obj, prop, tmpl
 
 
-def sanitize_url(url):
+def sanitize_url(url: str) -> str:
     """
     Removes auth credentials from a URL.
     """
@@ -41,7 +41,7 @@ def sanitize_url(url):
     return update_url(url, fix)
 
 
-def update_url(url, updater):
+def update_url(url: str, updater: typing.Callable[[urllib.parse.ParseResult], tuple]) -> str:
     return urllib.parse.urlunsplit(updater(urllib.parse.urlparse(url))) or None
 
 
