@@ -2,14 +2,19 @@ import re
 import types
 import typing
 import pathlib
+import zipfile
+import tempfile
 import collections
-from urllib.request import urlopen
+from urllib.error import HTTPError
+from urllib.request import urlopen, urlretrieve
 
 from csvw.metadata import is_url
 from pybtex import database
 from pybtex.database.output.bibtex import Writer as BaseWriter
 from clldutils.source import Source as BaseSource
 from clldutils.source import ID_PATTERN
+
+from pycldf.util import update_url
 
 __all__ = ['Source', 'Sources', 'Reference']
 
@@ -126,12 +131,16 @@ class Sources(object):
 
     @classmethod
     def from_file(cls, fname):
+        zipped = False
         res = cls()
         if not is_url(fname):
             fname = pathlib.Path(fname)
+            if not fname.exists():
+                fname = fname.parent / '{}.zip'.format(fname.name)
+                zipped = True
             if fname.exists():
                 assert fname.is_file(), 'Bibfile {} must be a file!'.format(fname)
-                res.read(fname)
+                res.read(fname, zipped=zipped)
         else:
             res.read(fname)
         return res
@@ -223,15 +232,29 @@ class Sources(object):
                 except database.BibliographyDataError as e:  # pragma: no cover
                     raise ValueError('%s' % e)
 
-    def read(self, fname, **kw):
+    def read(self, fname, zipped=False, **kw):
         if is_url(fname):
-            content = urlopen(fname).read().decode('utf-8')
+            try:
+                content = urlopen(fname).read().decode('utf-8')
+            except HTTPError as e:
+                if '404' in str(e):
+                    fname = update_url(
+                        fname, lambda u: (u.scheme, u.netloc, u.path + '.zip', u.query, u.fragment))
+                    with tempfile.TemporaryDirectory() as tmp:
+                        zfname = pathlib.Path(tmp) / 'sources.zip'
+                        urlretrieve(fname, zfname)
+                        with zipfile.ZipFile(zfname, 'r') as zf:
+                            content = zf.read(zf.namelist()[0]).decode('utf8')
         else:
-            content = pathlib.Path(fname).read_text(encoding='utf-8')
+            if zipped:
+                with zipfile.ZipFile(fname, 'r') as zf:
+                    content = zf.read(zf.namelist()[0]).decode('utf8')
+            else:
+                content = pathlib.Path(fname).read_text(encoding='utf-8')
         self._add_entries(
             database.parse_string(content, bib_format='bibtex'), **kw)
 
-    def write(self, fname, ids=None, **kw):
+    def write(self, fname, ids=None, zipped=False, **kw):
         if ids:
             bibdata = database.BibliographyData()
             for key, entry in self._bibdata.entries.items():
@@ -242,6 +265,13 @@ class Sources(object):
         if bibdata.entries:
             with pathlib.Path(fname).open('w', encoding='utf8') as fp:
                 Writer().write_stream(bibdata, fp)
+            if zipped:
+                with zipfile.ZipFile(
+                        fname.parent / '{}.zip'.format(fname.name),
+                        'w',
+                        compression=zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(fname, fname.name)
+                fname.unlink()
             return fname
 
     def add(self, *entries: typing.Union[str, Source], **kw):

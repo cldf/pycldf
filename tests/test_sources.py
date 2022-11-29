@@ -1,3 +1,6 @@
+import zipfile
+from urllib.error import HTTPError
+
 import pytest
 from pybtex.database import Entry
 
@@ -153,4 +156,22 @@ def test_Source_persons():
 
 
 def test_Sources_from_file(urlopen):
+    # Tests the case where a URL is infered as bibpath from a metadata file that has been
+    # reteieved via HTTP by csvw.
     assert len(Sources.from_file('http://example.org/ds1.bib')) == 3
+
+
+def test_Sources_from_url(mocker):
+    # Tests the case where a zipped bibfile is accessed over HTTP.
+    def urlopen(url):
+        raise HTTPError(url, 404, '404: not found', {}, None)
+
+    def urlretrieve(url, p):
+        assert '.zip' in url
+        with zipfile.ZipFile(p, 'w') as zf:
+            zf.writestr('sources.bib', '@book{key,\ntitle={the title}\n}'.encode('utf8'))
+
+    mocker.patch('pycldf.sources.urlopen', urlopen)
+    mocker.patch('pycldf.sources.urlretrieve', urlretrieve)
+
+    assert len(Sources.from_file('http://example.org/ds1.bib.zip')) == 1

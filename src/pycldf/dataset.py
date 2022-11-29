@@ -850,11 +850,11 @@ class Dataset:
         """
         return self.tablegroup.to_file(fname or self.tablegroup._fname)
 
-    def write_sources(self):
+    def write_sources(self, zipped=False):
         """
         Write the sources BibTeX file to :meth:`~pycldf.dataset.Dataset.bibpath`
         """
-        return self.sources.write(self.bibpath)
+        return self.sources.write(self.bibpath, zipped=zipped)
 
     def write(self,
               fname: typing.Optional[pathlib.Path] = None,
@@ -874,7 +874,8 @@ class Dataset:
         zipped = zipped or set()
         if self.sources and not self.properties.get('dc:source'):
             self.properties['dc:source'] = 'sources.bib'
-        self.write_sources()
+        self.write_sources(
+            zipped=self.properties.get('dc:source') in zipped or ('Source' in zipped))
         for table_type, items in table_items.items():
             table = self[table_type]
             table.common_props['dc:extent'] = table.write(items, _zipped=table_type in zipped)

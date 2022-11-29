@@ -10,7 +10,7 @@ import pycldf
 
 __all__ = [
     'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown', 'qname2url',
-    'sanitize_url', 'iter_uritemplates', 'url_without_fragment']
+    'sanitize_url', 'update_url', 'iter_uritemplates', 'url_without_fragment']
 
 
 def url_without_fragment(url: typing.Union[str, urllib.parse.ParseResult]) -> str:
@@ -32,11 +32,17 @@ def sanitize_url(url):
     """
     Removes auth credentials from a URL.
     """
-    u = urllib.parse.urlparse(url)
-    host = u.hostname
-    if u.port:
-        host += ':{}'.format(u.port)
-    return urllib.parse.urlunsplit((u.scheme, host, u.path, u.query, u.fragment)) or None
+    def fix(u):
+        host = u.hostname
+        if u.port:
+            host += ':{}'.format(u.port)
+        return (u.scheme, host, u.path, u.query, u.fragment)
+
+    return update_url(url, fix)
+
+
+def update_url(url, updater):
+    return urllib.parse.urlunsplit(updater(urllib.parse.urlparse(url))) or None
 
 
 def pkg_path(*comps):

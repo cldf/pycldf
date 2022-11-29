@@ -788,6 +788,24 @@ def test_Dataset_write(tmp_path):
     ds.validate()
 
 
+def test_Dataset_zipped_sources(tmp_path):
+    ds = StructureDataset.from_metadata(tmp_path)
+    ds.add_sources("@misc{ky,\ntitle={the title}\n}")
+    ds.write(ValueTable=[
+        {
+            'ID': '1',
+            'Language_ID': 'abcd1234',
+            'Parameter_ID': 'f1',
+            'Value': 'yes',
+            'Source': ['ky'],
+        }],
+        zipped='sources.bib')
+    assert not tmp_path.joinpath('sources.bib').exists()
+    assert tmp_path.joinpath('sources.bib.zip').exists()
+    ds2 = StructureDataset.from_metadata(tmp_path / 'StructureDataset-metadata.json')
+    assert 'ky' in ds2.sources
+
+
 def test_validators(tmp_path, data, caplog):
     shutil.copy(str(data / 'invalid.csv'), tmp_path / 'values.csv')
     ds = Dataset.from_data(tmp_path / 'values.csv')
