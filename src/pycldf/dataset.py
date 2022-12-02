@@ -143,9 +143,23 @@ class Dataset:
         """
         self.tablegroup = tablegroup
         self.auto_constraints()
-        self.sources = Sources.from_file(self.bibpath)
+        self._sources = None
         self._objects = collections.defaultdict(collections.OrderedDict)
         self._objects_by_pk = collections.defaultdict(collections.OrderedDict)
+
+    @property
+    def sources(self):
+        # We load sources only the first time they are accessed, because for datasets like
+        # Glottolog - with 40MB zipped BibTeX - this may take ~90secs.
+        if self._sources is None:
+            self._sources = Sources.from_file(self.bibpath)
+        return self._sources
+
+    @sources.setter
+    def sources(self, obj):
+        if not isinstance(obj, Sources):
+            raise TypeError('Invalid type for Dataset.sources')
+        self._sources = obj
 
     #
     # Factory methods to create `Dataset` instances.

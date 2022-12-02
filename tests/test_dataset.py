@@ -12,6 +12,7 @@ from pycldf.terms import term_uri, TERMS
 from pycldf.dataset import (
     Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, GitRepository,
     make_column, get_modules, iter_datasets, SchemaError)
+from pycldf.sources import Sources
 
 
 @pytest.fixture
@@ -928,3 +929,12 @@ def test_Dataset_rename_column(ds):
         fk.reference for fk in ex.tableSchema.foreignKeys
         if 'Language_ID' in fk.columnReference][0]
     assert 'X' in lfk.columnReference
+
+
+def test_Dataset_set_sources(ds):
+    assert isinstance(ds.sources, Sources)
+    with pytest.raises(TypeError):
+        ds.sources = 5
+    src = Sources()
+    ds.sources = src
+    assert ds.sources is src
