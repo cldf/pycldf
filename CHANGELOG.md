@@ -3,6 +3,9 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+
 ## [1.34.0] - 2022-12-05
 
 - Support reading and writing sources from/to zipped BibTeX files.
