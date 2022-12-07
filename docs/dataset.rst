@@ -34,28 +34,28 @@ name or its `propertyUrl`.
 
 * check existence with `in`:
 
-    ..code-block:: python
+    .. code-block:: python
 
         if 'ValueTable' in dataset: pass
         if ('ValueTable', 'Language_ID') in dataset: pass
 
 * retrieve a schema object with item access:
 
-    ..code-block:: python
+    .. code-block:: python
 
         table = dataset['ValueTable']
         column = dataset['ValueTable', 'Language_ID']
 
 * retrieve a schema object or a default with `.get`:
 
-    ..code-block:: python
+    .. code-block:: python
 
         table_or_none = dataset.get('ValueTableX')
         column_or_none = dataset.get(('ValueTable', 'Language_ID'))
 
 * remove a schema object with `del`:
 
-    ..code-block:: python
+    .. code-block:: python
 
         del dataset['ValueTable', 'Language_ID']
         del dataset['ValueTable']
