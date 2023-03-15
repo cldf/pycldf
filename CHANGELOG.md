@@ -5,6 +5,8 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
+- Switch from `python-nexus` to `commonnexus` for reading NEXUS files.
+
 
 ## [1.34.0] - 2022-12-05
 

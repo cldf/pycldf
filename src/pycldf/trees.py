@@ -26,8 +26,8 @@ import logging
 import pathlib
 
 from clldutils.misc import log_or_raise
+from commonnexus import Nexus
 import newick
-import nexus
 
 import pycldf
 from pycldf.media import MediaTable, File
@@ -65,10 +65,8 @@ class Tree:
                     str(index): nwk for index, nwk in enumerate(
                         [t.strip() for t in content.split(';') if t.strip()], start=1)}
             else:
-                assert content.startswith('#NEXUS')
                 self.trees._parsed_files[self.file.id] = {
-                    tree.name: tree.newick_string
-                    for tree in nexus.NexusReader.from_string(content).trees}
+                    tree.name: tree.newick_string for tree in Nexus(content).TREES.trees}
 
         return self.trees._parsed_files[self.file.id][self.name]
 

@@ -8,7 +8,8 @@ def test_Trees(dataset_with_trees):
     trees = TreeTable(dataset_with_trees)
     t = list(trees)
     assert len(t) == 2
-    assert t[0].newick() and t[1].newick()
+    assert set(n.name for n in t[0].newick().walk() if n.is_leaf) == {'l1', 'l2', 'l3', 'l4'}
+    assert set(n.name for n in t[1].newick().walk() if n.is_leaf) == {'l1', 'l2', 'l4'}
     assert trees.validate()
 
 
