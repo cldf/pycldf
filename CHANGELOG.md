@@ -3,13 +3,13 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [1.35.0] - 2023-07-10
 
 - Dropped py3.7 compatibility.
 - Support zipped data files properly when creating metadata descriptions in Markdown.
 
 
-## [1.34.1] - 2023-13-15
+## [1.34.1] - 2023-03-15
 
 - Switch from `python-nexus` to `commonnexus` for reading NEXUS files.
 
