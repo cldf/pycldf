@@ -6,6 +6,7 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 - Dropped py3.7 compatibility.
+- Support zipped data files properly when creating metadata descriptions in Markdown.
 
 
 ## [1.34.1] - 2023-13-15

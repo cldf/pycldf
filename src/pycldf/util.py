@@ -119,7 +119,9 @@ def qname2url(qname):
             return qname.replace(prefix + ':', uri)
 
 
-def metadata2markdown(ds, path, rel_path='./'):
+def metadata2markdown(ds: 'pycldf.Dataset',
+                      path: typing.Union[str, pathlib.Path],
+                      rel_path: typing.Optional[str] = './') -> str:
     """
     Render the metadata of a dataset as markdown.
 
@@ -223,15 +225,30 @@ def metadata2markdown(ds, path, rel_path='./'):
     if path.suffix == '.json':
         res.append('**CLDF Metadata**: [{0}]({1}{0})\n'.format(path.name, rel_path))
     if 'dc:source' in ds.properties:
-        res.append('**Sources**: [{0}]({1}{0})\n'.format(ds.properties['dc:source'], rel_path))
+        src = None
+        if pathlib.Path(ds.directory).joinpath(ds.properties['dc:source']).exists():
+            src = ds.properties['dc:source']
+        elif pathlib.Path(ds.directory).joinpath(ds.properties['dc:source'] + '.zip').exists():
+            src = ds.properties['dc:source'] + '.zip'
+        if src:
+            res.append('**Sources**: [{0}]({1}{0})\n'.format(src, rel_path))
     res.append(properties(ds.tablegroup))
 
     for table in ds.tables:
         fks = {
             fk.columnReference[0]: (fk.reference.columnReference[0], fk.reference.resource.string)
             for fk in table.tableSchema.foreignKeys if len(fk.columnReference) == 1}
-        res.append('\n## <a name="table-{0}"></a>Table [{1}]({2}{1})\n'.format(
-            slug(table.url.string), table.url, rel_path))
+        src = None
+        if pathlib.Path(ds.directory).joinpath(table.url.string).exists():
+            src = table.url.string
+        elif pathlib.Path(ds.directory).joinpath(table.url.string + '.zip').exists():
+            src = table.url.string + '.zip'
+        if src:
+            res.append('\n## <a name="table-{0}"></a>Table [{1}]({2}{3})\n'.format(
+                slug(table.url.string), table.url, rel_path, src))
+        else:
+            res.append('\n## <a name="table-{0}"></a>Table {1}\n'.format(
+                slug(table.url.string), table.url))
         res.append(properties(table))
         res.append('\n### Columns\n')
         res.append('Name/Property | Datatype | Description')
