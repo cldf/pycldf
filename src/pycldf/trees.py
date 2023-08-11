@@ -68,7 +68,7 @@ class Tree:
                 self.trees._parsed_files[self.file.id] = {
                     tree.name: tree.newick_string for tree in Nexus(content).TREES.trees}
 
-        return self.trees._parsed_files[self.file.id][self.name]
+        return ";".join(self.trees._parsed_files[self.file.id].values())
 
     def newick(self,
                d: typing.Optional[pathlib.Path] = None,
