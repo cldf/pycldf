@@ -1210,6 +1210,8 @@ def sniff(p: pathlib.Path) -> bool:
     :param p: `pathlib.Path` object for an existing file.
     :return: `True` if the file contains CLDF metadata, `False` otherwise.
     """
+    if not p.is_file():  # pragma: no cover
+        return False
     try:
         with p.open('rb') as fp:
             c = fp.read(10)
@@ -1219,7 +1221,7 @@ def sniff(p: pathlib.Path) -> bool:
                 return False
             if not c.startswith('{'):
                 return False
-    except FileNotFoundError:  # pragma: no cover
+    except (FileNotFoundError, OSError):  # pragma: no cover
         return False
     try:
         d = jsonlib.load(p)

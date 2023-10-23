@@ -6,6 +6,7 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [Unreleased]
 
 - Fixed bug whereby checking existence of a URL was done too strictly.
+- Fixed bug whereby non-file objects in the filesystem would trip up dataset detection.
 
 
 ## [1.35.0] - 2023-07-10
