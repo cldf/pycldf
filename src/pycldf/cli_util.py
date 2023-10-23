@@ -50,7 +50,9 @@ class UrlOrPathType(PathType):
         if is_url(string):
             if self._must_exist:
                 sc = requests.head(string).status_code
-                if sc != 200:
+                # We accept not only HTTP 200 as valid but also common redirection codes because
+                # these are used e.g. for DOIs.
+                if sc not in {200, 301, 302}:
                     raise argparse.ArgumentTypeError(
                         'URL {} does not exist [HTTP {}]!'.format(string, sc))
             return string
