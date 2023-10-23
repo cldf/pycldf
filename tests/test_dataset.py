@@ -832,7 +832,7 @@ def test_get_modules():
 
 @pytest.mark.filterwarnings('ignore::UserWarning')
 def test_iter_datasets(data, tmp_path, csvw3, caplog):
-    assert len(list(iter_datasets(data))) == 9 if csvw3 else 10
+    assert len(list(iter_datasets(data))) == 10 if csvw3 else 11
 
     if csvw3:
         assert 'Reading' in caplog.records[0].msg

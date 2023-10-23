@@ -13,6 +13,13 @@ def test_Trees(dataset_with_trees):
     assert trees.validate()
 
 
+def test_Trees_from_dataurl(dataset_with_trees2):
+    trees = TreeTable(dataset_with_trees2)
+    t = list(trees)
+    assert len(t) == 1
+    assert 'aka' in {n.name for n in t[0].newick().walk() if n.is_leaf}
+
+
 def test_Trees_validate(tmp_path, caplog):
     ds = Generic.in_dir(tmp_path)
     ds.add_component('LanguageTable')
