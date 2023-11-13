@@ -329,7 +329,7 @@ details.
 ## Accessing CLDF data via SQL
 
 The [`pycldf.db`](src/pycldf/db.py) module implements functionality
-to load CLDF data into a [SQLite](https://sqlite.org) database. See https://pycldf.readthedocs.io/en/latest/db.html
+to load CLDF data into a [SQLite](https://sqlite.org) database. See https://pycldf.readthedocs.io/en/latest/ext_sql.html
 for details.
 
 
