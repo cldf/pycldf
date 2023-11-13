@@ -195,7 +195,7 @@ def test_columnspec(tmp_path):
     ds.add_component('ParameterTable')
     ds.write(
         ParameterTable=[dict(ID='1', ColumnSpec=cs.asdict())],
-        ValueTable=[dict(ID='1', Language_ID='l', Parameter_ID='1', Value='1 2 3')],
+        ValueTable=[dict(ID='1', Language_ID='l', Parameter_ID='1', Value=cs.write([1, 2, 3]))],
     )
     v = ds.objects('ValueTable')[0]
     assert v.cldf.value == '1 2 3'

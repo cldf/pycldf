@@ -376,6 +376,35 @@ class Sense(Object):
 
 
 class Value(Object, _WithLanguageMixin, _WithParameterMixin):
+    """
+    Value objects correspond to rows in a dataset's ``ValueTable``.
+
+    While a Value's string representation is typically available from the ``value`` column,
+    i.e. as ``Value.cldf.value``, The interpretation of this value may be dictated by other
+    metadata.
+
+    - Categorical data will often describe possible values (aka "codes") using a ``CodeTable``.
+      In this case, the associated ``Code`` object of a ``Value`` is available as ``Value.code``.
+    - Typed data may use a ``columnSpec`` property in ``ParameterTable`` to specify how to read
+      the string value.
+
+    .. code-block:: python
+
+        >>> from csvw.metadata import Column
+        >>> from pycldf import StructureDataset
+        >>> cs = Column.fromvalue(dict(datatype=dict(base='integer', maximum=5), separator=' '))
+        >>> ds = StructureDataset.in_dir('.')
+        >>> ds.add_component('ParameterTable')
+        >>> ds.write(
+        ...     ParameterTable=[dict(ID='1', ColumnSpec=cs.asdict())],
+        ...     ValueTable=[dict(ID='1', Language_ID='l', Parameter_ID='1', Value='1 2 3')],
+        ... )
+        >>> v = ds.objects('ValueTable')[0]
+        >>> v.cldf.value
+        '1 2 3'
+        >>> v.typed_value
+        [1, 2, 3]
+    """
     @property
     def typed_value(self):
         if self.parameter.columnSpec:
