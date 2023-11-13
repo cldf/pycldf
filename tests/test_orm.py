@@ -186,3 +186,17 @@ def test_typed_parameters(tmp_path):
         elif v.id == '4':
             with pytest.raises(ValueError):
                 _ = v.typed_value
+
+
+def test_columnspec(tmp_path):
+    from csvw.metadata import Column
+    cs = Column.fromvalue(dict(datatype=dict(base='integer', maximum=5), separator=' '))
+    ds = StructureDataset.in_dir(tmp_path)
+    ds.add_component('ParameterTable')
+    ds.write(
+        ParameterTable=[dict(ID='1', ColumnSpec=cs.asdict())],
+        ValueTable=[dict(ID='1', Language_ID='l', Parameter_ID='1', Value='1 2 3')],
+    )
+    v = ds.objects('ValueTable')[0]
+    assert v.cldf.value == '1 2 3'
+    assert v.typed_value == [1, 2, 3]

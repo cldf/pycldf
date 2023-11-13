@@ -3,6 +3,12 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+- Support typed values, specified via `columnSpec` in `ParameterTable` in `orm` module.
+- Run tests on python 3.12
+
+
 ## [1.35.1] - 2023-10-23
 
 - Fixed bug whereby checking existence of a URL was done too strictly.

@@ -328,6 +328,12 @@ class Language(Object):
 
 class Parameter(Object):
     @lazyproperty
+    def columnSpec(self):
+        columnSpec = getattr(self.cldf, 'columnSpec', None)
+        if columnSpec:
+            return csvw.metadata.Column.fromvalue(columnSpec)
+
+    @lazyproperty
     def datatype(self):
         if 'datatype' in self.data \
                 and self.dataset['ParameterTable', 'datatype'].datatype.base == 'json':
@@ -372,6 +378,8 @@ class Sense(Object):
 class Value(Object, _WithLanguageMixin, _WithParameterMixin):
     @property
     def typed_value(self):
+        if self.parameter.columnSpec:
+            return self.parameter.columnSpec.read(self.cldf.value)
         if self.parameter.datatype:
             return self.parameter.datatype.read(self.cldf.value)
         return self.cldf.value
