@@ -31,7 +31,7 @@ import mimetypes
 import urllib.parse
 import urllib.request
 
-from clldutils.misc import lazyproperty, log_or_raise
+from clldutils.misc import log_or_raise
 import pycldf
 from pycldf import orm
 from csvw.datatypes import anyURI
@@ -89,7 +89,7 @@ class File:
         """
         return self.row[item]
 
-    @lazyproperty
+    @functools.cached_property
     def mimetype(self) -> 'Mimetype':
         """
         The `Mimetype` object associated with the item.
@@ -191,7 +191,7 @@ class MediaTable(pycldf.ComponentWithValidation):
         self.id_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#id']
         self.mimetype_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#mediaType']
 
-    @lazyproperty
+    @functools.cached_property
     def url_reader(self):
         return {
             'http': read_http_url,

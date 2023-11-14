@@ -18,14 +18,11 @@ Additional resolvers:
 import typing
 import pathlib
 import warnings
+import functools
 import urllib.parse
-try:
-    from importlib.metadata import entry_points
-except ModuleNotFoundError:  # pragma: no cover
-    from importlib_metadata import entry_points
+from importlib.metadata import entry_points
 
 from csvw.utils import is_url
-from clldutils.misc import lazyproperty
 
 from pycldf import Dataset, iter_datasets, sniff
 from pycldf.util import url_without_fragment
@@ -92,7 +89,7 @@ class GenericUrlResolver(DatasetResolver):
 
 
 class DatasetLocator(str):
-    @lazyproperty
+    @functools.cached_property
     def parsed_url(self) -> urllib.parse.ParseResult:
         return urllib.parse.urlparse(self)
 

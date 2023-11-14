@@ -1,5 +1,5 @@
-import html
 import re
+import html
 import typing
 import pathlib
 import itertools

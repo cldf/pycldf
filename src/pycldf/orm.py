@@ -42,11 +42,11 @@ Limitations:
 """
 import types
 import typing
+import functools
 import collections
 
 import csvw.metadata
 from tabulate import tabulate
-from clldutils.misc import lazyproperty
 
 from pycldf.terms import TERMS, term_uri
 from pycldf.util import DictTuple
@@ -153,7 +153,7 @@ class Object:
         """
         return self._expand_uritemplate('propertyUrl', col)
 
-    @lazyproperty
+    @functools.cached_property
     def references(self) -> typing.Tuple[Reference]:
         """
         `pycldf.Reference` instances associated with the object.
@@ -214,7 +214,7 @@ class _WithLanguageMixin:
 
 
 class _WithParameterMixin:
-    @lazyproperty
+    @functools.cached_property
     def parameter(self):
         return self.related('parameterReference')
 
@@ -327,13 +327,13 @@ class Language(Object):
 
 
 class Parameter(Object):
-    @lazyproperty
+    @functools.cached_property
     def columnSpec(self):
         columnSpec = getattr(self.cldf, 'columnSpec', None)
         if columnSpec:
             return csvw.metadata.Column.fromvalue(columnSpec)
 
-    @lazyproperty
+    @functools.cached_property
     def datatype(self):
         if 'datatype' in self.data \
                 and self.dataset['ParameterTable', 'datatype'].datatype.base == 'json':

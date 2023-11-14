@@ -6,6 +6,7 @@ import shutil
 import typing
 import logging
 import pathlib
+import functools
 import itertools
 import collections
 import collections.abc
@@ -18,7 +19,7 @@ from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url, URITe
 from csvw import datatypes
 from csvw.dsv import iterrows
 from clldutils.path import git_describe, walk
-from clldutils.misc import log_or_raise, lazyproperty
+from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
 from pycldf.sources import Sources
@@ -483,7 +484,7 @@ class Dataset:
         """
         return get_column_names(self)
 
-    @lazyproperty
+    @functools.cached_property
     def readonly_column_names(self) -> types.SimpleNamespace:
         """
         :return: `types.SimpleNamespace` with component names as attributes.
