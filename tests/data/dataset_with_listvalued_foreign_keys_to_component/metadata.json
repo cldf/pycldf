@@ -108,7 +108,7 @@
             "name": "id"
           },
           {
-            "datatype": "string",
+            "datatype": {"base": "string", "format":  "x|y"},
             "name": "stuff"
           }
         ],

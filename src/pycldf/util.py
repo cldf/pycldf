@@ -1,4 +1,5 @@
 import html
+import re
 import typing
 import pathlib
 import itertools
@@ -193,6 +194,17 @@ def metadata2markdown(ds: 'pycldf.Dataset',
 
     def colrow(col, fks, pk):
         dt = '`{}`'.format(col.datatype.base if col.datatype else 'string')
+        if col.datatype:
+            if col.datatype.format:
+                if re.fullmatch(r'[\w\s]+(\|[\w\s]+)*', col.datatype.format):
+                    dt += '<br>Valid choices:<br>'
+                    dt += ''.join(' `{}`'.format(w) for w in col.datatype.format.split('|'))
+                elif col.datatype.base == 'string':
+                    dt += '<br>Regex: `{}`'.format(col.datatype.format)
+            if col.datatype.minimum:
+                dt += '<br>&ge; {}'.format(col.datatype.minimum)
+            if col.datatype.maximum:
+                dt += '<br>&le; {}'.format(col.datatype.maximum)
         if col.separator:
             dt = 'list of {} (separated by `{}`)'.format(dt, col.separator)
         desc = col.common_props.get('dc:description', '').replace('\n', ' ')
