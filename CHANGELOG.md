@@ -3,7 +3,7 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [1.36.0] - 2023-11-14
 
 - Support typed values, specified via `columnSpec` in `ParameterTable` in `orm` module.
 - Better datatype descriptions when rendering metadata as markdown.
