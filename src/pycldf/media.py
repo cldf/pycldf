@@ -1,7 +1,8 @@
 """
 Accessing media associated with a CLDF dataset.
 
-You can iterate over the `File` objects associated with media using the `Media` wrapper:
+You can iterate over the :class:`.File` objects associated with media using the :class:`.Media`
+wrapper:
 
 .. code-block:: python
 
@@ -11,7 +12,7 @@ You can iterate over the `File` objects associated with media using the `Media` 
         if f.mimetype.type == 'audio':
             f.save(directory)
 
-or instantiate a `File` from a `pycldf.orm.Object`:
+or instantiate a :class:`.File` from a :class:`pycldf.orm.Object`:
 
 .. code-block:: python
 
@@ -21,6 +22,7 @@ or instantiate a `File` from a `pycldf.orm.Object`:
 
 """
 import io
+import json
 import base64
 import typing
 import logging
@@ -28,6 +30,7 @@ import pathlib
 import zipfile
 import functools
 import mimetypes
+import collections
 import urllib.parse
 import urllib.request
 
@@ -71,7 +74,7 @@ class File:
         if self.url:
             self.url = anyURI.to_string(self.url)
             self.parsed_url = urllib.parse.urlparse(self.url)
-            self.scheme = self.parsed_url.scheme
+            self.scheme = self.parsed_url.scheme or 'file'
 
     @classmethod
     def from_dataset(
@@ -127,10 +130,14 @@ class File:
         return d.joinpath('{}{}'.format(
             self.id, '.zip' if self.path_in_zip else (self.mimetype.extension or '')))
 
+    def read_json(self, d=None):
+        assert self.mimetype.subtype.endswith('json')
+        return json.loads(self.read(d=d))
+
     def read(self, d=None) -> typing.Union[None, str, bytes]:
         """
         :param d: A local directory where the file has been saved before. If `None`, the content \
-        will read from the file's URL.
+        will be read from the file's URL.
         """
         if self.path_in_zip:
             zipcontent = None
@@ -148,7 +155,7 @@ class File:
             return self.mimetype.read(self.local_path(d).read_bytes())
         if self.url:
             try:
-                return self.url_reader[self.scheme or 'file'](self.parsed_url, self.mimetype)
+                return self.url_reader[self.scheme](self.parsed_url, self.mimetype)
             except KeyError:
                 raise ValueError('Unsupported URL scheme: {}'.format(self.scheme))
 
@@ -206,13 +213,20 @@ class MediaTable(pycldf.ComponentWithValidation):
             yield File(self, row)
 
     def validate(self, success: bool = True, log: logging.Logger = None) -> bool:
+        speaker_area_files = collections.defaultdict(list)
+        if ('LanguageTable', 'speakerArea') in self.ds:
+            for lg in self.ds.iter_rows('LanguageTable', 'id', 'speakerArea'):
+                if lg['speakerArea']:
+                    speaker_area_files[lg['speakerArea']].append(lg['id'])
+
         for file in self:
+            content = None
             if not file.url:
                 success = False
                 log_or_raise('File without URL: {}'.format(file.id), log=log)
             elif file.scheme == 'file':
                 try:
-                    file.read()
+                    content = file.read()
                 except FileNotFoundError:
                     success = False
                     log_or_raise('Non-existing local file referenced: {}'.format(file.id), log=log)
@@ -221,10 +235,22 @@ class MediaTable(pycldf.ComponentWithValidation):
                     log_or_raise('Error reading {}: {}'.format(file.id, e), log=log)
             elif file.scheme == 'data':
                 try:
-                    file.read()
+                    content = file.read()
                 except Exception as e:  # pragma: no cover
                     success = False
                     log_or_raise('Error reading {}: {}'.format(file.id, e), log=log)
+            if file.id in speaker_area_files and file.mimetype.subtype == 'geo+json' and content:
+                content = json.loads(content)
+                if content['type'] != 'Feature':
+                    assert content['type'] == 'FeatureCollection'
+                    for feature in content['features']:
+                        lid = feature['properties'].get('cldf:languageReference')
+                        if lid and lid in speaker_area_files[file.id]:
+                            speaker_area_files[file.id].remove(lid)
+                    if speaker_area_files[file.id]:
+                        log_or_raise(
+                            'Error: Not all language IDs found in speakerArea GeoJSON: {}'.format(
+                                speaker_area_files[file.id]))  # pragma: no cover
 
         return success
 

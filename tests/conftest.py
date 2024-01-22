@@ -58,8 +58,19 @@ def dictionary(data):
 
 
 @pytest.fixture(scope='module')
+def textcorpus(data):
+    return Dataset.from_metadata(data / 'textcorpus' / 'metadata.json')
+
+
+@pytest.fixture(scope='module')
 def structuredataset_with_examples(data):
     return Dataset.from_metadata(data / 'structuredataset_with_examples' / 'metadata.json')
+
+
+@pytest.fixture
+def dataset_with_media(data):
+    dsdir = data / 'dataset_with_media'
+    return Dataset.from_metadata(dsdir / 'metadata.json')
 
 
 @pytest.fixture(scope='module')

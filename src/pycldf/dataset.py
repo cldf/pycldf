@@ -30,13 +30,16 @@ from pycldf import orm
 
 __all__ = [
     'Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset',
-    'iter_datasets', 'sniff', 'SchemaError', 'ComponentWithValidation']
+    'TextCorpus', 'iter_datasets', 'sniff', 'SchemaError', 'ComponentWithValidation']
 
 MD_SUFFIX = '-metadata.json'
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
 TableType = typing.Union[str, Table]
 ColType = typing.Union[str, Column]
 PathType = typing.Union[str, pathlib.Path]
+TableSpecType = typing.Union[str, Link, Table]
+ColSPecType = typing.Union[str, Column]
+SchemaObjectType = typing.Union[TableSpecType, typing.Tuple[TableSpecType, ColSPecType]]
 
 
 class SchemaError(KeyError):
@@ -135,8 +138,8 @@ class Dataset:
 
     def __init__(self, tablegroup: csvw.TableGroup):
         """
-        A :class:`~pycldf.dataset.Dataset` is initialized passing a `TableGroup`. For convenience \
-        methods to get such a `TableGroup` instance, see the factory methods
+        A :class:`~pycldf.dataset.Dataset` is initialized passing a `TableGroup`. The following \
+        factory methods obviate the need to instantiate such a `TableGroup` instance yourself:
 
         - :meth:`~pycldf.dataset.Dataset.in_dir`
         - :meth:`~pycldf.dataset.Dataset.from_metadata`
@@ -320,7 +323,7 @@ class Dataset:
     # Accessing schema objects (components, tables, columns, foreign keys)
     #
     @property
-    def tables(self) -> list:
+    def tables(self) -> typing.List[Table]:
         """
         :return: All tables defined in the dataset.
         """
@@ -329,7 +332,7 @@ class Dataset:
     @property
     def components(self) -> typing.Dict[str, csvw.Table]:
         """
-        :return: Mapping of component name to table obejcts as defined in the dataset.
+        :return: Mapping of component name to table objects as defined in the dataset.
         """
         res = collections.OrderedDict()
         for table in self.tables:
@@ -362,27 +365,29 @@ class Dataset:
             except ValueError:
                 return None
 
-    def __getitem__(self, item) -> typing.Union[csvw.Table, csvw.Column]:
+    def __getitem__(self, item: SchemaObjectType) -> typing.Union[csvw.Table, csvw.Column]:
         """
         Access to tables and columns.
 
-        If a pair (table-spec, column-spec) is passed as `item`, a Column will be
-        returned, otherwise `item` is assumed to be a table-spec.
+        If a pair (table-spec, column-spec) is passed as ``item``, a :class:`csvw.Column` will be
+        returned, otherwise ``item`` is assumed to be a table-spec, and a :class:`csvw.Table` is
+        returned.
 
         A table-spec may be
 
-        - a CLDF ontology URI matching the dc:conformsTo property of a table
+        - a CLDF ontology URI matching the `dc:conformsTo` property of a table
         - the local name of a CLDF ontology URI, where the complete URI matches the \
-          the dc:conformsTo property of a table
-        - a filename matching the `url` property of a table
+          the `dc:conformsTo` property of a table
+        - a filename matching the `url` property of a table.
 
         A column-spec may be
 
-        - a CLDF ontology URI matching the propertyUrl of a column
+        - a CLDF ontology URI matching the `propertyUrl` of a column
         - the local name of a CLDF ontology URI, where the complete URI matches the \
-          propertyUrl of a column
-        - the name of a column
+          `propertyUrl` of a column
+        - the name of a column.
 
+        :param item: A schema object spec.
         :raises SchemaError: If no matching table or column is found.
         """
         if isinstance(item, tuple):
@@ -424,14 +429,19 @@ class Dataset:
 
         raise SchemaError('Dataset has no column "{}" in table "{}"'.format(column, t.url))
 
-    def __delitem__(self, key):
-        thing = self[key]
+    def __delitem__(self, item: SchemaObjectType):
+        """
+        Remove a table or column from the datasets' schema.
+
+        :param item: See  :meth:`~pycldf.dataset.Dataset.__getitem__`
+        """
+        thing = self[item]
         if isinstance(thing, Column):
-            self.remove_columns(self[key[0]], thing)
+            self.remove_columns(self[item[0]], thing)
         else:
             self.remove_table(thing)
 
-    def __contains__(self, item) -> bool:
+    def __contains__(self, item: SchemaObjectType) -> bool:
         """
         Check whether a dataset specifies a table or column.
 
@@ -439,7 +449,9 @@ class Dataset:
         """
         return bool(self.get(item))
 
-    def get(self, item, default=None) -> typing.Union[csvw.Table, csvw.Column, None]:
+    def get(self,
+            item: SchemaObjectType,
+            default=None) -> typing.Union[csvw.Table, csvw.Column, None]:
         """
         Acts like `dict.get`.
 
@@ -1189,9 +1201,66 @@ class Dictionary(Dataset):
 
 
 class StructureDataset(Dataset):
+    """
+    Parameters in StructureDataset are often called "features".
+
+    .. seealso:: `<https://github.com/cldf/cldf/tree/master/modules/StructureDataset>`_
+    """
     @property
     def primary_table(self):
         return 'ValueTable'
+
+    @functools.cached_property
+    def features(self):
+        """
+        Just an alias for the parameters.
+        """
+        return self.objects('ParameterTable')
+
+
+class TextCorpus(Dataset):
+    """
+    In a `TextCorpus`, contributions and examples have specialized roles:
+
+    - Contributions are understood as individual texts of the corpus.
+    - Examples are interpreted as the sentences of the corpus.
+    - Alternative translations are provided by linking "light-weight" examples to "full", main
+      examples.
+    - The order of sentences may be defined using a `position` property.
+
+    .. seealso:: `<https://github.com/cldf/cldf/tree/master/modules/TextCorpus>`_
+
+    .. code-block:: python
+
+        >>> crp = TextCorpus.from_metadata('tests/data/textcorpus/metadata.json')
+        >>> crp.texts[0].sentences[0].cldf.primaryText
+        'first line'
+        >>> crp.texts[0].sentences[0].alternative_translations
+        [<pycldf.orm.Example id="e2-alt">]
+    """
+    @property
+    def primary_table(self):
+        return 'ExampleTable'
+
+    @functools.cached_property
+    def texts(self) -> typing.Union[None, DictTuple]:
+        # Some syntactic sugar to access the ORM data in a concise and meaningful way.
+        if 'ContributionTable' in self:
+            return self.objects('ContributionTable')
+
+    def get_text(self, tid):
+        if 'ContributionTable' in self:
+            return self.get_object('ContributionTable', tid)
+
+    @property
+    def sentences(self) -> typing.List[orm.Example]:
+        res = list(self.objects('ExampleTable'))
+        if ('ExampleTable', 'exampleReference') in self:
+            # Filter out alternative translations!
+            res = [e for e in res if not e.cldf.exampleReference]
+        if ('ExampleTable', 'position') in self:
+            return sorted(res, key=lambda o: o.cldf.position)
+        return res  # pragma: no cover
 
 
 class ComponentWithValidation:

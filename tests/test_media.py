@@ -211,3 +211,7 @@ def test_Media_validate(tmp_path):
     ds['MediaTable', 'ID'].valueUrl = ''
     ds.write(MediaTable=[dict(ID='123', Media_Type='text/plain')])
     assert not ds.validate(log=logging.getLogger('test'))
+
+
+def test_Media_validate2(dataset_with_media):
+    assert dataset_with_media.validate()

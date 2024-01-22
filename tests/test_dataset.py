@@ -10,8 +10,8 @@ from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Li
 
 from pycldf.terms import term_uri, TERMS
 from pycldf.dataset import (
-    Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, GitRepository,
-    make_column, get_modules, iter_datasets, SchemaError)
+    Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, TextCorpus,
+    GitRepository, make_column, get_modules, iter_datasets, SchemaError)
 from pycldf.sources import Sources
 
 
@@ -23,6 +23,11 @@ def ds(tmp_path):
 @pytest.fixture
 def ds_wl(tmp_path):
     return Wordlist.in_dir(tmp_path)
+
+
+@pytest.fixture
+def ds_tc(tmp_path):
+    return TextCorpus.in_dir(tmp_path)
 
 
 @pytest.fixture
@@ -94,8 +99,9 @@ def test_provenance(ds, tmp_path):
     assert ds.properties['prov:wasDerivedFrom']['dc:created']
 
 
-def test_primary_table(ds):
+def test_primary_table(ds, ds_tc):
     assert ds.primary_table is None
+    assert ds_tc.primary_table is not None
 
 
 def test_components(ds):
@@ -832,7 +838,7 @@ def test_get_modules():
 
 @pytest.mark.filterwarnings('ignore::UserWarning')
 def test_iter_datasets(data, tmp_path, csvw3, caplog):
-    assert len(list(iter_datasets(data))) == 10 if csvw3 else 11
+    assert len(list(iter_datasets(data))) == 11 if csvw3 else 12
 
     if csvw3:
         assert 'Reading' in caplog.records[0].msg
@@ -938,3 +944,7 @@ def test_Dataset_set_sources(ds):
     src = Sources()
     ds.sources = src
     assert ds.sources is src
+
+
+def test_StructureDataset(structuredataset_with_examples):
+    assert len(structuredataset_with_examples.features) == 2

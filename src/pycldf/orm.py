@@ -1,10 +1,10 @@
 """
 Object oriented (read-only) access to CLDF data
 
-To read ORM objects from a `pycldf.Dataset`, use two methods
+To read ORM objects from a `pycldf.Dataset`, there are two generic methods:
 
-* `pycldf.Dataset.objects`
-* `pycldf.Dataset.get_object`
+* :meth:`pycldf.Dataset.objects`
+* :meth:`pycldf.Dataset.get_object`
 
 Both will return default implementations of the objects, i.e. instances of the corresponding
 class defined in this module. To customize these objects,
@@ -25,6 +25,11 @@ class defined in this module. To customize these objects,
 
 2. pass the class into the `objects` or `get_object` method.
 
+In addition, module-specific subclasses of :class:`pycldf.Dataset` provide more meaningful
+properties and methods, as shortcuts to the methods above. See
+`<./dataset.html#subclasses-supporting-specific-cldf-modules>`_ for details.
+
+
 Limitations:
 ------------
 * We only support foreign key constraints for CLDF reference properties targeting either a \
@@ -37,8 +42,8 @@ Limitations:
   Reading ~400,000 rows from a ValueTable of a StructureDataset takes
 
   * ~2secs with csvcut, i.e. only making sure it's valid CSV
-  * ~15secs iterating over pycldf.Dataset['ValueTable']
-  * ~35secs iterating over pycldf.Dataset.objects('ValueTable')
+  * ~15secs iterating over ``pycldf.Dataset['ValueTable']``
+  * ~35secs iterating over ``pycldf.Dataset.objects('ValueTable')``
 """
 import types
 import typing
@@ -51,6 +56,9 @@ from tabulate import tabulate
 from pycldf.terms import TERMS, term_uri
 from pycldf.util import DictTuple
 from pycldf.sources import Reference
+
+if typing.TYPE_CHECKING:
+    from pycldf import Dataset  # pragma: no cover
 
 
 class Object:
@@ -71,7 +79,7 @@ class Object:
     # specified here:
     __component__ = None
 
-    def __init__(self, dataset, row: dict):
+    def __init__(self, dataset: 'Dataset', row: dict):
         # Get a mapping of column names to pairs (CLDF property name, list-valued) for columns
         # present in the component specified by class name.
         cldf_cols = {
@@ -113,7 +121,7 @@ class Object:
         return self.__class__.component_name()
 
     @property
-    def key(self):
+    def key(self) -> typing.Tuple[int, str, str]:
         return id(self.dataset), self.__class__.__name__, self.id
 
     def __hash__(self):
@@ -141,13 +149,13 @@ class Object:
         """
         return self._expand_uritemplate('aboutUrl', col)
 
-    def valueUrl(self, col='id'):
+    def valueUrl(self, col='id') -> typing.Union[str, None]:
         """
         The table's `valueUrl` property, expanded with the object's row as context.
         """
         return self._expand_uritemplate('valueUrl', col)
 
-    def propertyUrl(self, col='id'):
+    def propertyUrl(self, col='id') -> typing.Union[str, None]:
         """
         The table's `propertyUrl` property, expanded with the object's row as context.
         """
@@ -168,7 +176,7 @@ class Object:
             multi=True,
         )
 
-    def related(self, relation: str):
+    def related(self, relation: str) -> typing.Union[None, 'Object']:
         """
         The CLDF ontology specifies several "reference properties". This method returns the first
         related object specified by such a property.
@@ -253,6 +261,22 @@ class Cognate(Object):
         return self.related('cognatesetReference')
 
 
+class Contribution(Object):
+    @property
+    def sentences(self):
+        res = []
+        if self.dataset.module == 'TextCorpus':
+            # Return the list of lines, ordered by position.
+            for e in self.dataset.objects('ExampleTable'):
+                if e.cldf.contributionReference == self.id:
+                    if not getattr(e.cldf, 'exampleReference', None):
+                        # Not just an alternative translation line.
+                        res.append(e)
+        if res and hasattr(res[0].cldf, 'position'):
+            return sorted(res, key=lambda e: getattr(e.cldf, 'position'))
+        return res
+
+
 class Entry(Object, _WithLanguageMixin):
     @property
     def senses(self):
@@ -272,6 +296,25 @@ class Example(Object, _WithLanguageMixin):
             self.cldf.translatedText,
         )
 
+    @property
+    def text(self):
+        """
+        Examples in a TextCorpus are interpreted as lines of text.
+        """
+        if self.dataset.module == 'TextCorpus' and hasattr(self.cldf, 'contributionReference'):
+            return self.related('contributionReference')
+
+    @property
+    def alternative_translations(self):
+        res = []
+        if hasattr(self.cldf, 'exampleReference'):
+            # There's a self-referential foreign key. We assume this to link together full examples
+            # and alternative translations.
+            for ex in self.dataset.objects('ExampleTable'):
+                if ex.cldf.exampleReference == self.id:
+                    res.append(ex)
+        return res
+
 
 class Form(Object, _WithLanguageMixin, _WithParameterMixin):
     pass
@@ -288,6 +331,9 @@ class FunctionalEquivalent(Object):
 
 
 class Language(Object):
+    """
+    FIXME: describe usage!
+    """
     @property
     def lonlat(self):
         """
@@ -304,6 +350,25 @@ class Language(Object):
                 "geometry": {"type": "Point", "coordinates": list(self.lonlat)},
                 "properties": self.cldf,
             }
+
+    @functools.cached_property
+    def speaker_area(self):
+        from pycldf.media import File
+
+        if getattr(self.cldf, 'speakerArea', None):
+            return File.from_dataset(self.dataset, self.related('speakerArea'))
+
+    @functools.cached_property
+    def speaker_area_as_geojson_feature(self):
+        if self.speaker_area and self.speaker_area.mimetype.subtype == 'geo+json':
+            res = self.speaker_area.read_json()
+            if res['type'] == 'FeatureCollection':
+                for feature in res['features']:
+                    if feature['properties']['cldf:languageReference'] == self.id:
+                        return feature
+            else:
+                assert res['type'] == 'Feature'
+                return res
 
     @property
     def values(self):
@@ -324,6 +389,18 @@ class Language(Object):
         if isinstance(glottolog_api, dict):
             return glottolog_api.get(self.cldf.glottocode)
         return glottolog_api.languoid(self.cldf.glottocode)
+
+
+class Media(Object):
+    @property
+    def downloadUrl(self):
+        if hasattr(self.cldf, 'downloadUrl'):
+            return self.cldf.downloadUrl
+        return self.valueUrl()
+
+
+class ParameterNetworkEdge(Object):
+    __component__ = 'ParameterNetwork'
 
 
 class Parameter(Object):
@@ -375,6 +452,10 @@ class Sense(Object):
         return self.all_related('entryReference')
 
 
+class Tree(Object):
+    pass
+
+
 class Value(Object, _WithLanguageMixin, _WithParameterMixin):
     """
     Value objects correspond to rows in a dataset's ``ValueTable``.
@@ -420,15 +501,3 @@ class Value(Object, _WithLanguageMixin, _WithParameterMixin):
     @property
     def examples(self):
         return self.all_related('exampleReference')
-
-
-class Contribution(Object):
-    pass
-
-
-class Media(Object):
-    @property
-    def downloadUrl(self):
-        if hasattr(self.cldf, 'downloadUrl'):
-            return self.cldf.downloadUrl
-        return self.valueUrl()
