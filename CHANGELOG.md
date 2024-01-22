@@ -3,6 +3,11 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## [1.37.0] - 2024-01-22
+
+Support for CLDF 1.3.
+
+
 ## [1.36.0] - 2023-11-14
 
 - Support typed values, specified via `columnSpec` in `ParameterTable` in `orm` module.
