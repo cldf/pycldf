@@ -3,10 +3,10 @@ Functionality to load a CLDF dataset into a sqlite db.
 
 To make the resulting SQLite database useful without access to the datasets metadata, we
 use terms of the CLDF ontology for database objects as much as possible, i.e.
-- table names are component names (e.g. "ValueTable" for a table with propertyUrl \
-  http://cldf.clld.org/v1.0/terms.rdf#ValueTable)
+- table names are component names (e.g. ``ValueTable`` for a table with `propertyUrl` \
+  ``http://cldf.clld.org/v1.0/terms.rdf#ValueTable``)
 - column names are property names, prefixed with "cldf" + UNDERSCORE (e.g. a column with \
-  propertyUrl http://cldf.clld.org/v1.0/terms.rdf#id will be "cldf_id" in the database)
+  `propertyUrl` ``http://cldf.clld.org/v1.0/terms.rdf#id`` will be ``cldf_id`` in the database)
 
 This naming scheme also extends to automatically created association tables. I.e. when a
 table specifies a list-valued foreign key, an association table is created to implement this
@@ -14,7 +14,7 @@ many-to-many relationship. The name of the association table is the concatenatio
 - the url properties of the tables in this relationship or of
 - the component names of the tables in the relationship.
 
-E.g. a list-valued foreign key from the FormTable to the ParameterTable will result in an
+E.g. a list-valued foreign key from `FormTable` to `ParameterTable` will result in an
 association table
 
 .. code-block:: sql
@@ -50,6 +50,7 @@ import csvw.db
 
 from pycldf.terms import TERMS
 from pycldf.sources import Reference, Sources, Source
+from pycldf import Dataset
 
 __all__ = ['Database']
 
@@ -97,9 +98,9 @@ def translate(d: typing.Dict[str, TableTranslation], table: str, col=None) -> st
     """
     Translate a db object name.
 
-    :param d: `dict` mapping table urls to `TableTranslation` instances.
+    :param d: ``dict`` mapping table urls to `TableTranslation` instances.
     :param table: The table name of the object to be translated.
-    :param col: Column name to be translated or `None` - so `table` will be translated.
+    :param col: Column name to be translated or `None` - so ``table`` will be translated.
     :return: Translated name.
     """
     if col:
@@ -121,16 +122,16 @@ def clean_bibtex_key(s):
 
 class Database(csvw.db.Database):
     """
-    Extend the functionality provided by `csvw.db.Database` by
+    Extend the functionality provided by ``csvw.db.Database`` by
 
     - providing consistent naming of schema objects according to CLDF semantics,
     - integrating sources into the DB schema.
     """
     source_table_name = 'SourceTable'
 
-    def __init__(self, dataset, **kw):
+    def __init__(self, dataset: Dataset, **kw):
         """
-        :param dataset: a `pycldf.Dataset` instance.
+        :param dataset: The :class:`Dataset` instance from which to derive the database schema.
         """
         self.dataset = dataset
         self._retranslate = collections.defaultdict(dict)
@@ -269,9 +270,9 @@ class Database(csvw.db.Database):
     @staticmethod
     def round_geocoordinates(item, precision=4):
         """
-        We round geo coordinates to `precision` decimal places.
+        We round geo coordinates to ``precision`` decimal places.
 
-        See https://en.wikipedia.org/wiki/Decimal_degrees
+        .. seealso:: `<https://en.wikipedia.org/wiki/Decimal_degrees>`_
 
         :param item:
         :param precision:

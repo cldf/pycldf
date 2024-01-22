@@ -1,0 +1,4 @@
+ID,Language_ID,Primary_Text,Analyzed_Word,Gloss,Translated_Text,Meta_Language_ID,Comment,Text_ID,Position,Example_ID,Grammaticality_Judgement
+e1,l1,second line,der	in	halt,i	dont	know,no idea,l2,,1,1 2,,
+e2,l1,first line,der	in	halt,i	dont	know,no idea,l2,,1,1 1,,*
+e2-alt,l1,first line,,,alt,l1,,,,e2,

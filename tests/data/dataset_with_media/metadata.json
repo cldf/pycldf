@@ -5,6 +5,35 @@
   "rdf:ID": "dswm",
   "tables": [
     {
+    "url": "languages.csv",
+    "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#LanguageTable",
+    "tableSchema": {
+        "columns": [
+            {
+                "name": "ID",
+                "required": true,
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id",
+                "datatype": {
+                    "base": "string",
+                    "format": "[a-zA-Z0-9_\\-]+"
+                }
+            },
+            {
+                "name": "Name",
+                "required": false,
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name",
+                "datatype": "string"
+            },
+            {
+                "name": "Speaker_Area",
+                "required": false,
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#speakerArea",
+                "datatype": "string"
+            }
+        ]
+    }
+},
+    {
       "url": "media.csv",
       "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#MediaTable",
       "tableSchema": {

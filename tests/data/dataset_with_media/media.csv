@@ -1,3 +1,5 @@
 ID,Name,Description,Media_Type,Download_URL
 1,x,y,text/plain,"data:text/plain;base64,SGVsbG8sIFdvcmxkIQ=="
 2,y,x,text/plain;charset=UTF-8,"data:;base64,w6TDtsO8"
+3,z,,application/geo+json,erzya.geojson
+4,z,,application/geo+json,erzya2.geojson

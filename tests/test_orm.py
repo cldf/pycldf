@@ -200,3 +200,34 @@ def test_columnspec(tmp_path):
     v = ds.objects('ValueTable')[0]
     assert v.cldf.value == '1 2 3'
     assert v.typed_value == [1, 2, 3]
+
+
+def test_TextCorpus(textcorpus):
+    assert len(textcorpus.texts) == 2
+
+    e = textcorpus.get_object('ExampleTable', 'e2')
+    assert e.alternative_translations
+
+    text = e.text
+    assert text
+    assert text.sentences[0].id == 'e2'
+
+    assert textcorpus.get_text('2').sentences == []
+
+    assert len(textcorpus.sentences) == 2
+    assert textcorpus.sentences[0].cldf.primaryText == 'first line'
+
+    with pytest.raises(ValueError) as e:
+        textcorpus.validate()
+    assert 'ungrammatical' in str(e)
+
+
+def test_speakerArea(dataset_with_media):
+    lang = dataset_with_media.objects('LanguageTable')[0]
+    sa = lang.speaker_area
+    assert sa.scheme == 'file'
+    assert sa
+    assert sa.mimetype.subtype == 'geo+json'
+    assert 'properties' in lang.speaker_area_as_geojson_feature
+
+    assert dataset_with_media.objects('LanguageTable')[1].speaker_area_as_geojson_feature

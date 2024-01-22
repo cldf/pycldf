@@ -28,6 +28,15 @@ def valid_igt(dataset, table, column, row):
         raise ValueError('number of words and word glosses does not match')
 
 
+def valid_grammaticalityJudgement(dataset, table, column, row):
+    lid_name = dataset.readonly_column_names.ExampleTable.languageReference[0]
+    gc_name = dataset.readonly_column_names.LanguageTable.glottocode[0]
+    if row[column.name] is not None:
+        lg = dataset.get_row('LanguageTable', row[lid_name])
+        if lg[gc_name]:
+            raise ValueError('Glottolog language linked from ungrammatical example')
+
+
 VALIDATORS = [
     (
         None,
@@ -44,5 +53,9 @@ VALIDATORS = [
     (
         None,
         'http://cldf.clld.org/v1.0/terms.rdf#source',
-        valid_references)
+        valid_references),
+    (
+        None,
+        'http://cldf.clld.org/v1.0/terms.rdf#grammaticalityJudgement',
+        valid_grammaticalityJudgement),
 ]
