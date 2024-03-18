@@ -2,7 +2,7 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [1.37.1] - 2024-03-18
 
 Fixed bug whereby component names where the CSV filenames contain underscores were not translated
 appropriately when creating the SQLite db. (Note that this fix is required for the ParameterNetwork
