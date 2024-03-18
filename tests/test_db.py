@@ -44,15 +44,35 @@ def test_db_write(tmp_path, data):
 
 def test_db_write_extra_tables(md):
     ds = Generic.in_dir(md.parent)
-    ds.add_table('extra.csv', 'ID', 'Name', {'name': 'x', 'separator': '#'})
-    ds.write(md, **{'extra.csv': [dict(ID=1, Name='Name', x=['a', 'b', 'c'])]})
+    ds.add_table(
+        'ext_ra.csv',
+        {'name': 'ID', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#id'},
+        'Name', {'name': 'x', 'separator': '#'})
+    ds.add_component('ParameterTable')
+    ds.add_component(
+        'ParameterNetwork',
+        {
+            'name': 'Source',
+            'separator': ';',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#source'},
+        {'name': 'ex', 'separator': ' '},
+    )
+    ds.add_foreign_key('ParameterNetwork', 'ex', 'ext_ra.csv', 'ID')
+    ds.write(md, **{
+        'ParameterTable': [dict(ID='p')],
+        'ParameterNetwork': [
+            dict(ID='e', Target_Parameter_ID='p', Source_Parameter_ID='p', ex=['1'])],
+        'ext_ra.csv': [dict(ID='1', Name='Name', x=['a', 'b', 'c'])]})
 
     db = Database(ds, fname=md.parent / 'db.sqlite')
     db.write_from_tg()
-    rows = db.query("""select x from "extra.csv" """)
+    rows = db.query("""select x from "ext_ra.csv" """)
     assert len(rows) == 1
     assert rows[0][0] == 'a#b#c'
-    assert db.split_value('extra.csv', 'x', rows[0][0]) == ['a', 'b', 'c']
+    assert db.split_value('ext_ra.csv', 'x', rows[0][0]) == ['a', 'b', 'c']
+    # We check that association tables where filenames for both components contain underscores work:
+    rows = db.query("""select count(*) from "ParameterNetwork_ext_ra.csv" """)
+    assert len(rows) == 1
 
 
 def test_db_write_extra_columns(md):
@@ -130,6 +150,8 @@ def translations():
     return {
         'forms.csv': TableTranslation(columns={'pk': 'id'}),
         'parameters.csv': TableTranslation(name='PTable', columns={'pk': 'id'}),
+        'a_b.csv': TableTranslation(name='ab'),
+        'c_d.csv': TableTranslation(name='cd'),
     }
 
 
@@ -141,6 +163,8 @@ def translations():
         ('forms.csv_parameters.csv', None, 'forms.csv_PTable'),
         ('forms.csv_parameters.csv', 'parameters.csv_pk', 'PTable_id'),
         ('forms.csv_parameters.csv', 'forms.csv_pk', 'forms.csv_id'),
+        ('a_b.csv_c_d.csv', None, 'ab_cd'),
+        ('a_b.csv_cd.csv', None, 'ab_cd.csv'),
     ]
 )
 def test_translate(translations, table, col, expected):

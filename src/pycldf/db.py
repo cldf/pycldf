@@ -108,12 +108,39 @@ def translate(d: typing.Dict[str, TableTranslation], table: str, col=None) -> st
             # A simple, translateable column name.
             return d[table].columns[col]
         if '_' in col:
-            t, _, c = col.partition('_')
+            parts = col.split('_')
+            t = '_'.join(parts[:-1])
+            c = parts[-1]
             if t in table and t in d and c in d[t].columns:
                 # A generated column name of an association table.
                 return '_'.join([d[t].name or t, d[t].columns[c]])
         return col
-    return '_'.join([(d[t].name or t) if t in d else t for t in table.split('_')])
+
+    # To handle association tables, we proceed as follows:
+    # 1. We split the full table name on underscores - the separators of sub-table names in
+    # association tables.
+    # 2. Since regular table names may contain underscores as well, we try to find the longest
+    # concatenation of _-separated name parts which appears in the translation dict.
+    # 3. We repeat step 2 until all name parts have been consumed.
+    def t(n):
+        if n in d:
+            return d[n].name or n
+        tables, comps = [], n.split('_')
+        while comps and len(comps) > 1:
+            for i in range(len(comps), 0, -1):
+                nc = '_'.join(comps[:i])
+                if nc in d:
+                    tables.append(d[nc].name or nc)
+                    comps = comps[i:]
+                    break
+            else:
+                raise ValueError(n)  # pragma: no cover
+        if comps:
+            assert len(comps) == 1
+            tables.append(d[comps[0]].name or comps[0] if comps[0] in d else comps[0])
+        return '_'.join(tables)
+
+    return t(table)
 
 
 def clean_bibtex_key(s):
