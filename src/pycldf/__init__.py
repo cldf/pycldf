@@ -4,4 +4,4 @@ from pycldf.sources import *
 from pycldf.terms import *
 
 # flake8: noqa
-__version__ = "1.38.0"
+__version__ = "1.38.1.dev0"
