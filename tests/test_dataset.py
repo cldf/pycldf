@@ -2,6 +2,7 @@ import shutil
 import logging
 import zipfile
 import warnings
+import mimetypes
 import contextlib
 
 import pytest
@@ -175,6 +176,16 @@ def test_example_validators(ds):
     ds.write(examples=[{'morphemes': ['a'], 'gloss': ['a', 'b']}])
     with pytest.raises(ValueError, match='number of words'):
         ds.validate()
+
+
+def test_invalid_mimetype(ds, recwarn):
+    ds.add_component('MediaTable')
+    ds.write(MediaTable=[{
+        'ID': '1',
+        'Media_Type': mimetypes.guess_type('f.png'),
+        'Download_URL': 'http://example.org'}])
+    ds.validate()
+    assert 'Invalid main part' in str(recwarn.pop(UserWarning).message)
 
 
 def test_regex_validator_for_listvalued_column(ds):

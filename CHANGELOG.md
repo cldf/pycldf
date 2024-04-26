@@ -8,6 +8,7 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
   by `json.dumps`.
 - Fixed bug whereby SQLite conversion would fail when the name of a renamed column clashed with an
   existing column name in the table.
+- Emit warning when encountering invalid main part for mediaType property.
 
 
 ## [1.37.1] - 2024-03-18

@@ -1,4 +1,5 @@
 import re
+import warnings
 import functools
 
 
@@ -37,6 +38,12 @@ def valid_grammaticalityJudgement(dataset, table, column, row):
             raise ValueError('Glottolog language linked from ungrammatical example')
 
 
+def valid_mediaType(dataset, table, column, row):
+    main, _, sub = row[column.name].partition('/')
+    if not re.fullmatch('[a-z]+', main):
+        warnings.warn('Invalid main part in media type: {}'.format(main))
+
+
 VALIDATORS = [
     (
         None,
@@ -58,4 +65,8 @@ VALIDATORS = [
         None,
         'http://cldf.clld.org/v1.0/terms.rdf#grammaticalityJudgement',
         valid_grammaticalityJudgement),
+    (
+        None,
+        'http://cldf.clld.org/v1.0/terms.rdf#mediaType',
+        valid_mediaType),
 ]
