@@ -60,6 +60,7 @@ from pycldf.sources import Reference
 
 if typing.TYPE_CHECKING:
     from pycldf import Dataset  # pragma: no cover
+    from pycldf.media import File  # pragma: no cover
 
 
 def to_json(s):
@@ -347,18 +348,35 @@ class FunctionalEquivalent(Object):
 
 class Language(Object):
     """
-    FIXME: describe usage!
+    Language objects correspond to rows in a dataset's ``LanguageTable``.
+
+    Language objects provide easy access to somewhat complex derivatives of the dataset's info
+    on the language, e.g. its speaker area as GeoJSON object.
+
+    .. code-block:: python
+
+        >>> from pycldf import Dataset
+        >>> ds = Dataset.from_metadata('tests/data/dataset_with_media/metadata.json')
+        >>> lg = ds.get_object('LanguageTable', '1')
+        >>> lg.speaker_area_as_geojson_feature['geometry']['type']
+        'MultiPolygon'
     """
     @property
-    def lonlat(self):
+    def lonlat(self) -> typing.Union[None, typing.Tuple[decimal.Decimal]]:
         """
-        :return: (longitude, latitude) pair
+        :return: (longitude, latitude) pair if coordinates are defined, else `None`.
         """
         if hasattr(self.cldf, 'latitude'):
             return (self.cldf.longitude, self.cldf.latitude)
 
     @property
-    def as_geojson_feature(self):
+    def as_geojson_feature(self) -> typing.Union[None, typing.Dict[str, typing.Any]]:
+        """
+        `dict` suitable for serialization as GeoJSON Feature object, with the point coordinate as
+        geographic data.
+
+        .. seealso:: https://datatracker.ietf.org/doc/html/rfc7946#section-3.2
+        """
         if self.lonlat:
             return to_json({
                 "type": "Feature",
@@ -367,14 +385,23 @@ class Language(Object):
             })
 
     @functools.cached_property
-    def speaker_area(self):
+    def speaker_area(self) -> typing.Union[None, 'File']:
+        """
+        A `pycldf.media.File` object containing information about the speaker area of the language.
+        """
         from pycldf.media import File
 
         if getattr(self.cldf, 'speakerArea', None):
             return File.from_dataset(self.dataset, self.related('speakerArea'))
 
     @functools.cached_property
-    def speaker_area_as_geojson_feature(self):
+    def speaker_area_as_geojson_feature(self) -> typing.Union[None, typing.Dict[str, typing.Any]]:
+        """
+        `dict` suitable for serialization as GeoJSON Feature object, with a speaker area Polygon
+        or MultiPolygon as geographic data.
+
+        .. seealso:: https://datatracker.ietf.org/doc/html/rfc7946#section-3.2
+        """
         if self.speaker_area and self.speaker_area.mimetype.subtype == 'geo+json':
             res = self.speaker_area.read_json()
             if res['type'] == 'FeatureCollection':
