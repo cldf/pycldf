@@ -90,6 +90,22 @@ def test_db_write_extra_columns(md):
         assert len(db.query("""select * from "extra.csv" """)[0]) == 1
 
 
+def test_db_write_clashing_columns(md):
+    ds = Generic.in_dir(md.parent)
+    # Create a table with one col that will be renamed to `cldf_id`, and one col `cldf_Id`.
+    ds.add_table(
+        'extra.csv',
+        dict(name='ID', propertyUrl='http://cldf.clld.org/v1.0/terms.rdf#id'),
+        'cldf_Id')
+    ds.write(md, **{'extra.csv': [dict(ID=1, cldf_Id='Name')]})
+    ds.write_metadata(md)
+
+    db = Database(ds, fname=md.parent / 'db.sqlite')
+    db.write_from_tg()  # Asserts we can write the db.
+    res = db.query("""select _cldf_Id from "extra.csv" """)
+    assert res[0][0] == 'Name', res  # and read!
+
+
 def test_db_write_tables_with_fks(md):
     ds = Generic.in_dir(md.parent)
     t1 = ds.add_table('t1.csv', 'ID', 'Name')

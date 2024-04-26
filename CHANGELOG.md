@@ -4,8 +4,10 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## Unreleased
 
-Fixed bug whereby `dict` returned by `orm.Language.as_geojson_feature` could not be serialized
-by `json.dumps`.
+- Fixed bug whereby `dict` returned by `orm.Language.as_geojson_feature` could not be serialized
+  by `json.dumps`.
+- Fixed bug whereby SQLite conversion would fail when the name of a renamed column clashed with an
+  existing column name in the table.
 
 
 ## [1.37.1] - 2024-03-18

@@ -181,13 +181,23 @@ class Database(csvw.db.Database):
             except (KeyError, ValueError):
                 # If no table type can be determined, there's nothing to translate.
                 pass
+            new_col_names = []
             for col in table.tableSchema.columns:
                 if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
                     # Translate local column names to local names of CLDF Ontology terms, prefixed
                     # with `cldf_`:
                     col_name = 'cldf_{0.name}'.format(TERMS.by_uri[col.propertyUrl.uri])
+                    new_col_names.append(col_name.lower())
                     translations[table.local_name].columns[col.header] = col_name
                     self._retranslate[table.local_name][col_name] = col.header
+
+            for col in table.tableSchema.columns:
+                if not (col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri):
+                    if col.header.lower() in new_col_names:
+                        # A name clash! We translate the old column name!
+                        col_name = '_{}'.format(col.header)
+                        translations[table.local_name].columns[col.header] = col_name
+                        self._retranslate[table.local_name][col_name] = col.header
 
         # Add source table:
         for src in self.dataset.sources:
