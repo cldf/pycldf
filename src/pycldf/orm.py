@@ -47,6 +47,7 @@ Limitations:
 """
 import types
 import typing
+import decimal
 import functools
 import collections
 
@@ -59,6 +60,20 @@ from pycldf.sources import Reference
 
 if typing.TYPE_CHECKING:
     from pycldf import Dataset  # pragma: no cover
+
+
+def to_json(s):
+    if isinstance(s, (list, tuple)):
+        return [to_json(ss) for ss in s]
+    if isinstance(s, dict):
+        return {k: to_json(v) for k, v in s.items()}
+    if isinstance(s, decimal.Decimal):
+        return float(s)
+    if s is None:
+        return None
+    if isinstance(s, (str, int, float, bool)):
+        return s
+    return str(s)
 
 
 class Object:
@@ -345,11 +360,11 @@ class Language(Object):
     @property
     def as_geojson_feature(self):
         if self.lonlat:
-            return {
+            return to_json({
                 "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": list(self.lonlat)},
-                "properties": self.cldf,
-            }
+                "geometry": {"type": "Point", "coordinates": self.lonlat},
+                "properties": vars(self.cldf),
+            })
 
     @functools.cached_property
     def speaker_area(self):

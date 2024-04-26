@@ -1,4 +1,6 @@
 import json
+import types
+import decimal
 
 import pytest
 
@@ -6,6 +8,22 @@ import rfc3986
 from csvw.metadata import URITemplate
 from pycldf import Dataset, Generic, StructureDataset
 from pycldf.orm import Language
+
+
+@pytest.mark.parametrize(
+    'input,output',
+    [
+        (None, None),
+        ([], []),
+        ({}, {}),
+        (decimal.Decimal(1), 1),
+        ({'k': [None]}, {'k': [None]}),
+        (types.SimpleNamespace(a=3), 'namespace(a=3)')
+    ]
+)
+def test_to_json(input, output):
+    from pycldf.orm import to_json
+    assert to_json(input) == output
 
 
 @pytest.fixture
@@ -78,6 +96,8 @@ def test_examples(structuredataset_with_examples):
     assert ex.language != ex.metaLanguage
     assert v.code.name == 'Yes' and v.cldf.value == 'ja'
     assert isinstance(v.language.as_geojson_feature, dict)
+    assert v.language.as_geojson_feature['properties']['name']
+    assert json.dumps(v.language.as_geojson_feature)
     assert len(v.language.values) == 2
     assert len(v.parameter.values) == 1
 
@@ -229,5 +249,5 @@ def test_speakerArea(dataset_with_media):
     assert sa
     assert sa.mimetype.subtype == 'geo+json'
     assert 'properties' in lang.speaker_area_as_geojson_feature
-
+    assert json.dumps(lang.speaker_area_as_geojson_feature)
     assert dataset_with_media.objects('LanguageTable')[1].speaker_area_as_geojson_feature
