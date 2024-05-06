@@ -91,3 +91,8 @@ def dataset_with_trees(data):
 @pytest.fixture(scope='module')
 def dataset_with_trees2(data):
     return Dataset.from_metadata(data / 'dataset_with_trees2' / 'metadata.json')
+
+
+@pytest.fixture(scope='module')
+def dataset_with_parameternetwork(data):
+    return Dataset.from_metadata(data / 'dataset_with_parameternetwork' / 'metadata.json')

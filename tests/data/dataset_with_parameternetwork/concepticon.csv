@@ -1,0 +1,4 @@
+ID,Name,Description,ColumnSpec,Semantic_Field,Ontological_Category,Replacement_ID
+0,<NA>,Set of all concepts not yet mapped to a meaningful concept set,,,,
+802,ADAM'S APPLE,A lump at the front of the neck.,,The body,Person/Thing,
+1346,THROAT,The front part of the neck.,,The body,Person/Thing,

@@ -248,7 +248,7 @@
                 An identifier referencing the source parameter of a parameter network edge.
             </p>
         </rdfs:comment>
-        <dc:references rdf:resource="#Parameter"/>
+        <dc:references rdf:resource="#ParameterTable"/>
         <csvw:name>"Source_Parameter_ID"</csvw:name>
         <rdfs:subPropertyOf rdf:resource="http://purl.org/dc/terms/references" />
         <rdfs:seeAlso rdf:resource="https://en.wikipedia.org/wiki/Foreign_key" />
@@ -262,7 +262,7 @@
                 An identifier referencing the target parameter of a parameter network edge.
             </p>
         </rdfs:comment>
-        <dc:references rdf:resource="#Parameter"/>
+        <dc:references rdf:resource="#ParameterTable"/>
         <csvw:name>"Target_Parameter_ID"</csvw:name>
         <rdfs:subPropertyOf rdf:resource="http://purl.org/dc/terms/references" />
         <rdfs:seeAlso rdf:resource="https://en.wikipedia.org/wiki/Foreign_key" />

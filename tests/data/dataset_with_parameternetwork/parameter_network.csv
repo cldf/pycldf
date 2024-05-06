@@ -1,0 +1,3 @@
+ID,Description,Target_Parameter_ID,Source_Parameter_ID,Edge_Is_Directed,Contribution_ID,relation,data
+1346-partof-802,partof,802,1346,Yes,,partof,
+802-haspart-1346,haspart,1346,802,Yes,,haspart,

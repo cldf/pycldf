@@ -849,7 +849,7 @@ def test_get_modules():
 
 @pytest.mark.filterwarnings('ignore::UserWarning')
 def test_iter_datasets(data, tmp_path, csvw3, caplog):
-    assert len(list(iter_datasets(data))) == 11 if csvw3 else 12
+    assert len(list(iter_datasets(data))) == 12 if csvw3 else 13
 
     if csvw3:
         assert 'Reading' in caplog.records[0].msg
@@ -959,3 +959,9 @@ def test_Dataset_set_sources(ds):
 
 def test_StructureDataset(structuredataset_with_examples):
     assert len(structuredataset_with_examples.features) == 2
+
+
+def test_ParameterNetwork(dataset_with_parameternetwork):
+    edges = dataset_with_parameternetwork.objects('ParameterNetwork')
+    assert edges[0].related('sourceParameterReference').cldf.name == 'THROAT'
+    assert edges[0].related('targetParameterReference').cldf.name == "ADAM'S APPLE"
