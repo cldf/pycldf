@@ -2,7 +2,7 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [1.38.1] - 2024-05-06
 
 - Fixed bug whereby foreign keys for the ParameterNetwork component were not added correctly because
   of an incorrect specification in terms.rdf. (See also https://github.com/cldf/cldf/issues/161)
