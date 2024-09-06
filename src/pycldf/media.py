@@ -57,7 +57,7 @@ class File:
     """
     def __init__(self, media: 'MediaTable', row: dict):
         self.row = row
-        self.id = row[media.id_col.name]
+        self.id = row[media.filename_col.name]
         self._mimetype = row[media.mimetype_col.name]
         self.url = None
         self.scheme = None
@@ -184,7 +184,7 @@ class MediaTable(pycldf.ComponentWithValidation):
     """
     Container class for a `Dataset`'s media items.
     """
-    def __init__(self, ds: pycldf.Dataset):
+    def __init__(self, ds: pycldf.Dataset, use_form_id: bool = False):
         super().__init__(ds)
         self.url_col = ds.get(('MediaTable', 'http://cldf.clld.org/v1.0/terms.rdf#downloadUrl'))
         self.path_in_zip_col = ds.get(
@@ -196,6 +196,10 @@ class MediaTable(pycldf.ComponentWithValidation):
                     self.url_col = col
                     break
         self.id_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#id']
+        if use_form_id:
+            self.filename_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#formReference']
+        else:
+            self.filename_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#id']
         self.mimetype_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#mediaType']
 
     @functools.cached_property
@@ -271,6 +275,12 @@ class Mimetype:
         mtype, _, param = self.string.partition(';')
         param = param.strip()
         self.type, _, self.subtype = mtype.partition('/')
+
+        # for compatibility reasons
+        if self.type == 'audio' and 'wav' in self.subtype.lower():
+            if mimetypes.guess_extension('{}/{}'.format(self.type, self.subtype)) is None:
+                self.subtype = 'x-wav'
+
         if param.startswith('charset='):
             self.encoding = param.replace('charset=', '').strip()
         else:
