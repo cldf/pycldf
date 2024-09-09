@@ -2,6 +2,12 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+
+## Unreleased
+
+- Added option to `downloadmedia` subcommand to customize file naming.
+
+
 ## [1.38.1] - 2024-05-06
 
 - Fixed bug whereby foreign keys for the ParameterNetwork component were not added correctly because

@@ -101,6 +101,10 @@ def test_read_data_url(url, data):
         urllib.parse.urlparse(url), Mimetype('text/plain;charset=US-ASCII')) == data
 
 
+def test_fixed_mimetypes():
+    assert Mimetype('audio/wav').extension == '.wav'
+
+
 def test_read_file_url(tmp_path):
     p = tmp_path / 'test.txt'
     p.write_text('äöü', encoding='utf16')

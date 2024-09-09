@@ -196,10 +196,8 @@ class MediaTable(pycldf.ComponentWithValidation):
                     self.url_col = col
                     break
         self.id_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#id']
-        if use_form_id:
-            self.filename_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#formReference']
-        else:
-            self.filename_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#id']
+        self.filename_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#formReference']\
+            if use_form_id else self.id_col
         self.mimetype_col = ds[self.component, 'http://cldf.clld.org/v1.0/terms.rdf#mediaType']
 
     @functools.cached_property
@@ -277,9 +275,8 @@ class Mimetype:
         self.type, _, self.subtype = mtype.partition('/')
 
         # for compatibility reasons
-        if self.type == 'audio' and 'wav' in self.subtype.lower():
-            if mimetypes.guess_extension('{}/{}'.format(self.type, self.subtype)) is None:
-                self.subtype = 'x-wav'
+        if self.type == 'audio' and self.subtype.lower() in {'wav'}:
+            self.subtype = 'x-wav'
 
         if param.startswith('charset='):
             self.encoding = param.replace('charset=', '').strip()
