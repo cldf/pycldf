@@ -123,7 +123,7 @@ def test_column_access(ds):
     assert 'ValueTable' in ds
     assert t in ds
     assert not Table.fromvalue({'url': 'abc.csv'}) in ds
-    assert ds['ValueTable'] == ds['datapoints.csv']
+    assert ds['ValueTable'] is ds['datapoints.csv']
 
     assert ('ValueTable', 'colx') not in ds
     with pytest.raises(KeyError):
@@ -134,7 +134,7 @@ def test_column_access(ds):
     assert "xyz" in str(e) and "datapoints.csv" in str(e)
     t = ds['ValueTable']
     assert all((t, c) in ds for c in t.tableSchema.columns)
-    assert ds['ValueTable', 'Language_ID'] == ds['datapoints.csv', 'languageReference']
+    assert ds['ValueTable', 'Language_ID'] is ds['datapoints.csv', 'languageReference']
 
     del ds['ValueTable', 'Language_ID']
     assert ('ValueTable', 'Language_ID') not in ds
