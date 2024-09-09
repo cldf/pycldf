@@ -12,6 +12,11 @@ from pycldf.media import MediaTable
 def register(parser):
     add_dataset(parser)
     parser.add_argument(
+        '--use-form-id',
+        help='Use the value in formReference as name of downloaded file',
+        action='store_true',
+        default=False)
+    parser.add_argument(
         'output',
         help='Existing local directory to download the files to',
         type=PathType(type='dir'))
@@ -27,6 +32,6 @@ def run(args):
     for s in args.filters:
         col, _, substring = s.partition('=')
         filters.append((col, substring))
-    for item in MediaTable(get_dataset(args)):
+    for item in MediaTable(get_dataset(args), args.use_form_id):
         if all(substring in item[col] for col, substring in filters):
             item.save(args.output)
