@@ -15,11 +15,14 @@ Additional resolvers:
 - The `cldfzenodo <https://pypi.org/project/cldfzenodo>`_ package (>=1.0) provides a dataset
   resolver for DOI URLs pointing to the Zenodo archive.
 """
+import re
 import typing
 import pathlib
+import zipfile
 import warnings
 import functools
 import urllib.parse
+import urllib.request
 from importlib.metadata import entry_points
 
 from csvw.utils import is_url
@@ -86,6 +89,31 @@ class GenericUrlResolver(DatasetResolver):
             except:  # noqa: E722 # pragma: no cover
                 raise
                 pass
+
+
+class GitHubResolver(DatasetResolver):
+    """
+    Resolves dataset locators of the form "https://github.com/<org>/<repos>/tree/<tag>", e.g.
+    https://github.com/cldf-datasets/petersonsouthasia/tree/v1.1
+    or
+    https://github.com/cldf-datasets/petersonsouthasia/releases/tag/v1.1
+    """
+    priority = 3
+
+    def __call__(self, loc, download_dir):
+        url = urllib.parse.urlparse(loc)
+        if url.netloc == 'github.com' and re.search(r'/[v\.0-9]+$', url.path):
+            comps = url.path.split('/')
+            z = download_dir / '{}-{}-{}.zip'.format(comps[1], comps[2], comps[-1])
+            url = "https://github.com/{}/{}/archive/refs/tags/{}.zip".format(
+                comps[1], comps[2], comps[-1])
+            urllib.request.urlretrieve(url, z)
+            zf = zipfile.ZipFile(z)
+            dirs = {info.filename.split('/')[0] for info in zf.infolist()}
+            assert len(dirs) == 1
+            zf.extractall(download_dir)
+            z.unlink()
+            return download_dir / dirs.pop()
 
 
 class DatasetLocator(str):
