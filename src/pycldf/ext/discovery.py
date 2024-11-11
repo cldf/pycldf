@@ -66,6 +66,9 @@ class LocalResolver(DatasetResolver):
 
     def __call__(self, loc: str, download_dir, base: typing.Optional[pathlib.Path]) \
             -> typing.Union[None, pathlib.Path]:
+        """
+        :return: a local path to a directory
+        """
         if isinstance(loc, str) and is_url(loc):
             return
         loc = pathlib.Path(loc)

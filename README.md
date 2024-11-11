@@ -150,6 +150,33 @@ For a specification of the resulting database schema refer to the documentation 
 [`src/pycldf/db.py`](src/pycldf/db.py).
 
 
+### Handling large media files
+
+Often, platforms like GitHub impose limits on the size of individual files in a repository. Thus,
+in order to facilitate curation of datasets with large media files on such platforms, `pycldf`
+provides a pragmatic solution as follows:
+
+Running
+```shell
+cldfbench splitmedia
+```
+on a dataset will split all media files with sizes bigger than a configurable threshold into
+multiple files, just like [UNIX' split command](https://en.wikipedia.org/wiki/Split_(Unix)) would.
+A file named `audio.wav` will be split into files `audio.wav.aa`, `audio.wav.ab` and so on.
+
+> [!CAUTION]
+> With large files split (and removed) the dataset will not validate anymore.
+
+In order to restore the files, the corresponding command
+```shell
+cldfbench catmedia
+```
+can be used.
+
+Thus, in a typical workflow each commit to the repository would be wrapped in a `cldf splitmedia`
+and a `cldf catmedia` call (possibly automated via `git` hooks).
+
+
 ## Python API
 
 For a detailed documentation of the Python API, refer to the

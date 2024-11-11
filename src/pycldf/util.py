@@ -1,5 +1,7 @@
 import re
 import html
+import math
+import string
 import typing
 import pathlib
 import itertools
@@ -11,7 +13,42 @@ import pycldf
 
 __all__ = [
     'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown', 'qname2url',
-    'sanitize_url', 'update_url', 'iter_uritemplates', 'url_without_fragment']
+    'sanitize_url', 'update_url', 'iter_uritemplates', 'url_without_fragment',
+    'splitfile', 'catfile']
+
+
+def splitfile(p, chunksize, total):
+    nchunks = math.ceil(total / chunksize)
+    suffix_length = 2 if nchunks < len(string.ascii_lowercase)**2 else 3
+    suffixes = [
+        ''.join(t) for t in
+        itertools.combinations_with_replacement(string.ascii_lowercase, suffix_length)]
+
+    res = []
+    with p.open('rb') as f:
+        chunk = f.read(chunksize)
+        while chunk:
+            pp = p.parent.joinpath('{}.{}'.format(p.name, suffixes.pop(0)))
+            pp.write_bytes(chunk)
+            res.append(pp)
+            chunk = f.read(chunksize)  # read the next chunk
+
+    p.unlink()
+    return res
+
+
+def catfile(p):
+    # Check, whether the file has been split.
+    suffixes = {pp.suffix: pp for pp in p.parent.iterdir() if pp.stem == p.name}
+    if {'.aa', '.ab'}.issubset(suffixes) or {'.aaa', '.aab'}.issubset(suffixes):
+        # ok, let's concatenate the files:
+        with p.open('wb') as f:
+            for suffix in sorted(suffixes):
+                if re.fullmatch(r'\.[a-z]{2,3}', suffix):
+                    f.write(suffixes[suffix].read_bytes())
+                    suffixes[suffix].unlink()
+        return True
+    return False  # pragma: no cover
 
 
 def url_without_fragment(url: typing.Union[str, urllib.parse.ParseResult]) -> str:

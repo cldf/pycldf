@@ -1,4 +1,3 @@
-import pathlib
 import sys
 import shutil
 import logging
@@ -14,6 +13,23 @@ def test_help(capsys):
     main([])
     out, _ = capsys.readouterr()
     assert 'usage' in out
+
+
+def test_splitmedia_catmedia(caplog, data, tmp_path):
+    caplog.set_level(logging.INFO)
+    shutil.copytree(data / 'dataset_with_media', tmp_path / 'dataset_with_media')
+    main(
+        ['splitmedia', str(tmp_path / 'dataset_with_media' / 'metadata.json'), '-b', '5K'],
+        log=logging.getLogger(__name__))
+    assert 'split' in caplog.records[-1].message
+    assert tmp_path.joinpath('dataset_with_media', 'erzya.geojson.aa').exists()
+    assert not tmp_path.joinpath('dataset_with_media', 'erzya.geojson').exists()
+    main(
+        ['catmedia', str(tmp_path / 'dataset_with_media' / 'metadata.json')],
+        log=logging.getLogger(__name__))
+    assert 'recombined' in caplog.records[-1].message
+    assert tmp_path.joinpath('dataset_with_media', 'erzya.geojson').exists()
+    assert not tmp_path.joinpath('dataset_with_media', 'erzya.geojson.aa').exists()
 
 
 def test_markdown(capsys, data, tmp_path):

@@ -37,6 +37,7 @@ import urllib.request
 from clldutils.misc import log_or_raise
 import pycldf
 from pycldf import orm
+from pycldf.util import splitfile, catfile
 from csvw.datatypes import anyURI
 
 __all__ = ['Mimetype', 'MediaTable', 'File']
@@ -63,6 +64,7 @@ class File:
         self.scheme = None
         self.url_reader = media.url_reader
         self.path_in_zip = row.get(media.path_in_zip_col.name) if media.path_in_zip_col else None
+        self._dsdir = media.ds.directory
 
         if media.url_col:
             # 1. Look for a downloadUrl property:
@@ -75,6 +77,9 @@ class File:
             self.url = anyURI.to_string(self.url)
             self.parsed_url = urllib.parse.urlparse(self.url)
             self.scheme = self.parsed_url.scheme or 'file'
+            self.relpath = self.parsed_url.path
+            while self.relpath.startswith('/'):
+                self.relpath = self.relpath[1:]
 
     @classmethod
     def from_dataset(
@@ -123,10 +128,14 @@ class File:
                 return Mimetype(mt)
         return Mimetype('application/octet-stream')
 
-    def local_path(self, d: pathlib.Path) -> pathlib.Path:
+    def local_path(self, d: pathlib.Path = None) -> typing.Union[pathlib.Path, None]:
         """
         :return: The expected path of the file in the directory `d`.
         """
+        if d is None:
+            if self.scheme == 'file':
+                return self._dsdir / self.relpath
+            return None
         return d.joinpath('{}{}'.format(
             self.id, '.zip' if self.path_in_zip else (self.mimetype.extension or '')))
 
@@ -214,6 +223,26 @@ class MediaTable(pycldf.ComponentWithValidation):
         for row in self.table:
             yield File(self, row)
 
+    def split(self, chunksize):
+        res = 0
+        for file in self:
+            p = file.local_path()
+            if p and p.exists():
+                size = p.stat().st_size
+                if size > chunksize:
+                    splitfile(p, chunksize, size)
+                    res += 1
+        return res
+
+    def cat(self):
+        res = 0
+        for file in self:
+            p = file.local_path()
+            if p and not p.exists():
+                if catfile(p):
+                    res += 1
+        return res
+
     def validate(self, success: bool = True, log: logging.Logger = None) -> bool:
         speaker_area_files = collections.defaultdict(list)
         if ('LanguageTable', 'speakerArea') in self.ds:
@@ -231,7 +260,10 @@ class MediaTable(pycldf.ComponentWithValidation):
                     content = file.read()
                 except FileNotFoundError:
                     success = False
-                    log_or_raise('Non-existing local file referenced: {}'.format(file.id), log=log)
+                    log_or_raise(
+                        'Non-existing local file referenced: {} '
+                        'You may have to run `cldf catmedia` to recombine files'.format(file.id),
+                        log=log)
                 except Exception as e:  # pragma: no cover
                     success = False
                     log_or_raise('Error reading {}: {}'.format(file.id, e), log=log)
