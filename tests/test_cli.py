@@ -108,6 +108,14 @@ def test_validate(tmp_path, caplog):
         w in caplog.records[-1].message for w in ['StructureDataset', 'requires', 'ValueTable'])
 
 
+def test_validate_with_cldf_markdown(data, caplog):
+    main(
+        ['validate', '--with-cldf-markdown', str(data / 'dataset_with_media' / 'metadata.json')],
+        log=logging.getLogger(__name__))
+    assert len(caplog.records) == 2
+    assert all('Not found' in rec.message for rec in caplog.records)
+
+
 def test_all(capsys, tmp_path, mocker, data):
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")

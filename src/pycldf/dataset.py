@@ -424,7 +424,8 @@ class Dataset:
 
         uri = term_uri(column, terms=TERMS.by_uri)
         for c in t.tableSchema.columns:
-            if (c.propertyUrl and c.propertyUrl.uri == uri) or c.header == column:
+            if ((c.propertyUrl and (c.propertyUrl.uri == uri or c.propertyUrl.uri == column))
+                    or c.header == column):  # noqa: W503
                 return c
 
         raise SchemaError('Dataset has no column "{}" in table "{}"'.format(column, t.url))

@@ -25,6 +25,12 @@
                 "datatype": "string"
             },
             {
+                "dc:conformsTo": "CLDF Markdown",
+                "dc:format": "text/markdown",
+                "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#comment",
+                "name": "Comment"
+            },
+            {
                 "name": "Speaker_Area",
                 "required": false,
                 "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#speakerArea",
@@ -33,6 +39,15 @@
         ]
     }
 },
+    {
+      "url": "custom.csv",
+      "tableSchema": {
+        "columns": [
+          {"name":  "ID"}
+        ],
+        "primaryKey": ["ID"]
+      }
+    },
     {
       "url": "media.csv",
       "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#MediaTable",
@@ -70,6 +85,11 @@
             "required": false,
             "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#downloadUrl",
             "datatype": "anyURI"
+          },
+          {
+            "name": "Conforms_To",
+            "propertyUrl": "http://purl.org/dc/terms/conformsTo",
+            "datatype": "string"
           }
         ]
       }
