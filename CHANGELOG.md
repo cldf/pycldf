@@ -7,6 +7,7 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 - Support certain GitHub URLs as dataset locators.
 - Pragmatic support for large media files.
+- Support validation of CLDF Markdown content in datasets.
 
 
 ## [1.39.0] - 2024-09-09

@@ -49,6 +49,7 @@ def run(args):
             if col.common_props.get('dc:conformsTo') == 'CLDF Markdown':
                 cols.append((tname, col.name))
 
+    res = 0
     for t, c in cols:
         args.log.info('Validating CLDF Markdown links in {}:{}'.format(t, c))
         for obj in cldf[t]:
@@ -56,6 +57,7 @@ def run(args):
                 TestMarkdown(obj[c], cldf).render()
 
         for k, v in missing.most_common():
+            res = 1
             args.log.warning('Not found {} ({} occurrences)'.format(k, v))
         args.log.info('{} links checked'.format(len(links)))
         missing, links = collections.Counter(), []
@@ -67,8 +69,9 @@ def run(args):
                 args.log.info('Validating CLDF Markdown links in MediaTable:{}'.format(file.id))
                 TestMarkdown(file.read(), cldf).render()
                 for k, v in missing.most_common():
+                    res = 1
                     args.log.warning('Not found {} ({} occurrences)'.format(k, v))
                 args.log.info('{} links checked'.format(len(links)))
                 missing, links = collections.Counter(), []
 
-    return 0
+    return res
