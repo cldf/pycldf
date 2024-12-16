@@ -3,6 +3,11 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## [unreleased]
+
+Fixed issue whereby CLDF Markdown content was validated even if not explicitely requested.
+
+
 ## [1.40.0] - 2024-12-13
 
 - Support certain GitHub URLs as dataset locators.

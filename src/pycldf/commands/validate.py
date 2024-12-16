@@ -26,6 +26,9 @@ def run(args):
     if not cldf.validate(log=args.log):
         return 1
 
+    if not args.with_cldf_markdown:
+        return 0
+
     missing = collections.Counter()
     links = []
 
