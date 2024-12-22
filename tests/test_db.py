@@ -4,13 +4,18 @@ import warnings
 
 import pytest
 
-from pycldf.dataset import Dataset, Generic
+from pycldf.dataset import Dataset, Generic, StructureDataset
 from pycldf.db import Database, translate, TableTranslation
 
 
 @pytest.fixture
 def md(tmp_path):
     return tmp_path / 'metadata.json'
+
+
+@pytest.fixture
+def ds_sd(tmp_path):
+    return StructureDataset.in_dir(tmp_path)
 
 
 def test_db_geocoords():
@@ -193,3 +198,16 @@ def test_TableTranslation():
     assert t1.columns
     t2 = TableTranslation()
     assert not t2.columns
+
+
+def test_Database_write_with_sources(ds_sd, tmp_path):
+    ds_sd.add_columns('ValueTable', 'c')
+    ds_sd.add_sources('@misc{key,\ntitle={the title}}')
+    ds_sd.write(ValueTable=[{
+        'ID': '1', 'Language_ID': 'l', 'Parameter_ID': 'p', 'Value': 'v', 'Source': ['key '], 'c': 'c'}])
+    assert ds_sd.validate()
+    Database(ds_sd, fname=tmp_path / 'db1.sqlite').write_from_tg()
+    ds_sd.write(ValueTable=[{
+        'ID': '1', 'Language_ID': 'l', 'Parameter_ID': 'p', 'Value': 'v', 'Source': ['keY']}])
+    assert ds_sd.validate()
+    Database(ds_sd, fname=tmp_path / 'db2.sqlite').write_from_tg()

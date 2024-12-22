@@ -163,6 +163,9 @@ class Database(csvw.db.Database):
         self.dataset = dataset
         self._retranslate = collections.defaultdict(dict)
         self._source_cols = ['id', 'genre'] + BIBTEX_FIELDS
+        # Source items can be referenced with case insensitive keys. So we store a mapping from
+        # lowercase keys to the ones actually used in the source BibTeX.
+        self._source_map = {}
 
         infer_primary_keys = kw.pop('infer_primary_keys', False)
 
@@ -255,8 +258,18 @@ class Database(csvw.db.Database):
             if '[' in fkey:
                 assert fkey.endswith(']')
                 fkey, _, rem = fkey.partition('[')
-                return fkey, rem[:-1]
-            return fkey, None
+                rem = rem[:-1]
+            else:
+                rem = None
+            # `cldf validate` strips leading and trailing whitespace in source keys, so we have to
+            # do the same here to be able to load valid datasets into SQLite.
+            fkey = fkey.strip()
+            if fkey.lower() in self._source_map:
+                # Source (i.e. BibTeX) keys are also treated case insensitively. Thus to make sure
+                # we don't load foreign keys with varying case into the db, we look up the actual
+                # keys used in the BibTeX.
+                fkey = self._source_map[fkey.lower()]
+            return fkey, rem
         return csvw.db.Database.association_table_context(
             self, table, column, fkey)  # pragma: no cover
 
@@ -291,6 +304,7 @@ class Database(csvw.db.Database):
             item.update({clean_bibtex_key(k): v for k, v in src.items()})
             item.update({'id': src.id, 'genre': src.genre})
             items[self.source_table_name].append(item)
+            self._source_map[src.id.lower()] = src.id
         return self.write(_force=_force, _exists_ok=_exists_ok, **items)
 
     def query(self, sql: str, params=None) -> list:
