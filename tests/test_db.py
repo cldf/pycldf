@@ -201,6 +201,9 @@ def test_TableTranslation():
 
 
 def test_Database_write_with_sources(ds_sd, tmp_path):
+    """
+    Source keys in references may have leading or trailing whitespace and are case insensitive.
+    """
     ds_sd.add_columns('ValueTable', 'c')
     ds_sd.add_sources('@misc{key,\ntitle={the title}}')
     ds_sd.write(ValueTable=[{
