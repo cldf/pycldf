@@ -6,7 +6,7 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 ## [unreleased]
 
 Fixed issue whereby valid datasets could not be loaded into SQLite because the `database` module
-was not as forgiving regarding source keys as the validation.
+was not as forgiving regarding source keys as the CLDF spec (or the validation in `pycldf`).
 
 
 ## [1.40.1] - 2024-12-16
