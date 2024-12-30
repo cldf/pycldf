@@ -62,6 +62,12 @@ def test_Object(dataset2):
     assert isinstance(c.propertyUrl(), str)
 
 
+def test_Object_name_description(wordlist_with_cognates):
+    param = wordlist_with_cognates.get_object('ParameterTable', 'p1')
+    assert param.name != param.description
+    assert param.description == 'body part'
+
+
 def test_Object_references(dataset):
     o = dataset.get_object('ValueTable', '1')
     assert len(o.references) == 2
