@@ -119,7 +119,7 @@ class Object:
         if t.tableSchema.primaryKey and len(t.tableSchema.primaryKey) == 1:
             self.pk = self.data[dataset[self.component_name()].tableSchema.primaryKey[0]]
         self.name = getattr(self.cldf, 'name', None)
-        self.description = getattr(self.cldf, 'name', None)
+        self.description = getattr(self.cldf, 'description', None)
 
     def __repr__(self):
         return '<{}.{} id="{}">'.format(self.__class__.__module__, self.__class__.__name__, self.id)
