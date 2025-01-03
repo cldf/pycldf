@@ -18,11 +18,11 @@
 # -- Project information -----------------------------------------------------
 
 project = 'pycldf'
-copyright = '2024, Robert Forkel'
+copyright = '2025, Robert Forkel'
 author = 'Robert Forkel'
 
 # The full version, including alpha/beta/rc tags
-release = '1.40.3.dev0'
+release = '1.40.3'
 
 
 # -- General configuration ---------------------------------------------------

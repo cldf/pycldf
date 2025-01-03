@@ -971,7 +971,7 @@ def test_Dataset_validate_trailing_separator_for_source(structuredataset_with_ex
     shutil.copytree(structuredataset_with_examples.directory, tmp_path / 'ds')
     for fname, k, v in [
         ('metadata.json', '"dc:source": ""', '"dc:source": "sources.bib"'),
-        ('values.csv', ',c1,,', ',c1,key;,'),
+        ('values.csv', ',c1,,', ',c1,key;,'),  # Trailing separator.
     ]:
         p = tmp_path / 'ds' / fname
         content = p.read_text(encoding='utf-8').replace(k, v)
