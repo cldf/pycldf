@@ -965,3 +965,19 @@ def test_ParameterNetwork(dataset_with_parameternetwork):
     edges = dataset_with_parameternetwork.objects('ParameterNetwork')
     assert edges[0].related('sourceParameterReference').cldf.name == 'THROAT'
     assert edges[0].related('targetParameterReference').cldf.name == "ADAM'S APPLE"
+
+
+def test_Dataset_validate_trailing_separator_for_source(structuredataset_with_examples, tmp_path, caplog):
+    shutil.copytree(structuredataset_with_examples.directory, tmp_path / 'ds')
+    for fname, k, v in [
+        ('metadata.json', '"dc:source": ""', '"dc:source": "sources.bib"'),
+        ('values.csv', ',c1,,', ',c1,key;,'),
+    ]:
+        p = tmp_path / 'ds' / fname
+        content = p.read_text(encoding='utf-8').replace(k, v)
+        p.write_text(content, encoding='utf-8')
+    tmp_path.joinpath('ds', 'sources.bib').write_text('@misc{key,\ntitle={t}}', encoding='utf-8')
+    ds = Dataset.from_metadata(tmp_path / 'ds' / 'metadata.json')
+    ds.validate(log=logging.getLogger(__name__))
+    assert len(caplog.records) == 1
+    assert 'empty reference' in caplog.records[0].msg

@@ -192,6 +192,8 @@ class Sources(object):
         return sid, pages
 
     def validate(self, refs):
+        if not isinstance(refs, str) and any(r is None for r in refs):
+            raise ValueError('empty reference in ref list (possibly caused by trailing separator)')
         for sid, _ in map(self.parse, [refs] if isinstance(refs, str) else refs):
             if sid not in self.keys():
                 raise ValueError('missing source key: {0}'.format(sid))

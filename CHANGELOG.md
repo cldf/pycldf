@@ -5,7 +5,8 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [Unreleased]
 
-Fixed issue where the wrong value was assigned to ORM objects' `description` attribute.
+- Fixed issue where the wrong value was assigned to ORM objects' `description` attribute.
+- Better error message when validating source with trailing separator.
 
 
 ## [1.40.2] - 2024-12-23
