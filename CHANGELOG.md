@@ -2,9 +2,11 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+
+## [1.40.4] - 2025-01-15
 
 - Fixed issue where validator reports invalid data sets as valid if a logger is supplied
+
 
 ## [1.40.3] - 2025-01-03
 
