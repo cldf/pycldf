@@ -1002,8 +1002,8 @@ class Dataset:
             try:
                 table = self[dtable_uri]
             except KeyError:
-                log_or_raise('{0} requires {1}'.format(self.module, dtable_uri), log=log)
                 success = False
+                log_or_raise('{0} requires {1}'.format(self.module, dtable_uri), log=log)
                 table = None
 
             if table:
@@ -1016,8 +1016,8 @@ class Dataset:
                     if c.propertyUrl}
                 table_uri = table.common_props['dc:conformsTo']
                 for col in required_default_cols - set(cols.keys()):
-                    log_or_raise('{0} requires column {1}'.format(table_uri, col), log=log)
                     success = False
+                    log_or_raise('{0} requires column {1}'.format(table_uri, col), log=log)
                 for uri, col in cols.items():
                     default = default_cols.get(uri)
                     if default:
@@ -1026,6 +1026,7 @@ class Dataset:
                             cardinality = terms.by_uri[uri].cardinality
                         if (cardinality == 'multivalued' and not col.separator) or \
                                 (cardinality == 'singlevalued' and col.separator):
+                            success = False
                             log_or_raise('{} {} must be {}'.format(
                                 table_uri, uri, cardinality), log=log)
 
@@ -1060,6 +1061,7 @@ class Dataset:
             validators_, propertyUrls, colnames = [], set(), set()
             for col in table.tableSchema.columns:
                 if col.header in colnames:  # pragma: no cover
+                    success = False
                     log_or_raise(
                         'Duplicate column name in table schema: {} {}'.format(
                             table.url, col.header),
@@ -1070,6 +1072,7 @@ class Dataset:
                     try:
                         terms.is_cldf_uri(col_uri)
                         if col_uri in propertyUrls:  # pragma: no cover
+                            success = False
                             log_or_raise(
                                 'Duplicate CLDF property in table schema: {} {}'.format(
                                     table.url, col_uri),
@@ -1094,15 +1097,15 @@ class Dataset:
                         try:
                             validate(self, table, col, row)
                         except ValueError as e:
+                            success = False
                             log_or_raise(
                                 '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
                                 log=log)
-                            success = False
                 if not table.check_primary_key(log=log):
                     success = False
             else:
-                log_or_raise('{0} does not exist'.format(fname), log=log)
                 success = False
+                log_or_raise('{0} does not exist'.format(fname), log=log)
 
         if not self.tablegroup.check_referential_integrity(log=log):
             success = False
