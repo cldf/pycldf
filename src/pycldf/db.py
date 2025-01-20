@@ -40,6 +40,7 @@ while a list-valued foreign key to a custom table may result in something like t
   );
 """
 import typing
+import inspect
 import pathlib
 import functools
 import collections
@@ -369,3 +370,34 @@ class Database(csvw.db.Database):
             except KeyError:
                 assert table_type == self.source_table_name, table_type
         return self.dataset.write_metadata(dest / mdname)
+
+
+def query(conn,
+          sql: str,
+          params=None,
+          functions=None,
+          aggregates=None,
+          collations=None) -> typing.Generator[typing.Any, None, None]:
+    for func in functions or []:
+        if isinstance(func, tuple):
+            name, func = func
+        else:
+            name = func.__name__
+        conn.create_function(name, len(inspect.signature(func).parameters), func)
+
+    for cls in aggregates or []:
+        if isinstance(cls, tuple):
+            name, cls = cls
+        else:
+            name = cls.__name__
+        conn.create_aggregate(name, len(inspect.signature(cls.step).parameters) - 1, cls)
+
+    for func in collations or []:
+        if isinstance(func, tuple):
+            name, func = func
+        else:
+            name = func.__name__
+        assert len(inspect.signature(func).parameters) == 2
+        conn.create_collation(name, func)
+
+    return conn.execute(sql, params or ()).fetchall()

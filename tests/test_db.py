@@ -5,7 +5,7 @@ import warnings
 import pytest
 
 from pycldf.dataset import Dataset, Generic, StructureDataset
-from pycldf.db import Database, translate, TableTranslation
+from pycldf.db import Database, translate, TableTranslation, query
 
 
 @pytest.fixture
@@ -16,6 +16,66 @@ def md(tmp_path):
 @pytest.fixture
 def ds_sd(tmp_path):
     return StructureDataset.in_dir(tmp_path)
+
+
+@pytest.fixture
+def conn():
+    con = sqlite3.connect(":memory:")
+    cur = con.execute("CREATE TABLE test(x, y)")
+    values = [
+        ("a", 4),
+        ("b", 5),
+        ("c", 3),
+        ("d", 8),
+        ("e", 1),
+    ]
+    cur.executemany("INSERT INTO test VALUES(?, ?)", values)
+    return con
+
+
+def test_query(conn):
+    def double(x):
+        return x + x
+
+    res = list(query(conn, "SELECT double(x) FROM test", functions=[double]))
+    assert res[0][0] == 'aa'
+
+    res = list(query(conn, "SELECT doppel(y) FROM test", functions=[('doppel', double)]))
+    assert res[0][0] == 8
+
+    class strsum:
+        def __init__(self):
+            self.res = ''
+
+        def step(self, value):
+            self.res += value
+
+        def finalize(self):
+            return self.res
+
+    res = list(query(conn, "SELECT strsum(x) FROM test", aggregates=[strsum]))
+    assert res[0][0] == 'abcde'
+
+    res = list(query(conn, "SELECT concat(x) FROM test", aggregates=[('concat', strsum)]))
+    assert res[0][0] == 'abcde'
+
+    def mysort(x, y):
+        order = 'cdbae'
+        ox = order.index(x)
+        oy = order.index(y)
+        if ox == oy:
+            return 0  # pragma: no cover
+        if ox < oy:
+            return -1
+        return 1
+
+    res = list(query(conn, "SELECT x FROM test ORDER BY x COLLATE mysort", collations=[mysort]))
+    assert res[0][0] == 'c'
+
+    res = list(query(conn,
+                     "SELECT x FROM test ORDER BY x COLLATE my",
+                     collations=[('my', mysort)]))
+    assert res[0][0] == 'c'
 
 
 def test_db_geocoords():
