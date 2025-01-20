@@ -42,6 +42,7 @@ while a list-valued foreign key to a custom table may result in something like t
 import typing
 import inspect
 import pathlib
+import sqlite3
 import functools
 import collections
 
@@ -372,12 +373,27 @@ class Database(csvw.db.Database):
         return self.dataset.write_metadata(dest / mdname)
 
 
-def query(conn,
+class AggregateClass(typing.Protocol):  # pragma: no cover
+    def step(self, value):
+        ...
+
+    def finalize(self):
+        ...
+
+
+def query(conn: sqlite3.Connection,
           sql: str,
           params=None,
-          functions=None,
-          aggregates=None,
-          collations=None) -> typing.Generator[typing.Any, None, None]:
+          functions: typing.Optional[typing.List[typing.Callable]] = None,
+          aggregates: typing.Optional[typing.List[AggregateClass]] = None,
+          collations: typing.Optional[typing.List[typing.Callable]] = None) \
+        -> typing.Generator[typing.Any, None, None]:
+    """
+    Note: Passing lambdas or functools.partial objects as function requires passing an explicit name
+    as well.
+
+    :return: A generator of result rows for the query.
+    """
     for func in functions or []:
         if isinstance(func, tuple):
             name, func = func
