@@ -54,7 +54,7 @@ from pycldf.terms import TERMS
 from pycldf.sources import Reference, Sources, Source
 from pycldf import Dataset
 
-__all__ = ['Database']
+__all__ = ['Database', 'query']
 
 PRIMARY_KEY_NAMES = ['id', 'pk']
 BIBTEX_FIELDS = [
