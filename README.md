@@ -31,6 +31,7 @@ Create a local directory to which to download the dataset (ideally including ver
 $ mkdir wacl-1.0.0
 ```
 
+Accessing CLDF datasets on Zenodo requires installing [`cldfzenodo`](https://github.com/cldf/cldfzenodo) (via `pip install cldfzenodo`).
 Validating a dataset from Zenodo will implicitly download it, so running
 ```shell
 $ cldf validate https://zenodo.org/record/7322688#rdf:ID=wacl --download-dir wacl-1.0.0/
