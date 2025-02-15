@@ -91,7 +91,7 @@ class File:
             MediaTable(ds),
             row_or_object.data if isinstance(row_or_object, orm.Media) else row_or_object)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> dict:
         """
         Access to the underlying row `dict`.
         """
@@ -223,7 +223,10 @@ class MediaTable(pycldf.ComponentWithValidation):
         for row in self.table:
             yield File(self, row)
 
-    def split(self, chunksize):
+    def split(self, chunksize: int) -> int:
+        """
+        :return: The number of media files that have been split.
+        """
         res = 0
         for file in self:
             p = file.local_path()
@@ -235,6 +238,9 @@ class MediaTable(pycldf.ComponentWithValidation):
         return res
 
     def cat(self):
+        """
+        :return: The number of media files that have been re-assembled from chunks.
+        """
         res = 0
         for file in self:
             p = file.local_path()

@@ -36,6 +36,7 @@ MD_SUFFIX = '-metadata.json'
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
 TableType = typing.Union[str, Table]
 ColType = typing.Union[str, Column]
+ColSpecType = typing.Union[str, dict, Column]
 PathType = typing.Union[str, pathlib.Path]
 TableSpecType = typing.Union[str, Link, Table]
 ColSPecType = typing.Union[str, Column]
@@ -96,7 +97,21 @@ def get_modules() -> typing.List[Module]:
     return _modules
 
 
-def make_column(spec: typing.Union[str, dict, Column]) -> Column:
+def make_column(spec: ColSpecType) -> Column:
+    """
+    Create a `Column` instance from `spec`.
+
+    .. code-block:: python
+
+        >>> make_column('id').name
+        'id'
+        >>> make_column('http://cldf.clld.org/v1.0/terms.rdf#id').name
+        'ID'
+        >>> make_column({'name': 'col', 'datatype': 'boolean'}).datatype.base
+        'boolean'
+        >>> type(make_column(make_column('id')))
+        <class 'csvw.metadata.Column'>
+    """
     if isinstance(spec, str):
         if spec in TERMS.by_uri:
             return TERMS.by_uri[spec].to_column()
@@ -109,7 +124,15 @@ def make_column(spec: typing.Union[str, dict, Column]) -> Column:
 
 
 class GitRepository:
-    def __init__(self, url, clone=None, version=None, **dc):
+    """
+    CLDF datasets are often created from data curated in git repositories. If this is the case, we
+    exploit this to provide better provenance information in the dataset's metadata.
+    """
+    def __init__(self,
+                 url: str,
+                 clone: typing.Optional[typing.Union[str, pathlib.Path]] = None,
+                 version: typing.Optional[str] = None,
+                 **dc):
         # We remove credentials from the URL immediately to make sure this isn't leaked into
         # CLDF metadata. Such credentials might be present in URLs read via gitpython from
         # remotes.
@@ -118,7 +141,7 @@ class GitRepository:
         self.version = version
         self.dc = dc
 
-    def json_ld(self):
+    def json_ld(self) -> typing.Dict[str, str]:
         res = collections.OrderedDict([
             ('rdf:about', self.url),
             ('rdf:type', 'prov:Entity'),
@@ -152,7 +175,7 @@ class Dataset:
         self._objects_by_pk = collections.defaultdict(collections.OrderedDict)
 
     @property
-    def sources(self):
+    def sources(self) -> Sources:
         # We load sources only the first time they are accessed, because for datasets like
         # Glottolog - with 40MB zipped BibTeX - this may take ~90secs.
         if self._sources is None:
@@ -160,7 +183,7 @@ class Dataset:
         return self._sources
 
     @sources.setter
-    def sources(self, obj):
+    def sources(self, obj: Sources):
         if not isinstance(obj, Sources):
             raise TypeError('Invalid type for Dataset.sources')
         self._sources = obj
@@ -284,7 +307,7 @@ class Dataset:
     def version(self) -> str:
         return self.properties['dc:conformsTo'].split('/')[3]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<cldf:%s:%s at %s>' % (self.version, self.module, self.directory)
 
     @property
@@ -536,7 +559,7 @@ class Dataset:
                 v = old
             self.tablegroup.common_props[k] = v
 
-    def add_table(self, url: str, *cols, **kw) -> csvw.Table:
+    def add_table(self, url: str, *cols: ColSpecType, **kw) -> csvw.Table:
         """
         Add a table description to the Dataset.
 
@@ -566,7 +589,10 @@ class Dataset:
         # Now remove the table:
         self.tablegroup.tables = [t for t in self.tablegroup.tables if t.url != table.url]
 
-    def add_component(self, component: typing.Union[str, dict], *cols, **kw) -> csvw.Table:
+    def add_component(self,
+                      component: typing.Union[str, dict],
+                      *cols: ColSpecType,
+                      **kw) -> csvw.Table:
         """
         Add a CLDF component to a dataset.
 
@@ -607,7 +633,7 @@ class Dataset:
         self.auto_constraints(component)
         return component
 
-    def add_columns(self, table: TableType, *cols) -> None:
+    def add_columns(self, table: TableType, *cols: ColSpecType) -> None:
         """
         Add columns specified by `cols` to the table specified by `table`.
         """
@@ -624,7 +650,7 @@ class Dataset:
             table.tableSchema.columns.append(col)
         self.auto_constraints()
 
-    def remove_columns(self, table: TableType, *cols):
+    def remove_columns(self, table: TableType, *cols: str):
         """
         Remove `cols` from `table`'s schema.
 
@@ -781,7 +807,7 @@ class Dataset:
     #
     # Methods to read data
     #
-    def iter_rows(self, table: TableType, *cols) -> typing.Iterator[dict]:
+    def iter_rows(self, table: TableType, *cols: str) -> typing.Generator[dict, None, None]:
         """
         Iterate rows in a table, resolving CLDF property names to local column names.
 
@@ -1116,7 +1142,7 @@ class Dataset:
 
         return success
 
-    def stats(self, exact=False) -> typing.List[typing.Tuple[str, str, int]]:
+    def stats(self, exact: bool = False) -> typing.List[typing.Tuple[str, str, int]]:
         """
         Compute summary statistics for the dataset.
 

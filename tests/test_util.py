@@ -52,3 +52,18 @@ def test_metadata2markdown(tmp_path):
     tmp_path.joinpath('languages.csv.zip').unlink()
     md = metadata2markdown(ds, tmp_path / 'Generic-metadata.json')
     assert 'languages.csv.zip' not in md, "Don't link non-existing files"
+
+
+def test_split_and_cat(tmp_path):
+    p = tmp_path / 'testfile'
+    text = 'This is the test content'
+    p.write_text(text)
+    res = splitfile(p, 5)
+    assert not p.exists()
+    assert len(res) == 5
+    assert catfile(p)
+    assert p.exists()
+    assert p.read_text() == text
+
+    assert splitfile(p, 1000) == [p]
+    assert not catfile(p)

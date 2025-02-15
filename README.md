@@ -69,13 +69,21 @@ sources.bib     Sources           2000
 ### Summary statistics
 
 ```shell
-$ cldf stats mydataset/Wordlist-metadata.json 
-<cldf:v1.0:Wordlist at mydataset>
+$ cldf stats tests/data/wordlist_with_cognates/metadata.json 
+<cldf:v1.0:Wordlist at tests/data/wordlist_with_cognates>
+               value
+-------------  --------------------------------------------
+dc:conformsTo  http://cldf.clld.org/v1.0/terms.rdf#Wordlist
+dc:source      sources.bib
 
-Path                   Type          Rows
----------------------  ----------  ------
-forms.csv              Form Table       1
-mydataset/sources.bib  Sources          1
+                 Type               Rows
+---------------  ---------------  ------
+languages.csv    LanguageTable         2
+parameters.csv   ParameterTable        2
+forms.csv        FormTable             3
+cognates.csv     CognateTable          2
+cognatesets.csv  CognatesetTable       1
+sources.bib      Sources               1
 ```
 
 
@@ -159,7 +167,7 @@ provides a pragmatic solution as follows:
 
 Running
 ```shell
-cldfbench splitmedia
+cldf splitmedia <dataset-locator>
 ```
 on a dataset will split all media files with sizes bigger than a configurable threshold into
 multiple files, just like [UNIX' split command](https://en.wikipedia.org/wiki/Split_(Unix)) would.
@@ -170,7 +178,7 @@ A file named `audio.wav` will be split into files `audio.wav.aa`, `audio.wav.ab`
 
 In order to restore the files, the corresponding command
 ```shell
-cldfbench catmedia
+cldf catmedia <dataset-locator>
 ```
 can be used.
 

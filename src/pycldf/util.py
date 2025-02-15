@@ -17,7 +17,16 @@ __all__ = [
     'splitfile', 'catfile']
 
 
-def splitfile(p, chunksize, total):
+def splitfile(p, chunksize: int, total: typing.Optional[int] = None) -> typing.List[pathlib.Path]:
+    """
+    :param p: Path of the file to split.
+    :param chunksize: The maximal size of the chunks the file will be split into.
+    :param total: The size of the input file.
+    :return: The list of paths of files that the input has been split into.
+    """
+    total = total or p.stat().st_size
+    if total <= chunksize:  # Nothing to do.
+        return [p]
     nchunks = math.ceil(total / chunksize)
     suffix_length = 2 if nchunks < len(string.ascii_lowercase)**2 else 3
     suffixes = [
@@ -37,7 +46,15 @@ def splitfile(p, chunksize, total):
     return res
 
 
-def catfile(p):
+def catfile(p: pathlib.Path) -> bool:
+    """
+    Restore a file that has been split into chunks.
+
+    We determine if a file has been split by looking for files in the parent directory with suffixes
+    as created by `splitfile`.
+    """
+    if p.exists():  # Nothing to do.
+        return False
     # Check, whether the file has been split.
     suffixes = {pp.suffix: pp for pp in p.parent.iterdir() if pp.stem == p.name}
     if {'.aa', '.ab'}.issubset(suffixes) or {'.aaa', '.aab'}.issubset(suffixes):
