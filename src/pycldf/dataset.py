@@ -1091,7 +1091,7 @@ class Dataset:
                 if log:
                     log.info('Reading data from zipped table: {}.zip'.format(fname))
                 fexists = True  # csvw already handles this case, no need to adapt paths.
-            if fexists:
+            if is_url(table.url.resolve(table._parent.base)) or fexists:
                 for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
                     for col, validate in validators_:
                         try:
