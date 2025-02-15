@@ -3,7 +3,7 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
-## Unreleased
+## [1.41.0] - 2025-02-15
 
 - Added a utility function to query SQLite DBs using user-defined functions, aggregates or collations.
 - Fixed a bug whereby validation of remote datasets specified by URL of the metadata file did not work.
