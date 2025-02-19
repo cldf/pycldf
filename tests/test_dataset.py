@@ -107,9 +107,17 @@ def test_primary_table(ds, ds_tc):
 
 
 def test_components(ds):
-    ds.add_component('LanguageTable')
-    ds.add_table('custom1.csv', 'id', **{'dc:conformsTo': None})
-    ds.add_table('custom2.csv', 'id', **{'dc:conformsTo': 'http://example.org'})
+    t = ds.add_component('LanguageTable', description='desc')
+    assert t.common_props['dc:description'] == 'desc'
+    t = ds.add_table('custom1.csv', 'id', **{'dc:conformsTo': None})
+    assert 'dc:conformsTo' in t.common_props
+    t = ds.add_table(
+        'custom2.csv',
+        'id',
+        description='desc',
+        **{'dc:conformsTo': 'http://example.org'})
+    assert 'dc:conformsTo' in t.common_props
+    assert t.common_props['dc:description'] == 'desc'
     assert len(ds.components) == 1
 
 

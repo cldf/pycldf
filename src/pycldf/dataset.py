@@ -567,12 +567,16 @@ class Dataset:
         :param cols: Column specifications; anything accepted by :func:`pycldf.dataset.make_column`.
         :param kw: Recognized keywords:
             - `primaryKey`: specify the column(s) constituting the primary key of the table.
+            - `description`: a description of the table.
         :return: The new table.
         """
         t = self.add_component({"url": url, "tableSchema": {"columns": []}}, *cols)
         if 'primaryKey' in kw:
             t.tableSchema.primaryKey = attr.fields_dict(Schema)['primaryKey'].converter(
                 kw.pop('primaryKey'))
+        if kw.get('description'):
+            t.common_props['dc:description'] = kw.pop('description')
+        t.common_props.update(kw)
         return t
 
     def remove_table(self, table: TableType):
@@ -600,6 +604,9 @@ class Dataset:
 
         :param component: A component specified by name or as `dict` representing the JSON \
         description of the component.
+        :param kw: Recognized keywords: \
+            - `url`: a url property for the table;\
+            - `description`: a description of the table.
         """
         if isinstance(component, str):
             component = jsonlib.load(pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
@@ -609,6 +616,8 @@ class Dataset:
 
         if kw.get('url'):
             component.url = Link(kw['url'])
+        if kw.get('description'):
+            component.common_props['dc:description'] = kw['description']
 
         for other_table in self.tables:
             if other_table.url == component.url:
