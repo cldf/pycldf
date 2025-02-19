@@ -3,6 +3,11 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## Unreleased
+
+- Make sure all local media files are copied with `Dataset.copy` as well.
+
+
 ## [1.41.0] - 2025-02-15
 
 - Added a utility function to query SQLite DBs using user-defined functions, aggregates or collations.

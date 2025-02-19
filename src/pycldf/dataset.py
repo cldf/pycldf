@@ -957,6 +957,8 @@ class Dataset:
             ...     if 'with_examples' in ds.directory.name:
             ...         ds.copy('some_directory', mdname='md.json')
         """
+        from pycldf.media import MediaTable
+
         dest = pathlib.Path(dest)
         if not dest.exists():
             dest.mkdir(parents=True)
@@ -983,6 +985,12 @@ class Dataset:
         mdpath = dest.joinpath(
             mdname or  # noqa: W504
             (self.tablegroup.base.split('/')[-1] if from_url else self.tablegroup._fname.name))
+        if 'MediaTable' in self:
+            for f in MediaTable(self):
+                if f.scheme == 'file' and f.local_path().exists():
+                    target = dest / f.relpath
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(f.local_path(), target)
         if from_url:
             del ds.tablegroup.at_props['base']  # pragma: no cover
         ds.write_metadata(fname=mdpath)

@@ -14,6 +14,7 @@ from pycldf.dataset import (
     Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, TextCorpus,
     GitRepository, make_column, get_modules, iter_datasets, SchemaError)
 from pycldf.sources import Sources
+from pycldf.media import MediaTable
 
 
 @pytest.fixture
@@ -923,6 +924,15 @@ def test_Dataset_copy(tmp_path):
     # Make sure all file references are relative:
     shutil.copytree(dest, tmp_path / 'moved')
     assert Dataset.from_metadata(tmp_path / 'moved' / 'md.json').validate()
+
+
+def test_Dataset_copy_with_media(tmp_path, dataset_with_media):
+    dataset_with_media.copy(tmp_path, mdname='md.json')
+    filecontent = {f.id: f.read() for f in MediaTable(dataset_with_media)}
+    ds = Dataset.from_metadata(tmp_path / 'md.json')
+    for i, f in enumerate(MediaTable(ds)):
+        assert f.read() == filecontent[f.id]
+    assert i > 1
 
 
 def test_Dataset_rename_column(ds):
