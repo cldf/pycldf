@@ -2,10 +2,10 @@
 Functionality to use in commandline tools which need to access CLDF datasets.
 """
 import argparse
+import urllib.request
 
 from clldutils.clilib import PathType, ParserError
 from csvw.utils import is_url
-import requests
 
 from pycldf import Dataset, Database
 from pycldf.ext import discovery
@@ -45,11 +45,23 @@ class FlagOrPathType(PathType):
             return super().__call__(string)
 
 
+
+def head(url):  # pragma: no cover
+    class NoRedirection(urllib.request.HTTPErrorProcessor):
+        def http_response(self, request, response):
+            return response
+
+        https_response = http_response
+
+    opener = urllib.request.build_opener(NoRedirection)
+    return opener.open(urllib.request.Request(url, method="HEAD")).status
+
+
 class UrlOrPathType(PathType):
     def __call__(self, string):
         if is_url(string):
             if self._must_exist:
-                sc = requests.head(string).status_code
+                sc = head(string)
                 # We accept not only HTTP 200 as valid but also common redirection codes because
                 # these are used e.g. for DOIs.
                 if sc not in {200, 301, 302}:

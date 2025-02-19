@@ -1026,6 +1026,8 @@ class Dataset:
         :raises ValueError: if a validation error is encountered (and `log` is `None`).
         :return: Flag signaling whether schema and data are valid.
         """
+        # We must import components with custom validation to make sure they can be detected as
+        # subclasses of ComponentWithValidation.
         from pycldf.media import MediaTable
         from pycldf.trees import TreeTable
 
@@ -1311,6 +1313,9 @@ class TextCorpus(Dataset):
 
 
 class ComponentWithValidation:
+    """
+    A virtual base class for custom, component-centered validation.
+    """
     def __init__(self, ds: Dataset):
         self.ds = ds
         self.component = self.__class__.__name__
@@ -1347,11 +1352,11 @@ def sniff(p: pathlib.Path) -> bool:
     return d.get('dc:conformsTo', '').startswith(TERMS_URL)
 
 
-def iter_datasets(d: pathlib.Path) -> typing.Iterator[Dataset]:
+def iter_datasets(d: pathlib.Path) -> typing.Generator[Dataset, None, None]:
     """
     Discover CLDF datasets - by identifying metadata files - in a directory.
 
-    :param d: directory
+    :param d: directory in which to look for CLDF datasets (recursively).
     :return: generator of `Dataset` instances.
     """
     for p in walk(d, mode='files'):
