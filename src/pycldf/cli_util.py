@@ -45,8 +45,7 @@ class FlagOrPathType(PathType):
             return super().__call__(string)
 
 
-
-def head(url):  # pragma: no cover
+def http_head_status(url):  # pragma: no cover
     class NoRedirection(urllib.request.HTTPErrorProcessor):
         def http_response(self, request, response):
             return response
@@ -61,7 +60,7 @@ class UrlOrPathType(PathType):
     def __call__(self, string):
         if is_url(string):
             if self._must_exist:
-                sc = head(string)
+                sc = http_head_status(string)
                 # We accept not only HTTP 200 as valid but also common redirection codes because
                 # these are used e.g. for DOIs.
                 if sc not in {200, 301, 302}:
