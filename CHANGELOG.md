@@ -3,7 +3,7 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
-## Unreleased
+## [1.42.0] - 2025-04-07
 
 - Make sure all local media files are copied with `Dataset.copy` as well.
 - Allow passing a description to `Dataset.add_table` and `Dataset.add_component`.
