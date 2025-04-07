@@ -134,7 +134,7 @@ class File:
         """
         if d is None:
             if self.scheme == 'file':
-                return self._dsdir / self.relpath
+                return self._dsdir / urllib.parse.unquote(self.relpath)
             return None
         return d.joinpath('{}{}'.format(
             self.id, '.zip' if self.path_in_zip else (self.mimetype.extension or '')))
@@ -364,7 +364,8 @@ def read_file_url(d: typing.Union[pathlib.Path, str],
         # We are accessing media of dataset which has been accessed over HTTP.
         assert urllib.parse.urlparse(d).scheme.startswith('http')
         return read_http_url(urllib.parse.urlparse(urllib.parse.urljoin(d, path)), mimetype)
-    return mimetype.read(d.joinpath(path).read_bytes())
+
+    return mimetype.read(d.joinpath(urllib.parse.unquote(path)).read_bytes())
 
 
 def read_http_url(url: urllib.parse.ParseResult, mimetype: Mimetype):

@@ -8,6 +8,7 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 - Make sure all local media files are copied with `Dataset.copy` as well.
 - Allow passing a description to `Dataset.add_table` and `Dataset.add_component`.
 - Drop dependency on requests.
+- Fixed bug whereby non-ascii characters in local filenames would not work as Download_URL in MediaTable
 
 
 ## [1.41.0] - 2025-02-15

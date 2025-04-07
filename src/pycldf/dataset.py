@@ -996,10 +996,11 @@ class Dataset:
             (self.tablegroup.base.split('/')[-1] if from_url else self.tablegroup._fname.name))
         if 'MediaTable' in self:
             for f in MediaTable(self):
-                if f.scheme == 'file' and f.local_path().exists():
-                    target = dest / f.relpath
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(f.local_path(), target)
+                if f.scheme == 'file':
+                    if f.local_path().exists():
+                        target = dest / urllib.parse.unquote(f.relpath)
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy(f.local_path(), target)
         if from_url:
             del ds.tablegroup.at_props['base']  # pragma: no cover
         ds.write_metadata(fname=mdpath)
