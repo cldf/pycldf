@@ -2,7 +2,7 @@ import zipfile
 from urllib.error import HTTPError
 
 import pytest
-from pybtex.database import Entry
+from simplepybtex.database import Entry
 
 from pycldf.sources import Sources, Source, Reference
 
