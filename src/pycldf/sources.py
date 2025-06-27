@@ -220,7 +220,7 @@ class Sources(object):
     def _add_entries(self, data, **kw):
         if isinstance(data, Source):
             entries = [(data.id, data.entry)]
-        elif isinstance(data, database.BibliographyData):
+        elif hasattr(data, 'entries'):
             entries = data.entries.items()
         else:
             raise ValueError(data)
