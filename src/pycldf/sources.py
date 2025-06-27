@@ -223,7 +223,12 @@ class Sources(object):
         elif hasattr(data, 'entries'):
             entries = data.entries.items()
         else:
-            raise ValueError(data)
+            msg = (
+                'expected `clldutils.source.Source`,'
+                ' `pybtex.database.BibliographyData`,'
+                ' or `simplepybtex.database.BibliographyData`;'
+                f' got {type(data)}'
+            raise TypeError(data)
 
         for key, entry in entries:
             if kw.get('_check_id', False) and not ID_PATTERN.match(key):
