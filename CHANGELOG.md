@@ -2,6 +2,11 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## unreleased
+
+- Switch from `pybtex` to `simplepybtex`.
+- Make `Dataset.add_sources` accept a `BibliographyData` object from either `pybtex` or `simplepybtex`.
+- More informative error message when `Dataset.add_sources` gets the wrong type of object.
 
 ## [1.42.0] - 2025-04-07
 
