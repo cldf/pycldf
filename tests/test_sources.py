@@ -2,7 +2,7 @@ import zipfile
 from urllib.error import HTTPError
 
 import pytest
-from pybtex.database import Entry
+from simplepybtex.database import Entry
 
 from pycldf.sources import Sources, Source, Reference
 
@@ -74,7 +74,7 @@ def test_Sources(bib):
     refs = ['huber2005[1-6]', 'Obrazy', 'Elegie[34]']
     assert src.format_refs(*list(src.expand_refs(refs))) == refs
     assert '%s' % src['huber2005'] == 'Huber, Herrmann. 2005. y.'
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         src.add(5)
 
     with pytest.raises(ValueError):
