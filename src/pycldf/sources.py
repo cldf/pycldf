@@ -9,8 +9,8 @@ from urllib.error import HTTPError
 from urllib.request import urlopen, urlretrieve
 
 from csvw.metadata import is_url
-from pybtex import database
-from pybtex.database.output.bibtex import Writer as BaseWriter
+from simplepybtex import database
+from simplepybtex.database.output.bibtex import Writer as BaseWriter
 from clldutils.source import Source as BaseSource
 from clldutils.source import ID_PATTERN
 

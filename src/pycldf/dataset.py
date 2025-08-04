@@ -173,6 +173,7 @@ class Dataset:
         self._sources = None
         self._objects = collections.defaultdict(collections.OrderedDict)
         self._objects_by_pk = collections.defaultdict(collections.OrderedDict)
+        self._cached_rows = {}
 
     @property
     def sources(self) -> Sources:
@@ -831,6 +832,12 @@ class Dataset:
                 # Add CLDF properties as aliases for the corresponding values:
                 item[v] = item[k]
             yield item
+
+    def cached_rows(self, table: TableType) -> list:
+        key = table.local_name if isinstance(table, Table) else table
+        if key not in self._cached_rows:
+            self._cached_rows[key] = list(self.iter_rows(table))
+        return self._cached_rows[key]
 
     def get_row(self, table: TableType, id_) -> dict:
         """
