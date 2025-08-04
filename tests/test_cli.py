@@ -165,3 +165,4 @@ def test_createdb_locator(data, tmp_path):
     cu = conn.cursor()
     cu.execute('select count(*) from mediatable')
     assert cu.fetchone()[0] > 0
+    conn.close()

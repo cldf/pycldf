@@ -999,3 +999,7 @@ def test_Dataset_validate_trailing_separator_for_source(structuredataset_with_ex
     ds.validate(log=logging.getLogger(__name__))
     assert len(caplog.records) == 1
     assert 'empty reference' in caplog.records[0].msg
+
+
+def test_Dataset_cached_rows(structuredataset_with_examples):
+    assert structuredataset_with_examples.cached_rows('ExampleTable')

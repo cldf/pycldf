@@ -30,7 +30,8 @@ def conn():
         ("e", 1),
     ]
     cur.executemany("INSERT INTO test VALUES(?, ?)", values)
-    return con
+    yield con
+    con.close()
 
 
 def test_query(conn):

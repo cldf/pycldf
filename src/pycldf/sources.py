@@ -228,7 +228,7 @@ class Sources(object):
                 ' `pybtex.database.BibliographyData`,'
                 ' or `simplepybtex.database.BibliographyData`;'
                 f' got {type(data)}')
-            raise TypeError(data)
+            raise TypeError(msg)
 
         for key, entry in entries:
             if kw.get('_check_id', False) and not ID_PATTERN.match(key):
