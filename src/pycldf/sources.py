@@ -58,10 +58,10 @@ class Source(BaseSource):
     @classmethod
     def from_entry(cls, key, entry, **_kw):
         """
-        Create a `cls` instance from a `pybtex` entry object.
+        Create a `cls` instance from a `simplepybtex` entry object.
 
         :param key: BibTeX citation key of the entry
-        :param entry: `pybtex.database.Entry` instance
+        :param entry: `simplepybtex.database.Entry` instance
         :param _kw: Non-bib-metadata keywords to be passed for `cls` instantiation
         :return: `cls` instance
         """
@@ -220,10 +220,15 @@ class Sources(object):
     def _add_entries(self, data, **kw):
         if isinstance(data, Source):
             entries = [(data.id, data.entry)]
-        elif isinstance(data, database.BibliographyData):
+        elif hasattr(data, 'entries'):
             entries = data.entries.items()
         else:
-            raise ValueError(data)
+            msg = (
+                'expected `clldutils.source.Source`,'
+                ' `pybtex.database.BibliographyData`,'
+                ' or `simplepybtex.database.BibliographyData`;'
+                f' got {type(data)}')
+            raise TypeError(data)
 
         for key, entry in entries:
             if kw.get('_check_id', False) and not ID_PATTERN.match(key):
