@@ -1,5 +1,10 @@
+"""
+CLI for the `pycldf` pockage.
+"""
 import csv
 import sys
+from typing import Optional, Sequence
+import logging
 import contextlib
 
 from clldutils.clilib import (
@@ -10,7 +15,15 @@ from termcolor import colored
 import pycldf.commands
 
 
-def main(args=None, catch_all=False, parsed_args=None, log=None):
+def main(
+        args: Sequence[str] = None,
+        catch_all: bool = False,
+        parsed_args: list = None,
+        log: Optional[logging.Logger] = None,
+) -> Optional[int]:
+    """
+    Implements the main command, dispatches to subcommands.
+    """
     parser, subparsers = get_parser_and_subparsers('cldf')
     add_csv_field_size_limit(parser, default=csv.field_size_limit())
     register_subcommands(subparsers, pycldf.commands)
@@ -32,7 +45,7 @@ def main(args=None, catch_all=False, parsed_args=None, log=None):
             return 0
         except ParserError as e:
             print(colored(str(e), 'red'))
-            return main([args._command, '-h'])
+            return main([args._command, '-h'])  # pylint: disable=protected-access
         except Exception as e:  # pragma: no cover
             if catch_all:
                 print(e)

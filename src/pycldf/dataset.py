@@ -1,15 +1,19 @@
+# pylint: disable=C0302
+"""
+An implementation of a CLDF dataset object.
+"""
 import re
 import sys
 import json
 import types
 import shutil
-import typing
+from typing import Union, Optional, Type, Any
 import logging
 import pathlib
 import functools
 import itertools
 import collections
-import collections.abc
+from collections.abc import Generator, Iterable
 import urllib.parse
 import urllib.request
 
@@ -19,13 +23,12 @@ from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url, URITe
 from csvw import datatypes
 from csvw.dsv import iterrows
 from clldutils.path import git_describe, walk
-from clldutils.misc import log_or_raise
 from clldutils import jsonlib
 
-from pycldf.sources import Sources
+from pycldf.sources import Sources, Source
 from pycldf.util import pkg_path, resolve_slices, DictTuple, sanitize_url, iter_uritemplates
 from pycldf.terms import term_uri, Terms, TERMS, get_column_names, URL as TERMS_URL
-from pycldf.validators import VALIDATORS
+from pycldf.validators import DatasetValidator, RowValidatorType
 from pycldf import orm
 
 __all__ = [
@@ -34,17 +37,18 @@ __all__ = [
 
 MD_SUFFIX = '-metadata.json'
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
-TableType = typing.Union[str, Table]
-ColType = typing.Union[str, Column]
-ColSpecType = typing.Union[str, dict, Column]
-PathType = typing.Union[str, pathlib.Path]
-TableSpecType = typing.Union[str, Link, Table]
-ColSPecType = typing.Union[str, Column]
-SchemaObjectType = typing.Union[TableSpecType, typing.Tuple[TableSpecType, ColSPecType]]
+TableType = Union[str, Table]
+ColType = Union[str, Column]
+ColSpecType = Union[str, dict, Column]
+PathType = Union[str, pathlib.Path]
+TableSpecType = Union[str, Link, Table]
+SchemaObjectType = Union[TableSpecType, tuple[TableSpecType, ColSpecType]]
+ODict = collections.OrderedDict
+RowType = ODict[str, Any]
 
 
 class SchemaError(KeyError):
-    pass
+    """Schema objects can be accessed using `Dataset.__getitem__`."""
 
 
 @attr.s
@@ -66,6 +70,7 @@ class Module:
         return self.uri.split('#')[1]
 
     def match(self, thing) -> bool:
+        """Check if the module described here matches thing."""
         if isinstance(thing, TableGroup):
             return thing.common_props.get('dc:conformsTo') == term_uri(self.id)
         if hasattr(thing, 'name'):
@@ -76,14 +81,14 @@ class Module:
 _modules = []
 
 
-def get_modules() -> typing.List[Module]:
+def get_modules() -> list[Module]:
     """
     We read supported CLDF modules from the default metadata files distributed with `pycldf`.
     """
-    global _modules
+    global _modules  # pylint: disable=global-statement
     if not _modules:
         ds = sys.modules[__name__]
-        for p in pkg_path('modules').glob('*{0}'.format(MD_SUFFIX)):
+        for p in pkg_path('modules').glob(f'*{MD_SUFFIX}'):
             tg = TableGroup.from_file(p)
             mod = Module(
                 tg.common_props['dc:conformsTo'],
@@ -123,16 +128,13 @@ def make_column(spec: ColSpecType) -> Column:
     raise TypeError(spec)
 
 
-class GitRepository:
+class GitRepository:  # pylint: disable=too-few-public-methods
     """
     CLDF datasets are often created from data curated in git repositories. If this is the case, we
     exploit this to provide better provenance information in the dataset's metadata.
     """
-    def __init__(self,
-                 url: str,
-                 clone: typing.Optional[typing.Union[str, pathlib.Path]] = None,
-                 version: typing.Optional[str] = None,
-                 **dc):
+    def __init__(
+            self, url: str, clone: Optional[PathType] = None, version: Optional[str] = None, **dc):
         # We remove credentials from the URL immediately to make sure this isn't leaked into
         # CLDF metadata. Such credentials might be present in URLs read via gitpython from
         # remotes.
@@ -141,7 +143,8 @@ class GitRepository:
         self.version = version
         self.dc = dc
 
-    def json_ld(self) -> typing.Dict[str, str]:
+    def json_ld(self) -> collections.OrderedDict[str, Any]:
+        """The repository described in JSON-LD."""
         res = collections.OrderedDict([
             ('rdf:about', self.url),
             ('rdf:type', 'prov:Entity'),
@@ -150,11 +153,11 @@ class GitRepository:
             res['dc:created'] = self.version
         elif self.clone:
             res['dc:created'] = git_describe(self.clone)
-        res.update({'dc:{0}'.format(k): self.dc[k] for k in sorted(self.dc)})
+        res.update({f'dc:{k}': self.dc[k] for k in sorted(self.dc)})
         return res
 
 
-class Dataset:
+class Dataset:  # pylint: disable=too-many-public-methods
     """
     API to access a CLDF dataset.
     """
@@ -168,7 +171,7 @@ class Dataset:
         - :meth:`~pycldf.dataset.Dataset.from_metadata`
         - :meth:`~pycldf.dataset.Dataset.from_data`
         """
-        self.tablegroup = tablegroup
+        self.tablegroup: csvw.TableGroup = tablegroup
         self.auto_constraints()
         self._sources = None
         self._objects = collections.defaultdict(collections.OrderedDict)
@@ -177,6 +180,7 @@ class Dataset:
 
     @property
     def sources(self) -> Sources:
+        """The sources."""
         # We load sources only the first time they are accessed, because for datasets like
         # Glottolog - with 40MB zipped BibTeX - this may take ~90secs.
         if self._sources is None:
@@ -226,11 +230,11 @@ class Dataset:
         else:
             fname = pathlib.Path(fname)
             if fname.is_dir():
-                name = '{0}{1}'.format(cls.__name__, MD_SUFFIX)
+                name = f'{cls.__name__}{MD_SUFFIX}'
                 tablegroup = TableGroup.from_file(pkg_path('modules', name))
                 # adapt the path of the metadata file such that paths to tables are resolved
                 # correctly:
-                tablegroup._fname = fname.joinpath(name)
+                tablegroup._fname = fname.joinpath(name)  # pylint: disable=W0212
             else:
                 tablegroup = TableGroup.from_file(fname)
 
@@ -243,7 +247,7 @@ class Dataset:
             except ValueError:
                 pass
         if comps and comps.most_common(1)[0][1] > 1:
-            raise ValueError('{0}: duplicate components!'.format(fname))
+            raise ValueError(f'{fname}: duplicate components!')
 
         for mod in get_modules():
             if mod.match(tablegroup):
@@ -265,9 +269,10 @@ class Dataset:
             raise ValueError('empty data file!')
         if cls is Dataset:
             try:
-                cls = next(mod.cls for mod in get_modules() if mod.match(fname))
-            except StopIteration:
-                raise ValueError('{0} does not match a CLDF module spec'.format(fname))
+                cls = next(  # pylint: disable=W0642
+                    mod.cls for mod in get_modules() if mod.match(fname))
+            except StopIteration as exc:
+                raise ValueError(f'{fname} does not match a CLDF module spec') from exc
             assert issubclass(cls, Dataset) and cls is not Dataset
 
         res = cls.from_metadata(fname.parent)
@@ -275,27 +280,30 @@ class Dataset:
             c.name for c in res[res.primary_table].tableSchema.columns
             if c.required}
         if not required_cols.issubset(colnames):
-            raise ValueError('missing columns: %r' % sorted(required_cols.difference(colnames)))
+            raise ValueError(f'missing columns: {sorted(required_cols.difference(colnames))}')
         return res
 
     #
     # Accessing dataset metadata
     #
     @property
-    def directory(self) -> typing.Union[str, pathlib.Path]:
+    def directory(self) -> PathType:
         """
         :return: The location of the metadata file. Either a local directory as `pathlib.Path` or \
         a URL as `str`.
         """
-        return self.tablegroup._fname.parent if self.tablegroup._fname else self.tablegroup.base
+        if self.tablegroup._fname:  # pylint: disable=W0212
+            return self.tablegroup._fname.parent  # pylint: disable=W0212
+        return self.tablegroup.base
 
     @property
     def filename(self) -> str:
         """
         :return: The name of the metadata file.
         """
-        return self.tablegroup._fname.name if self.tablegroup._fname else \
-            pathlib.Path(urllib.parse.urlparse(self.tablegroup.base).path).name
+        if self.tablegroup._fname:  # pylint: disable=W0212
+            return self.tablegroup._fname.name  # pylint: disable=W0212
+        return pathlib.Path(urllib.parse.urlparse(self.tablegroup.base).path).name
 
     @property
     def module(self) -> str:
@@ -306,13 +314,15 @@ class Dataset:
 
     @property
     def version(self) -> str:
+        """The CLDF version."""
         return self.properties['dc:conformsTo'].split('/')[3]
 
     def __repr__(self) -> str:
-        return '<cldf:%s:%s at %s>' % (self.version, self.module, self.directory)
+        return f'<cldf:{self.version}:{self.module} at {self.directory}>'
 
     @property
     def metadata_dict(self) -> dict:
+        """The TableGroup instance as dict."""
         return self.tablegroup.asdict(omit_defaults=False)
 
     @property
@@ -323,7 +333,7 @@ class Dataset:
         return self.tablegroup.common_props
 
     @property
-    def bibpath(self) -> typing.Union[str, pathlib.Path]:
+    def bibpath(self) -> PathType:
         """
         :return: Location of the sources BibTeX file. Either a URL (`str`) or a local path \
         (`pathlib.Path`).
@@ -347,14 +357,14 @@ class Dataset:
     # Accessing schema objects (components, tables, columns, foreign keys)
     #
     @property
-    def tables(self) -> typing.List[Table]:
+    def tables(self) -> list[Table]:
         """
         :return: All tables defined in the dataset.
         """
         return self.tablegroup.tables
 
     @property
-    def components(self) -> typing.Dict[str, csvw.Table]:
+    def components(self) -> collections.OrderedDict[str, csvw.Table]:
         """
         :return: Mapping of component name to table objects as defined in the dataset.
         """
@@ -370,26 +380,28 @@ class Dataset:
         return res
 
     @staticmethod
-    def get_tabletype(table) -> typing.Union[str, None]:
+    def get_tabletype(table) -> Optional[str]:
+        """Return the table type, aka component name, of the table."""
         if table.common_props.get('dc:conformsTo', '') is None:
             return None
         if '#' in table.common_props.get('dc:conformsTo', ''):
             res = table.common_props['dc:conformsTo'].split('#')[1]
             if res in TERMS:
                 return res
-        raise ValueError("Type {:} of table {:} is not a valid term.".format(
-            table.common_props.get('dc:conformsTo'),
-            table.url))
+        raise ValueError(
+            f"Type {table.common_props.get('dc:conformsTo')} of table {table.url} is invalid.")
 
     @property
-    def primary_table(self) -> typing.Union[str, None]:
+    def primary_table(self) -> Optional[str]:
+        """Returns the primary table for the dataset."""
         if self.tables:
             try:
                 return self.get_tabletype(self.tables[0])
             except ValueError:
-                return None
+                pass
+        return None
 
-    def __getitem__(self, item: SchemaObjectType) -> typing.Union[csvw.Table, csvw.Column]:
+    def __getitem__(self, item: SchemaObjectType) -> Union[csvw.Table, csvw.Column]:
         """
         Access to tables and columns.
 
@@ -422,37 +434,32 @@ class Dataset:
         if isinstance(table, Link):
             table = table.string
 
-        if not isinstance(table, Table):
-            uri = term_uri(table, terms=TERMS.by_uri)
-            for t in self.tables:
-                if (uri and t.common_props.get('dc:conformsTo') == uri) \
-                        or t.url.string == table:
-                    break
-            else:
-                raise SchemaError('Dataset has no table "{}"'.format(table))
-        else:
-            if any(table is tt for tt in self.tables):
-                t = table
-            else:
-                raise SchemaError('Dataset has no table "{}"'.format(table))
-
+        t = self._get_table(table)
         if not column:
             return t
 
         if isinstance(column, Column):
             if any(column is c for c in t.tableSchema.columns):
                 return column
-            else:
-                raise SchemaError('Dataset has no column "{}" in table "{}"'.format(
-                    column.name, t.url))
+            raise SchemaError(f'Dataset has no column "{column.name}" in table "{t.url}"')
 
         uri = term_uri(column, terms=TERMS.by_uri)
         for c in t.tableSchema.columns:
-            if ((c.propertyUrl and (c.propertyUrl.uri == uri or c.propertyUrl.uri == column))
-                    or c.header == column):  # noqa: W503
+            if ((c.propertyUrl and (c.propertyUrl.uri in (uri, column))) or c.header == column):
                 return c
 
-        raise SchemaError('Dataset has no column "{}" in table "{}"'.format(column, t.url))
+        raise SchemaError(f'Dataset has no column "{column}" in table "{t.url}"')
+
+    def _get_table(self, table: Union[str, Table]) -> Table:
+        if not isinstance(table, Table):
+            uri = term_uri(table, terms=TERMS.by_uri)
+            for t in self.tables:
+                if (uri and t.common_props.get('dc:conformsTo') == uri) or t.url.string == table:
+                    return t
+            raise SchemaError(f'Dataset has no table "{table}"')
+        if any(table is tt for tt in self.tables):
+            return table
+        raise SchemaError(f'Dataset has no table "{table}"')
 
     def __delitem__(self, item: SchemaObjectType):
         """
@@ -474,9 +481,7 @@ class Dataset:
         """
         return bool(self.get(item))
 
-    def get(self,
-            item: SchemaObjectType,
-            default=None) -> typing.Union[csvw.Table, csvw.Column, None]:
+    def get(self, item: SchemaObjectType, default=None) -> Union[csvw.Table, csvw.Column, None]:
         """
         Acts like `dict.get`.
 
@@ -487,8 +492,11 @@ class Dataset:
         except SchemaError:
             return default
 
-    def get_foreign_key_reference(self, table: TableType, column: ColType) \
-            -> typing.Union[typing.Tuple[csvw.Table, csvw.Column], None]:
+    def get_foreign_key_reference(
+            self,
+            table: TableType,
+            column: ColType,
+    ) -> Optional[tuple[csvw.Table, csvw.Column]]:
         """
         Retrieve the reference of a foreign key constraint for the specified column.
 
@@ -503,6 +511,7 @@ class Dataset:
             if len(fk.columnReference) == 1 and fk.columnReference[0] == column.name:
                 return self[fk.reference.resource], \
                     self[fk.reference.resource, fk.reference.columnReference[0]]
+        return None
 
     @property
     def column_names(self) -> types.SimpleNamespace:
@@ -531,7 +540,7 @@ class Dataset:
     #
     # Editing dataset metadata or schema
     #
-    def add_provenance(self, **kw):
+    def add_provenance(self, **kw: Any) -> None:
         """
         Add metadata about the dataset's provenance.
 
@@ -545,7 +554,7 @@ class Dataset:
 
         for k, v in kw.items():
             if not k.startswith('prov:'):
-                k = 'prov:{0}'.format(k)
+                k = f'prov:{k}'
             if isinstance(v, (tuple, list)):
                 v = [to_json(vv) for vv in v]
             else:
@@ -560,7 +569,7 @@ class Dataset:
                 v = old
             self.tablegroup.common_props[k] = v
 
-    def add_table(self, url: str, *cols: ColSpecType, **kw) -> csvw.Table:
+    def add_table(self, url: str, *cols: ColSpecType, **kw: Any) -> csvw.Table:
         """
         Add a table description to the Dataset.
 
@@ -580,7 +589,7 @@ class Dataset:
         t.common_props.update(kw)
         return t
 
-    def remove_table(self, table: TableType):
+    def remove_table(self, table: TableType) -> None:
         """
         Removes the table specified by `table` from the dataset.
         """
@@ -594,10 +603,7 @@ class Dataset:
         # Now remove the table:
         self.tablegroup.tables = [t for t in self.tablegroup.tables if t.url != table.url]
 
-    def add_component(self,
-                      component: typing.Union[str, dict],
-                      *cols: ColSpecType,
-                      **kw) -> csvw.Table:
+    def add_component(self, component: Union[str, dict], *cols: ColSpecType, **kw) -> csvw.Table:
         """
         Add a CLDF component to a dataset.
 
@@ -610,7 +616,7 @@ class Dataset:
             - `description`: a description of the table.
         """
         if isinstance(component, str):
-            component = jsonlib.load(pkg_path('components', '{0}{1}'.format(component, MD_SUFFIX)))
+            component = jsonlib.load(pkg_path('components', f'{component}{MD_SUFFIX}'))
         if isinstance(component, dict):
             component = Table.fromvalue(component)
         assert isinstance(component, Table)
@@ -639,7 +645,7 @@ class Dataset:
         self.tables.append(component)
         self.add_columns(component, *cols)
 
-        component._parent = self.tablegroup
+        component._parent = self.tablegroup  # pylint: disable=W0212
         self.auto_constraints(component)
         return component
 
@@ -654,13 +660,13 @@ class Dataset:
                 c.propertyUrl.uri for c in table.tableSchema.columns if c.propertyUrl])
             col = make_column(col)
             if col.name in existing:
-                raise ValueError('Duplicate column name: {0}'.format(col.name))
+                raise ValueError(f'Duplicate column name: {col.name}')
             if col.propertyUrl and col.propertyUrl.uri in existing:
-                raise ValueError('Duplicate column property: {0}'.format(col.propertyUrl.uri))
+                raise ValueError(f'Duplicate column property: {col.propertyUrl.uri}')
             table.tableSchema.columns.append(col)
         self.auto_constraints()
 
-    def remove_columns(self, table: TableType, *cols: str):
+    def remove_columns(self, table: TableType, *cols: ColType) -> None:
         """
         Remove `cols` from `table`'s schema.
 
@@ -683,7 +689,7 @@ class Dataset:
 
         table.tableSchema.columns = [c for c in table.tableSchema.columns if str(c) not in cols]
 
-    def rename_column(self, table: TableType, col: ColType, name: str):
+    def rename_column(self, table: TableType, col: ColType, name: str) -> None:
         """
         Assign a new `name` to an existing column, cascading this change to foreign keys.
 
@@ -724,7 +730,8 @@ class Dataset:
             foreign_t: TableType,
             foreign_c: ColType,
             primary_t: TableType,
-            primary_c: typing.Optional[ColType] = None):
+            primary_c: Optional[ColType] = None,
+    ) -> None:
         """
         Add a foreign key constraint.
 
@@ -747,9 +754,9 @@ class Dataset:
             primary_c = self[primary_t, primary_c].name
         foreign_t.add_foreign_key(self[foreign_t, foreign_c].name, primary_t.url.string, primary_c)
 
-    def auto_constraints(self, component=None):
+    def auto_constraints(self, component: Optional[TableType] = None):
         """
-        Use CLDF reference properties to implicitely create foreign key constraints.
+        Use CLDF reference properties to implicitly create foreign key constraints.
 
         :param component: A Table object or `None`.
         """
@@ -806,7 +813,7 @@ class Dataset:
     #
     # Add data
     #
-    def add_sources(self, *sources, **kw):
+    def add_sources(self, *sources: Union[str, Source], **kw) -> None:
         """
         Add sources to the dataset.
 
@@ -817,7 +824,7 @@ class Dataset:
     #
     # Methods to read data
     #
-    def iter_rows(self, table: TableType, *cols: str) -> typing.Generator[dict, None, None]:
+    def iter_rows(self, table: TableType, *cols: str) -> Generator[RowType, None, None]:
         """
         Iterate rows in a table, resolving CLDF property names to local column names.
 
@@ -833,13 +840,14 @@ class Dataset:
                 item[v] = item[k]
             yield item
 
-    def cached_rows(self, table: TableType) -> list:
+    def cached_rows(self, table: TableType) -> list[RowType]:
+        """Return the rows of a table from a cache."""
         key = table.local_name if isinstance(table, Table) else table
         if key not in self._cached_rows:
             self._cached_rows[key] = list(self.iter_rows(table))
         return self._cached_rows[key]
 
-    def get_row(self, table: TableType, id_) -> dict:
+    def get_row(self, table: TableType, id_) -> RowType:
         """
         Retrieve a row specified by table and CLDF id.
 
@@ -851,7 +859,7 @@ class Dataset:
                 return row
         raise ValueError(id_)  # pragma: no cover
 
-    def get_row_url(self, table: TableType, row) -> typing.Union[str, None]:
+    def get_row_url(self, table: TableType, row: Union[RowType, str]) -> Optional[str]:
         """
         Get a URL associated with a row. Tables can specify associated row URLs by
 
@@ -865,7 +873,7 @@ class Dataset:
         :param row: A row specified by ID or as `dict` as returned when iterating over a table.
         :return: a `str` representing a URL or `None`.
         """
-        row = row if isinstance(row, dict) else self.get_row(table, row)
+        row = self.get_row(table, row) if isinstance(row, str) else row
         id_col = None
         for col in self[table].tableSchema.columns:
             if col.datatype and col.datatype.base == datatypes.anyURI.__name__:
@@ -875,11 +883,12 @@ class Dataset:
             if str(col.propertyUrl) == 'http://cldf.clld.org/v1.0/terms.rdf#id':
                 # Otherwise we fall back to looking up the `valueUrl` property on the ID column.
                 id_col = col
-        assert id_col, 'no ID column found in table {}'.format(table)
+        assert id_col, f'no ID column found in table {table}'
         if id_col.valueUrl:
             return id_col.valueUrl.expand(**row)
+        return None
 
-    def objects(self, table: str, cls: typing.Optional[typing.Type] = None) -> DictTuple:
+    def objects(self, table: str, cls: Optional[Type] = None) -> DictTuple:
         """
         Read data of a CLDF component as :class:`pycldf.orm.Object` instances.
 
@@ -899,7 +908,7 @@ class Dataset:
 
         return DictTuple(self._objects[table].values())
 
-    def get_object(self, table, id_, cls=None, pk=False) -> orm.Object:
+    def get_object(self, table: str, id_: str, cls=None, pk=False) -> orm.Object:
         """
         Get a row of a component as :class:`pycldf.orm.Object` instance.
         """
@@ -910,17 +919,16 @@ class Dataset:
     #
     # Methods for writing (meta)data to files:
     #
-    def write_metadata(
-            self, fname: typing.Optional[typing.Union[str, pathlib.Path]] = None) -> pathlib.Path:
+    def write_metadata(self, fname: Optional[PathType] = None) -> pathlib.Path:
         """
         Write the CLDF metadata to a JSON file.
 
         :fname: Path of a file to write to, or `None` to use the default name and write to \
         :meth:`~pycldf.dataset.Dataset.directory`.
         """
-        return self.tablegroup.to_file(fname or self.tablegroup._fname)
+        return self.tablegroup.to_file(fname or self.tablegroup._fname)  # pylint: disable=W0212
 
-    def write_sources(self, zipped: bool = False) -> typing.Union[None, pathlib.Path]:
+    def write_sources(self, zipped: bool = False) -> Optional[pathlib.Path]:
         """
         Write the sources BibTeX file to :meth:`~pycldf.dataset.Dataset.bibpath`
 
@@ -930,10 +938,12 @@ class Dataset:
         """
         return self.sources.write(self.bibpath, zipped=zipped)
 
-    def write(self,
-              fname: typing.Optional[pathlib.Path] = None,
-              zipped: typing.Optional[typing.Iterable] = None,
-              **table_items: typing.List[dict]) -> pathlib.Path:
+    def write(
+            self,
+            fname: Optional[pathlib.Path] = None,
+            zipped: Optional[Iterable] = None,
+            **table_items: list[RowType]
+    ) -> pathlib.Path:
         """
         Write metadata, sources and data. Metadata will be written to `fname` (as interpreted in
         :meth:`pycldf.dataset.Dataset.write_metadata`); data files will be written to the file
@@ -955,7 +965,7 @@ class Dataset:
             table.common_props['dc:extent'] = table.write(items, _zipped=table_type in zipped)
         return self.write_metadata(fname)
 
-    def copy(self, dest: typing.Union[str, pathlib.Path], mdname: str = None) -> pathlib.Path:
+    def copy(self, dest: PathType, mdname: str = None) -> pathlib.Path:
         """
         Copy metadata, data and sources to files in `dest`.
 
@@ -973,20 +983,21 @@ class Dataset:
             ...     if 'with_examples' in ds.directory.name:
             ...         ds.copy('some_directory', mdname='md.json')
         """
-        from pycldf.media import MediaTable
+        from pycldf.media import MediaTable  # pylint: disable=import-outside-toplevel
 
         dest = pathlib.Path(dest)
         if not dest.exists():
             dest.mkdir(parents=True)
 
         from_url = is_url(self.tablegroup.base)
-        ds = Dataset.from_metadata(self.tablegroup.base if from_url else self.tablegroup._fname)
+        ds = Dataset.from_metadata(
+            self.tablegroup.base if from_url else self.tablegroup._fname)  # pylint: disable=W0212
 
         _getter = urllib.request.urlretrieve if from_url else shutil.copy
         try:
             _getter(self.bibpath, dest / self.bibname)
             ds.properties['dc:source'] = self.bibname
-        except:  # pragma: no cover # noqa
+        except:  # pragma: no cover # noqa  pylint: disable=W0702
             # Sources are optional
             pass
 
@@ -1000,7 +1011,8 @@ class Dataset:
                 fk.reference.resource = Link(pathlib.Path(fk.reference.resource.string).name)
         mdpath = dest.joinpath(
             mdname or  # noqa: W504
-            (self.tablegroup.base.split('/')[-1] if from_url else self.tablegroup._fname.name))
+            (self.tablegroup.base.split('/')[-1] if from_url
+             else self.tablegroup._fname.name))  # pylint: disable=W0212
         if 'MediaTable' in self:
             for f in MediaTable(self):
                 if f.scheme == 'file':
@@ -1019,8 +1031,9 @@ class Dataset:
     def validate(
             self,
             log: logging.Logger = None,
-            validators: typing.List[typing.Tuple[str, str, callable]] = None,
-            ontology_path=None) -> bool:
+            validators: list[tuple[Optional[str], str, RowValidatorType]] = None,
+            ontology_path: Optional[PathType] = None,
+    ) -> bool:
         """
         Validate schema and data of a `Dataset`:
 
@@ -1036,140 +1049,51 @@ class Dataset:
         """
         # We must import components with custom validation to make sure they can be detected as
         # subclasses of ComponentWithValidation.
-        from pycldf.media import MediaTable
-        from pycldf.trees import TreeTable
+        from pycldf.media import MediaTable  # pylint: disable=import-outside-toplevel
+        from pycldf.trees import TreeTable  # pylint: disable=import-outside-toplevel
 
         assert MediaTable and TreeTable
 
-        terms = Terms(ontology_path) or TERMS
-        validators = validators or []
-        validators.extend(VALIDATORS)
-        success = True
-        default_tg = TableGroup.from_file(
-            pkg_path('modules', '{0}{1}'.format(self.module, MD_SUFFIX)))
-        #
-        # Make sure, all required tables and columns are present and consistent.
-        #
-        for default_table in default_tg.tables:
-            dtable_uri = default_table.common_props['dc:conformsTo']
-            try:
-                table = self[dtable_uri]
-            except KeyError:
-                success = False
-                log_or_raise('{0} requires {1}'.format(self.module, dtable_uri), log=log)
-                table = None
+        validator = DatasetValidator(
+            dataset=self,
+            success=True,
+            terms=Terms(ontology_path) or TERMS,
+            log=log,
+            row_validators=validators or [],
+        )
 
-            if table:
-                default_cols = {c.propertyUrl.uri: c for c in default_table.tableSchema.columns}
-                required_default_cols = {
-                    c.propertyUrl.uri for c in default_table.tableSchema.columns
-                    if c.required or c.common_props.get('dc:isRequiredBy')}
-                cols = {
-                    c.propertyUrl.uri: c for c in table.tableSchema.columns
-                    if c.propertyUrl}
-                table_uri = table.common_props['dc:conformsTo']
-                for col in required_default_cols - set(cols.keys()):
-                    success = False
-                    log_or_raise('{0} requires column {1}'.format(table_uri, col), log=log)
-                for uri, col in cols.items():
-                    default = default_cols.get(uri)
-                    if default:
-                        cardinality = default.common_props.get('dc:extent')
-                        if not cardinality:
-                            cardinality = terms.by_uri[uri].cardinality
-                        if (cardinality == 'multivalued' and not col.separator) or \
-                                (cardinality == 'singlevalued' and col.separator):
-                            success = False
-                            log_or_raise('{} {} must be {}'.format(
-                                table_uri, uri, cardinality), log=log)
+        default_tg = TableGroup.from_file(pkg_path('modules', f'{self.module}{MD_SUFFIX}'))
+        # Make sure, all required tables and columns are present and consistent.
+        for default_table in default_tg.tables:
+            validator.validate_default_objects(default_table)
 
         for table in self.tables:
-            vars = set(col.name for col in table.tableSchema.columns)
-            for obj, prop, tmpl in iter_uritemplates(table):
-                if not {n for n in tmpl.variable_names if not n.startswith('_')}.issubset(vars):
-                    if log:
-                        log.warning('Unknown variables in URI template: {}:{}:{}'.format(
-                            obj, prop, tmpl))
+            validator.validate_table_schema(table)
+            validator.validate_columns(table)
 
-            type_uri = table.common_props.get('dc:conformsTo')
-            if type_uri:
-                try:
-                    terms.is_cldf_uri(type_uri)
-                except ValueError:
-                    success = False
-                    log_or_raise('invalid CLDF URI: {0}'.format(type_uri), log=log)
-
-            if not table.tableSchema.primaryKey:
-                if log:
-                    log.warning('Table without primary key: {0} - {1}'.format(
-                        table.url,
-                        'This may cause problems with "cldf createdb"'))
-            elif len(table.tableSchema.primaryKey) > 1:
-                if log:
-                    log.warning('Table with composite primary key: {0} - {1}'.format(
-                        table.url,
-                        'This may cause problems with "cldf createdb"'))
-
-            # FIXME: check whether table.common_props['dc:conformsTo'] is in validators!
-            validators_, propertyUrls, colnames = [], set(), set()
-            for col in table.tableSchema.columns:
-                if col.header in colnames:  # pragma: no cover
-                    success = False
-                    log_or_raise(
-                        'Duplicate column name in table schema: {} {}'.format(
-                            table.url, col.header),
-                        log=log)
-                colnames.add(col.header)
-                if col.propertyUrl:
-                    col_uri = col.propertyUrl.uri
-                    try:
-                        terms.is_cldf_uri(col_uri)
-                        if col_uri in propertyUrls:  # pragma: no cover
-                            success = False
-                            log_or_raise(
-                                'Duplicate CLDF property in table schema: {} {}'.format(
-                                    table.url, col_uri),
-                                log=log)
-                        propertyUrls.add(col_uri)
-                    except ValueError:
-                        success = False
-                        log_or_raise('invalid CLDF URI: {0}'.format(col_uri), log=log)
-                for table_, col_, v_ in validators:
-                    if (not table_ or table is self.get(table_)) and col is self.get((table, col_)):
-                        validators_.append((col, v_))
-
-            fname = pathlib.Path(table.url.resolve(table._parent.base))
+            fname = pathlib.Path(table.url.resolve(table._parent.base))  # pylint: disable=W0212
             fexists = fname.exists()
-            if (not fexists) and fname.parent.joinpath('{}.zip'.format(fname.name)).exists():
+            if (not fexists) and fname.parent.joinpath(f'{fname.name}.zip').exists():
                 if log:
-                    log.info('Reading data from zipped table: {}.zip'.format(fname))
+                    log.info(f'Reading data from zipped table: {fname}.zip')
                 fexists = True  # csvw already handles this case, no need to adapt paths.
-            if is_url(table.url.resolve(table._parent.base)) or fexists:
-                for fname, lineno, row in table.iterdicts(log=log, with_metadata=True):
-                    for col, validate in validators_:
-                        try:
-                            validate(self, table, col, row)
-                        except ValueError as e:
-                            success = False
-                            log_or_raise(
-                                '{0}:{1}:{2} {3}'.format(fname.name, lineno, col.name, e),
-                                log=log)
+            if is_url(table.url.resolve(table._parent.base)) or fexists:  # pylint: disable=W0212
+                validator.validate_rows(table)
                 if not table.check_primary_key(log=log):
-                    success = False
+                    validator.fail('Primary key check failed.')
             else:
-                success = False
-                log_or_raise('{0} does not exist'.format(fname), log=log)
+                validator.fail(f'{fname} does not exist')
 
         if not self.tablegroup.check_referential_integrity(log=log):
-            success = False
+            validator.fail('Referential integrity check failed')
 
         for cls in ComponentWithValidation.__subclasses__():
             if cls.__name__ in self:
-                success = cls(self).validate(success, log=log)
+                validator.success = cls(self).validate(validator.success, log=validator.log)
 
-        return success
+        return validator.success
 
-    def stats(self, exact: bool = False) -> typing.List[typing.Tuple[str, str, int]]:
+    def stats(self, exact: bool = False) -> list[tuple[str, str, int]]:
         """
         Compute summary statistics for the dataset.
 
@@ -1197,7 +1121,7 @@ class Generic(Dataset):
     .. seealso:: `<https://github.com/cldf/cldf/tree/master/modules/Generic>`_
     """
     @property
-    def primary_table(self):
+    def primary_table(self) -> None:  # pylint: disable=missing-function-docstring
         return None
 
 
@@ -1208,10 +1132,11 @@ class Wordlist(Dataset):
     .. seealso:: `<https://github.com/cldf/cldf/tree/master/modules/Wordlist>`_
     """
     @property
-    def primary_table(self):
+    def primary_table(self) -> str:  # pylint: disable=missing-function-docstring
         return 'FormTable'
 
-    def get_segments(self, row, table='FormTable') -> typing.List[str]:
+    def get_segments(self, row: RowType, table='FormTable') -> list[str]:
+        """Retrieve the list of segments of a form."""
         col = self[table].get_column("http://cldf.clld.org/v1.0/terms.rdf#segments")
         sounds = row[col.name]
         if isinstance(sounds, str):
@@ -1219,7 +1144,7 @@ class Wordlist(Dataset):
             sounds = [sounds]
         return list(itertools.chain(*[s.split() for s in sounds]))
 
-    def get_subsequence(self, cognate: dict, form=None) -> typing.List[str]:
+    def get_subsequence(self, cognate: RowType, form: Optional[str] = None) -> list[str]:
         """
         Compute the subsequence of the morphemes of a form which is specified in a partial
         cognate assignment.
@@ -1236,11 +1161,13 @@ class Wordlist(Dataset):
 
 
 class ParallelText(Dataset):
+    """Implements the CLDF ParallelText module."""
     @property
-    def primary_table(self):
+    def primary_table(self) -> str:  # pylint: disable=missing-function-docstring
         return 'FormTable'
 
     def get_equivalent(self, functional_equivalent, form=None):
+        """Get the forms fulfilling an equivalent function in the texts."""
         return resolve_slices(
             functional_equivalent,
             self,
@@ -1252,8 +1179,9 @@ class ParallelText(Dataset):
 
 
 class Dictionary(Dataset):
+    """Implements the CLDF Dictionary module."""
     @property
-    def primary_table(self):
+    def primary_table(self) -> str:  # pylint: disable=missing-function-docstring
         return 'EntryTable'
 
 
@@ -1264,7 +1192,7 @@ class StructureDataset(Dataset):
     .. seealso:: `<https://github.com/cldf/cldf/tree/master/modules/StructureDataset>`_
     """
     @property
-    def primary_table(self):
+    def primary_table(self) -> str:  # pylint: disable=missing-function-docstring
         return 'ValueTable'
 
     @functools.cached_property
@@ -1296,21 +1224,26 @@ class TextCorpus(Dataset):
         [<pycldf.orm.Example id="e2-alt">]
     """
     @property
-    def primary_table(self):
+    def primary_table(self) -> str:  # pylint: disable=missing-function-docstring
         return 'ExampleTable'
 
     @functools.cached_property
-    def texts(self) -> typing.Union[None, DictTuple]:
+    def texts(self) -> Optional[DictTuple]:
+        """Retrieve texts."""
         # Some syntactic sugar to access the ORM data in a concise and meaningful way.
         if 'ContributionTable' in self:
             return self.objects('ContributionTable')
+        return None  # pragma: no cover
 
-    def get_text(self, tid):
+    def get_text(self, tid: str) -> Optional[orm.Object]:
+        """Retrieve a text by ID."""
         if 'ContributionTable' in self:
             return self.get_object('ContributionTable', tid)
+        return None  # pragma: no cover
 
     @property
-    def sentences(self) -> typing.List[orm.Example]:
+    def sentences(self) -> list[orm.Example]:
+        """Sentences of the corpus."""
         res = list(self.objects('ExampleTable'))
         if ('ExampleTable', 'exampleReference') in self:
             # Filter out alternative translations!
@@ -1320,7 +1253,7 @@ class TextCorpus(Dataset):
         return res  # pragma: no cover
 
 
-class ComponentWithValidation:
+class ComponentWithValidation:  # pylint: disable=too-few-public-methods
     """
     A virtual base class for custom, component-centered validation.
     """
@@ -1329,7 +1262,9 @@ class ComponentWithValidation:
         self.component = self.__class__.__name__
         self.table = ds[self.component]
 
-    def validate(self, success: bool = True, log: logging.Logger = None) -> bool:
+    def validate(self, success: bool = True, log: Optional[logging.Logger] = None) -> bool:
+        """Validate the component taking previous validation result into account."""
+        assert log or 1  # pragma: no cover  pylint: disable=condition-evals-to-constant
         return success  # pragma: no cover
 
 
@@ -1360,7 +1295,7 @@ def sniff(p: pathlib.Path) -> bool:
     return d.get('dc:conformsTo', '').startswith(TERMS_URL)
 
 
-def iter_datasets(d: pathlib.Path) -> typing.Generator[Dataset, None, None]:
+def iter_datasets(d: PathType) -> Generator[Dataset, None, None]:
     """
     Discover CLDF datasets - by identifying metadata files - in a directory.
 
@@ -1372,5 +1307,4 @@ def iter_datasets(d: pathlib.Path) -> typing.Generator[Dataset, None, None]:
             try:
                 yield Dataset.from_metadata(p)
             except ValueError as e:
-                logging.getLogger(__name__).warning(
-                    "Reading {} failed: {}".format(p, e))
+                logging.getLogger(__name__).warning("Reading %s failed: %s", p, e)
