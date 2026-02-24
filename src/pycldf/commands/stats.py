@@ -26,5 +26,5 @@ def run(args):
         md.extend(ds.properties.items())
     print()
     with Table('Path', 'Type', 'Rows') as t:
-        for p, type_, r in ds.stats():
+        for p, type_, r in ds.stats(args.exact):
             t.append([p, type_, r])
