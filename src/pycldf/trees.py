@@ -22,16 +22,16 @@ Accessing `Tree` instances associated with a dataset is done using a :class:`Tre
          └─l4
 """
 import typing
-import logging
 import pathlib
 
-from clldutils.misc import log_or_raise
 from commonnexus import Nexus
 import newick
 
-import pycldf
 from pycldf.media import MediaTable, File
 
+if typing.TYPE_CHECKING:
+    from pycldf import Dataset  # pragma: no cover
+    from pycldf.validators import DatasetValidator  # pragma: no cover
 
 __all__ = ['Tree', 'TreeTable']
 
@@ -85,12 +85,14 @@ class Tree:
         return newick.loads(self.newick_string(d=d), strip_comments=strip_comments)[0]
 
 
-class TreeTable(pycldf.ComponentWithValidation):
+class TreeTable:
     """
     Container class for a `Dataset`'s TreeTable.
     """
-    def __init__(self, ds: pycldf.Dataset):
-        super().__init__(ds)
+    def __init__(self, ds: 'Dataset'):
+        self.ds = ds
+        self.component = self.__class__.__name__
+        self.table = ds[self.component]
         self.media = MediaTable(ds)
         self.media_rows = {row[self.media.id_col.name]: row for row in ds['MediaTable']}
         self.cols = {
@@ -107,25 +109,16 @@ class TreeTable(pycldf.ComponentWithValidation):
                 row,
                 File(self.media, self.media_rows[row[self.cols['mediaReference'].name]]))
 
-    def validate(self,
-                 success: bool = True,
-                 log: logging.Logger = None) -> bool:
+    def validate(self, validator: 'DatasetValidator'):
         lids = {r['id'] for r in self.ds.iter_rows('LanguageTable', 'id')}
         for tree in self:
             try:
                 nwk = tree.newick()
             except KeyError:
-                log_or_raise(
-                    'No newick tree found for name "{}"'.format(tree.name),
-                    log=log)
-                success = False
+                validator.fail(f'No newick tree found for name "{tree.name}"')
                 nwk = None
 
             if nwk:
                 for node in nwk.walk():
                     if node.name and (node.name not in lids):
-                        log_or_raise(
-                            'Newick node label "{}" is not a LanguageTable ID'.format(node.name),
-                            log=log)
-                        success = False
-        return success
+                        validator.fail(f'Newick node label "{node.name}" is not a LanguageTable ID')

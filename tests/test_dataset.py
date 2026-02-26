@@ -12,7 +12,8 @@ from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Li
 from pycldf.terms import term_uri, TERMS
 from pycldf.dataset import (
     Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, TextCorpus,
-    GitRepository, make_column, get_modules, iter_datasets, SchemaError)
+    GitRepository, make_column, iter_datasets, SchemaError)
+from pycldf.module import get_modules
 from pycldf.sources import Sources
 from pycldf.media import MediaTable
 

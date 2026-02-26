@@ -3,7 +3,7 @@ Convert the information in CLDF metadata to markdown suitable for inclusion in a
 """
 from clldutils.clilib import PathType
 
-from pycldf.util import metadata2markdown
+from pycldf.markdown import metadata2markdown
 from pycldf.cli_util import add_dataset, get_dataset
 
 

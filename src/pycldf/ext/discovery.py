@@ -28,7 +28,7 @@ from importlib.metadata import entry_points
 from csvw.utils import is_url
 
 from pycldf import Dataset, iter_datasets, sniff
-from pycldf.util import url_without_fragment
+from pycldf.urlutil import url_without_fragment
 
 __all__ = ['get_dataset', 'DatasetResolver']
 EP = 'pycldf_dataset_resolver'

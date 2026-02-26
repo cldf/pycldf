@@ -32,6 +32,10 @@ def run(args):
     for s in args.filters:
         col, _, substring = s.partition('=')
         filters.append((col, substring))
-    for item in MediaTable(get_dataset(args), args.use_form_id):
+    media_table = MediaTable(get_dataset(args))
+    if args.use_form_id:
+        media_table.filename_col = media_table.ds[
+            media_table.component, 'http://cldf.clld.org/v1.0/terms.rdf#formReference']
+    for item in media_table:
         if all(substring in item[col] for col, substring in filters):
             item.save(args.output)

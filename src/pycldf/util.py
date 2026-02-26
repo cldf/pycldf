@@ -1,77 +1,54 @@
-import re
-import html
-import math
-import string
-import typing
+import shutil
+from typing import Optional, TYPE_CHECKING, Any
 import pathlib
 import itertools
 import collections
 import urllib.parse
+import urllib.request
 
-from clldutils.misc import slug
-import pycldf
+from csvw.metadata import is_url, Link
+from clldutils.path import git_describe
+
+from pycldf.fileutil import PathType
+from pycldf.urlutil import sanitize_url
+
+if TYPE_CHECKING:
+    from pycldf import Dataset  # pragma: no cover
 
 __all__ = [
-    'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'metadata2markdown', 'qname2url',
-    'sanitize_url', 'update_url', 'iter_uritemplates', 'url_without_fragment',
-    'splitfile', 'catfile']
+    'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'qname2url',
+    'iter_uritemplates', 'MD_SUFFIX', 'GitRepository']
+
+MD_SUFFIX = '-metadata.json'
 
 
-def splitfile(p, chunksize: int, total: typing.Optional[int] = None) -> typing.List[pathlib.Path]:
+class GitRepository:  # pylint: disable=too-few-public-methods
     """
-    :param p: Path of the file to split.
-    :param chunksize: The maximal size of the chunks the file will be split into.
-    :param total: The size of the input file.
-    :return: The list of paths of files that the input has been split into.
+    CLDF datasets are often created from data curated in git repositories. If this is the case, we
+    exploit this to provide better provenance information in the dataset's metadata.
     """
-    total = total or p.stat().st_size
-    if total <= chunksize:  # Nothing to do.
-        return [p]
-    nchunks = math.ceil(total / chunksize)
-    suffix_length = 2 if nchunks < len(string.ascii_lowercase)**2 else 3
-    suffixes = [
-        ''.join(t) for t in
-        itertools.combinations_with_replacement(string.ascii_lowercase, suffix_length)]
+    def __init__(
+            self, url: str, clone: Optional[PathType] = None, version: Optional[str] = None, **dc):
+        # We remove credentials from the URL immediately to make sure this isn't leaked into
+        # CLDF metadata. Such credentials might be present in URLs read via gitpython from
+        # remotes.
+        self.url = sanitize_url(url)
+        self.clone = clone
+        self.version = version
+        self.dc = dc
 
-    res = []
-    with p.open('rb') as f:
-        chunk = f.read(chunksize)
-        while chunk:
-            pp = p.parent.joinpath('{}.{}'.format(p.name, suffixes.pop(0)))
-            pp.write_bytes(chunk)
-            res.append(pp)
-            chunk = f.read(chunksize)  # read the next chunk
-
-    p.unlink()
-    return res
-
-
-def catfile(p: pathlib.Path) -> bool:
-    """
-    Restore a file that has been split into chunks.
-
-    We determine if a file has been split by looking for files in the parent directory with suffixes
-    as created by `splitfile`.
-    """
-    if p.exists():  # Nothing to do.
-        return False
-    # Check, whether the file has been split.
-    suffixes = {pp.suffix: pp for pp in p.parent.iterdir() if pp.stem == p.name}
-    if {'.aa', '.ab'}.issubset(suffixes) or {'.aaa', '.aab'}.issubset(suffixes):
-        # ok, let's concatenate the files:
-        with p.open('wb') as f:
-            for suffix in sorted(suffixes):
-                if re.fullmatch(r'\.[a-z]{2,3}', suffix):
-                    f.write(suffixes[suffix].read_bytes())
-                    suffixes[suffix].unlink()
-        return True
-    return False  # pragma: no cover
-
-
-def url_without_fragment(url: typing.Union[str, urllib.parse.ParseResult]) -> str:
-    if isinstance(url, str):
-        url = urllib.parse.urlparse(url)
-    return urllib.parse.urlunparse(list(url[:5]) + [''])
+    def json_ld(self) -> collections.OrderedDict[str, Any]:
+        """The repository described in JSON-LD."""
+        res = collections.OrderedDict([
+            ('rdf:about', self.url),
+            ('rdf:type', 'prov:Entity'),
+        ])
+        if self.version:
+            res['dc:created'] = self.version
+        elif self.clone:
+            res['dc:created'] = git_describe(self.clone)
+        res.update({f'dc:{k}': self.dc[k] for k in sorted(self.dc)})
+        return res
 
 
 def iter_uritemplates(table):
@@ -83,25 +60,8 @@ def iter_uritemplates(table):
                 yield obj, prop, tmpl
 
 
-def sanitize_url(url: str) -> str:
-    """
-    Removes auth credentials from a URL.
-    """
-    def fix(u):
-        host = u.hostname
-        if u.port:
-            host += ':{}'.format(u.port)
-        return (u.scheme, host, u.path, u.query, u.fragment)
-
-    return update_url(url, fix)
-
-
-def update_url(url: str, updater: typing.Callable[[urllib.parse.ParseResult], tuple]) -> str:
-    return urllib.parse.urlunsplit(updater(urllib.parse.urlparse(url))) or None
-
-
 def pkg_path(*comps):
-    return pathlib.Path(pycldf.__file__).resolve().parent.joinpath(*comps)
+    return pathlib.Path(__file__).resolve().parent.joinpath(*comps)
 
 
 def multislice(sliceable, *slices):
@@ -142,7 +102,7 @@ class DictTuple(tuple):
     def __new__(cls, items, **kw):
         return super(DictTuple, cls).__new__(cls, tuple(items))
 
-    def __init__(self, items, key=lambda i: i.id, multi=False):
+    def __init__(self, _, key=lambda i: i.id, multi=False):
         """
         If `key` does not return unique values for all items, you may pass `multi=True` to
         retrieve `list`s of matching items for `l[key]`.
@@ -157,7 +117,7 @@ class DictTuple(tuple):
             if self._multi:
                 return [self[i] for i in self._d[item]]
             return self[self._d[item][0]]
-        return super(DictTuple, self).__getitem__(item)
+        return super().__getitem__(item)
 
 
 def qname2url(qname):
@@ -174,151 +134,48 @@ def qname2url(qname):
             return qname.replace(prefix + ':', uri)
 
 
-def metadata2markdown(ds: 'pycldf.Dataset',
-                      path: typing.Union[str, pathlib.Path],
-                      rel_path: typing.Optional[str] = './') -> str:
+def copy_dataset(ds: 'Dataset', dest: PathType, mdname: str = None) -> pathlib.Path:
     """
-    Render the metadata of a dataset as markdown.
-
-    :param ds: `pycldf.Dataset` instance
-    :param path: `pathlib.Path` of the metadata file
-    :param rel_path: `str` to use a relative path when creating links to data files
-    :return: `str` with markdown formatted text
+    Copy metadata, data and sources to files in `dest`.
     """
-    path = pathlib.Path(path)
+    from pycldf.media import MediaTable  # pylint: disable=import-outside-toplevel
 
-    def qname2link(qname, html=False):
-        url = qname2url(qname)
-        if url:
-            if html:
-                return '<a href="{}">{}</a>'.format(url, qname)
-            return '[{}]({})'.format(qname, url)
-        return qname
+    dest = pathlib.Path(dest)
+    if not dest.exists():
+        dest.mkdir(parents=True)
 
-    def htmlify(obj, key=None):
-        """
-        For inclusion in tables we must use HTML for lists.
-        """
-        if isinstance(obj, list):
-            return '<ol>{}</ol>'.format(
-                ''.join('<li>{}</li>'.format(htmlify(item, key=key)) for item in obj))
-        if isinstance(obj, dict):
-            if key == 'prov:wasGeneratedBy' \
-                    and set(obj.keys()).issubset({'dc:title', 'dc:description', 'dc:relation'}):
-                desc = obj.get('dc:description') or ''
-                if obj.get('dc:relation'):
-                    desc = (desc + '<br>') if desc else desc
-                    desc += '<a href="{0}{1}">{1}</a>'.format(rel_path, obj['dc:relation'])
-                return '<strong>{}</strong>: {}'.format(obj.get('dc:title') or '', desc)
+    from_url = is_url(ds.tablegroup.base)
+    ds = ds.__class__.from_metadata(
+        ds.tablegroup.base if from_url else ds.tablegroup._fname)  # pylint: disable=W0212
 
-            if obj.get('rdf:type') == 'prov:Entity' and 'rdf:about' in obj:
-                label = obj.get('dc:title')
-                if (not label) or label == 'Repository':
-                    label = obj['rdf:about']
-                url = obj['rdf:about']
-                if ('github.com' in url) and ('/tree/' not in url) and ('dc:created' in obj):
-                    tag = obj['dc:created']
-                    if '-g' in tag:
-                        tag = tag.split('-g')[-1]
-                    url = '{}/tree/{}'.format(url, tag)
-                    if label == obj['rdf:about']:
-                        label = label.split('github.com/')[-1]
-                return '<a href="{}">{} {}</a>'.format(url, label, obj.get('dc:created') or '')
-            items = []
-            for k, v in obj.items():
-                items.append('<dt>{}</dt><dd>{}</dd>'.format(
-                    qname2link(k, html=True), html.escape(str(v))))
-            return '<dl>{}</dl>'.format(''.join(items))
-        return str(obj)
-
-    def properties(obj):
-        res = []
-        if obj.common_props.get('dc:description'):
-            res.append(obj.common_props['dc:description'] + '\n')
-        res.append('property | value\n --- | ---')
-        for k, v in obj.common_props.items():
-            if not v:
-                continue
-            if k not in ('dc:description', 'dc:title', 'dc:source'):
-                if k == 'dc:conformsTo':
-                    v = '[CLDF {}]({})'.format(v.split('#')[1], v)
-                res.append('{} | {}'.format(qname2link(k), htmlify(v, key=k)))
-        res.append('')
-        return '\n'.join(res)
-
-    def colrow(col, fks, pk):
-        dt = '`{}`'.format(col.datatype.base if col.datatype else 'string')
-        if col.datatype:
-            if col.datatype.format:
-                if re.fullmatch(r'[\w\s]+(\|[\w\s]+)*', col.datatype.format):
-                    dt += '<br>Valid choices:<br>'
-                    dt += ''.join(' `{}`'.format(w) for w in col.datatype.format.split('|'))
-                elif col.datatype.base == 'string':
-                    dt += '<br>Regex: `{}`'.format(col.datatype.format)
-            if col.datatype.minimum:
-                dt += '<br>&ge; {}'.format(col.datatype.minimum)
-            if col.datatype.maximum:
-                dt += '<br>&le; {}'.format(col.datatype.maximum)
-        if col.separator:
-            dt = 'list of {} (separated by `{}`)'.format(dt, col.separator)
-        desc = col.common_props.get('dc:description', '').replace('\n', ' ')
-
-        if col.name in pk:
-            desc = (desc + '<br>') if desc else desc
-            desc += 'Primary key'
-
-        if col.name in fks:
-            desc = (desc + '<br>') if desc else desc
-            desc += 'References [{}::{}](#table-{})'.format(
-                fks[col.name][1], fks[col.name][0], slug(fks[col.name][1]))
-        elif col.propertyUrl \
-                and col.propertyUrl.uri == "http://cldf.clld.org/v1.0/terms.rdf#source" \
-                and 'dc:source' in ds.properties:
-            desc = (desc + '<br>') if desc else desc
-            desc += 'References [{}::BibTeX-key]({}{})'.format(
-                ds.properties['dc:source'], rel_path, ds.properties['dc:source'])
-
-        return ' | '.join([
-            '[{}]({})'.format(col.name, col.propertyUrl)
-            if col.propertyUrl else '`{}`'.format(col.name),
-            dt,
-            desc,
-        ])
-
-    title = ds.properties.get('dc:title', ds.module)
-
-    res = ['# {}\n'.format(title)]
-    if path.suffix == '.json':
-        res.append('**CLDF Metadata**: [{0}]({1}{0})\n'.format(path.name, rel_path))
-    if 'dc:source' in ds.properties:
-        src = None
-        if pathlib.Path(ds.directory).joinpath(ds.properties['dc:source']).exists():
-            src = ds.properties['dc:source']
-        elif pathlib.Path(ds.directory).joinpath(ds.properties['dc:source'] + '.zip').exists():
-            src = ds.properties['dc:source'] + '.zip'
-        if src:
-            res.append('**Sources**: [{0}]({1}{0})\n'.format(src, rel_path))
-    res.append(properties(ds.tablegroup))
+    _getter = urllib.request.urlretrieve if from_url else shutil.copy
+    try:
+        _getter(ds.bibpath, dest / ds.bibname)
+        ds.properties['dc:source'] = ds.bibname
+    except:  # pragma: no cover # noqa  pylint: disable=W0702
+        # Sources are optional
+        pass
 
     for table in ds.tables:
-        fks = {
-            fk.columnReference[0]: (fk.reference.columnReference[0], fk.reference.resource.string)
-            for fk in table.tableSchema.foreignKeys if len(fk.columnReference) == 1}
-        src = None
-        if pathlib.Path(ds.directory).joinpath(table.url.string).exists():
-            src = table.url.string
-        elif pathlib.Path(ds.directory).joinpath(table.url.string + '.zip').exists():
-            src = table.url.string + '.zip'
-        if src:
-            res.append('\n## <a name="table-{0}"></a>Table [{1}]({2}{3})\n'.format(
-                slug(table.url.string), table.url, rel_path, src))
-        else:
-            res.append('\n## <a name="table-{0}"></a>Table {1}\n'.format(
-                slug(table.url.string), table.url))
-        res.append(properties(table))
-        res.append('\n### Columns\n')
-        res.append('Name/Property | Datatype | Description')
-        res.append(' --- | --- | --- ')
-        for col in table.tableSchema.columns:
-            res.append(colrow(col, fks, table.tableSchema.primaryKey))
-    return '\n'.join(res)
+        fname = table.url.resolve(table.base)
+        name = pathlib.Path(urllib.parse.urlparse(fname).path).name if from_url else fname.name
+        _getter(fname, dest / name)
+        table.url = Link(name)
+
+        for fk in table.tableSchema.foreignKeys:
+            fk.reference.resource = Link(pathlib.Path(fk.reference.resource.string).name)
+    mdpath = dest.joinpath(
+        mdname or  # noqa: W504
+        (ds.tablegroup.base.split('/')[-1] if from_url
+         else ds.tablegroup._fname.name))  # pylint: disable=W0212
+    if 'MediaTable' in ds:
+        for f in MediaTable(ds):
+            if f.scheme == 'file':
+                if f.local_path().exists():
+                    target = dest / urllib.parse.unquote(f.relpath)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(f.local_path(), target)
+    if from_url:
+        del ds.tablegroup.at_props['base']  # pragma: no cover
+    ds.write_metadata(fname=mdpath)
+    return mdpath

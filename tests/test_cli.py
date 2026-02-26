@@ -7,6 +7,7 @@ import warnings
 import pytest
 
 from pycldf.__main__ import main
+from pycldf.dataset import SchemaError
 
 
 def test_help(capsys):
@@ -94,6 +95,9 @@ def test_downloadmedia(tmp_path, data):
     files = list(MediaTable(Dataset.from_metadata(md)))
     assert files[0].read(tmp_path) == 'Hello, World!'
     assert files[1].read(tmp_path) == 'äöü'
+
+    with pytest.raises(SchemaError):
+        main(['downloadmedia', '--use-form-id', str(md), str(tmp_path)])
 
 
 def test_validate(tmp_path, caplog):

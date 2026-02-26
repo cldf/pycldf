@@ -1,12 +1,8 @@
-# pylint: disable=C0302
 """
 An implementation of a CLDF dataset object.
 """
 import re
-import sys
-import json
 import types
-import shutil
 from typing import Union, Optional, Type, Any
 import logging
 import pathlib
@@ -22,25 +18,25 @@ import csvw
 from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url, URITemplate
 from csvw import datatypes
 from csvw.dsv import iterrows
-from clldutils.path import git_describe, walk
-from clldutils import jsonlib
+from clldutils.path import walk
 
+from pycldf.module import get_module_impl
 from pycldf.sources import Sources, Source
-from pycldf.util import pkg_path, resolve_slices, DictTuple, sanitize_url, iter_uritemplates
-from pycldf.terms import term_uri, Terms, TERMS, get_column_names, URL as TERMS_URL
-from pycldf.validators import DatasetValidator, RowValidatorType
+from pycldf.util import (
+    pkg_path, resolve_slices, DictTuple, iter_uritemplates, MD_SUFFIX, GitRepository, copy_dataset)
+from pycldf.fileutil import PathType
+from pycldf.schemautil import ColSpecType, make_column, make_table, TableType, ColType
+from pycldf.constraints import add_foreign_key, add_auto_constraints
+from pycldf.terms import term_uri, Terms, TERMS, get_column_names, sniff
+from pycldf import validators as validation
+from pycldf.stats import get_table_stats
 from pycldf import orm
 
 __all__ = [
     'Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset',
-    'TextCorpus', 'iter_datasets', 'sniff', 'SchemaError', 'ComponentWithValidation']
+    'TextCorpus', 'iter_datasets', 'sniff', 'SchemaError']
 
-MD_SUFFIX = '-metadata.json'
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
-TableType = Union[str, Table]
-ColType = Union[str, Column]
-ColSpecType = Union[str, dict, Column]
-PathType = Union[str, pathlib.Path]
 TableSpecType = Union[str, Link, Table]
 SchemaObjectType = Union[TableSpecType, tuple[TableSpecType, ColSpecType]]
 ODict = collections.OrderedDict
@@ -49,112 +45,6 @@ RowType = ODict[str, Any]
 
 class SchemaError(KeyError):
     """Schema objects can be accessed using `Dataset.__getitem__`."""
-
-
-@attr.s
-class Module:
-    """
-    Class representing a CLDF Module.
-
-    .. seealso:: https://github.com/cldf/cldf/blob/master/README.md#cldf-modules
-    """
-    uri = attr.ib(validator=attr.validators.in_([t.uri for t in TERMS.classes.values()]))
-    fname = attr.ib()
-    cls = attr.ib(default=None)
-
-    @property
-    def id(self) -> str:
-        """
-        The local part of the term URI is interpreted as Module identifier.
-        """
-        return self.uri.split('#')[1]
-
-    def match(self, thing) -> bool:
-        """Check if the module described here matches thing."""
-        if isinstance(thing, TableGroup):
-            return thing.common_props.get('dc:conformsTo') == term_uri(self.id)
-        if hasattr(thing, 'name'):
-            return thing.name == self.fname
-        return False
-
-
-_modules = []
-
-
-def get_modules() -> list[Module]:
-    """
-    We read supported CLDF modules from the default metadata files distributed with `pycldf`.
-    """
-    global _modules  # pylint: disable=global-statement
-    if not _modules:
-        ds = sys.modules[__name__]
-        for p in pkg_path('modules').glob(f'*{MD_SUFFIX}'):
-            tg = TableGroup.from_file(p)
-            mod = Module(
-                tg.common_props['dc:conformsTo'],
-                tg.tables[0].url.string if tg.tables else None)
-            mod.cls = getattr(ds, mod.id)
-            _modules.append(mod)
-        # prefer Wordlist over ParallelText (forms.csv)
-        _modules = sorted(
-            _modules,
-            key=lambda m: (m.cls in (Wordlist, ParallelText), m.cls is ParallelText))
-    return _modules
-
-
-def make_column(spec: ColSpecType) -> Column:
-    """
-    Create a `Column` instance from `spec`.
-
-    .. code-block:: python
-
-        >>> make_column('id').name
-        'id'
-        >>> make_column('http://cldf.clld.org/v1.0/terms.rdf#id').name
-        'ID'
-        >>> make_column({'name': 'col', 'datatype': 'boolean'}).datatype.base
-        'boolean'
-        >>> type(make_column(make_column('id')))
-        <class 'csvw.metadata.Column'>
-    """
-    if isinstance(spec, str):
-        if spec in TERMS.by_uri:
-            return TERMS.by_uri[spec].to_column()
-        return Column(name=spec, datatype='string')
-    if isinstance(spec, dict):
-        return Column.fromvalue(spec)
-    if isinstance(spec, Column):
-        return spec
-    raise TypeError(spec)
-
-
-class GitRepository:  # pylint: disable=too-few-public-methods
-    """
-    CLDF datasets are often created from data curated in git repositories. If this is the case, we
-    exploit this to provide better provenance information in the dataset's metadata.
-    """
-    def __init__(
-            self, url: str, clone: Optional[PathType] = None, version: Optional[str] = None, **dc):
-        # We remove credentials from the URL immediately to make sure this isn't leaked into
-        # CLDF metadata. Such credentials might be present in URLs read via gitpython from
-        # remotes.
-        self.url = sanitize_url(url)
-        self.clone = clone
-        self.version = version
-        self.dc = dc
-
-    def json_ld(self) -> collections.OrderedDict[str, Any]:
-        """The repository described in JSON-LD."""
-        res = collections.OrderedDict([
-            ('rdf:about', self.url),
-            ('rdf:type', 'prov:Entity'),
-        ])
-        if self.version:
-            res['dc:created'] = self.version
-        elif self.clone:
-            res['dc:created'] = git_describe(self.clone)
-        res.update({f'dc:{k}': self.dc[k] for k in sorted(self.dc)})
-        return res
 
 
 class Dataset:  # pylint: disable=too-many-public-methods
@@ -193,9 +83,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
             raise TypeError('Invalid type for Dataset.sources')
         self._sources = obj
 
-    #
-    # Factory methods to create `Dataset` instances.
-    #
+    # Factory methods to create `Dataset` instances. -----------------------------------------------
     @classmethod
     def in_dir(cls, d: PathType, empty_tables: bool = False) -> 'Dataset':
         """
@@ -249,9 +137,9 @@ class Dataset:  # pylint: disable=too-many-public-methods
         if comps and comps.most_common(1)[0][1] > 1:
             raise ValueError(f'{fname}: duplicate components!')
 
-        for mod in get_modules():
-            if mod.match(tablegroup):
-                return mod.cls(tablegroup)
+        impl = get_module_impl(Dataset, tablegroup)
+        if impl:
+            return impl(tablegroup)
         return cls(tablegroup)
 
     @classmethod
@@ -268,14 +156,12 @@ class Dataset:  # pylint: disable=too-many-public-methods
         if not colnames:
             raise ValueError('empty data file!')
         if cls is Dataset:
-            try:
-                cls = next(  # pylint: disable=W0642
-                    mod.cls for mod in get_modules() if mod.match(fname))
-            except StopIteration as exc:
-                raise ValueError(f'{fname} does not match a CLDF module spec') from exc
-            assert issubclass(cls, Dataset) and cls is not Dataset
-
-        res = cls.from_metadata(fname.parent)
+            impl = get_module_impl(Dataset, fname.name)
+            if impl is None:
+                raise ValueError(f'{fname} does not match a CLDF module spec')
+            res = impl.from_metadata(fname.parent)
+        else:
+            res = cls.from_metadata(fname.parent)
         required_cols = {
             c.name for c in res[res.primary_table].tableSchema.columns
             if c.required}
@@ -283,9 +169,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
             raise ValueError(f'missing columns: {sorted(required_cols.difference(colnames))}')
         return res
 
-    #
-    # Accessing dataset metadata
-    #
+    # Accessing dataset metadata -------------------------------------------------------------------
     @property
     def directory(self) -> PathType:
         """
@@ -353,9 +237,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
             return pathlib.Path(urllib.parse.urlparse(self.bibpath).path).name
         return self.bibpath.name
 
-    #
-    # Accessing schema objects (components, tables, columns, foreign keys)
-    #
+    # Accessing schema objects (components, tables, columns, foreign keys) -------------------------
     @property
     def tables(self) -> list[Table]:
         """
@@ -493,9 +375,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
             return default
 
     def get_foreign_key_reference(
-            self,
-            table: TableType,
-            column: ColType,
+            self, table: TableType, column: ColType,
     ) -> Optional[tuple[csvw.Table, csvw.Column]]:
         """
         Retrieve the reference of a foreign key constraint for the specified column.
@@ -537,9 +417,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
         """
         return get_column_names(self, use_component_names=True, with_multiplicity=True)
 
-    #
-    # Editing dataset metadata or schema
-    #
+    # Editing dataset metadata or schema -----------------------------------------------------------
     def add_provenance(self, **kw: Any) -> None:
         """
         Add metadata about the dataset's provenance.
@@ -615,11 +493,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
             - `url`: a url property for the table;\
             - `description`: a description of the table.
         """
-        if isinstance(component, str):
-            component = jsonlib.load(pkg_path('components', f'{component}{MD_SUFFIX}'))
-        if isinstance(component, dict):
-            component = Table.fromvalue(component)
-        assert isinstance(component, Table)
+        component = make_table(component)
 
         if kw.get('url'):
             component.url = Link(kw['url'])
@@ -743,16 +617,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
         :param primary_c: Column reference for the linked column - or `None`, in which case the \
         primary key of the linked table is assumed.
         """
-        if isinstance(foreign_c, (tuple, list)) or isinstance(primary_c, (tuple, list)):
-            raise NotImplementedError('composite keys are not supported')
-
-        foreign_t = self[foreign_t]
-        primary_t = self[primary_t]
-        if not primary_c:
-            primary_c = primary_t.tableSchema.primaryKey
-        else:
-            primary_c = self[primary_t, primary_c].name
-        foreign_t.add_foreign_key(self[foreign_t, foreign_c].name, primary_t.url.string, primary_c)
+        return add_foreign_key(self, foreign_t, foreign_c, primary_t, primary_c)
 
     def auto_constraints(self, component: Optional[TableType] = None):
         """
@@ -760,59 +625,9 @@ class Dataset:  # pylint: disable=too-many-public-methods
 
         :param component: A Table object or `None`.
         """
-        if not component:
-            for table in self.tables:
-                self.auto_constraints(table)
-            return
+        return add_auto_constraints(self, component)
 
-        if not component.tableSchema.primaryKey:
-            idcol = component.get_column(term_uri('id'))
-            if idcol:
-                component.tableSchema.primaryKey = [idcol.name]
-
-        self._auto_foreign_keys(component)
-
-        try:
-            table_type = self.get_tabletype(component)
-        except ValueError:
-            table_type = None
-
-        if table_type is None:
-            # New component is not a known CLDF term, so cannot add components
-            # automatically. TODO: We might me able to infer some based on
-            # `xxxReference` column properties?
-            return
-
-        # auto-add foreign keys targeting the new component:
-        for table in self.tables:
-            self._auto_foreign_keys(table, component=component, table_type=table_type)
-
-    def _auto_foreign_keys(self, table, component=None, table_type=None):
-        assert (component is None) == (table_type is None)
-        for col in table.tableSchema.columns:
-            if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
-                ref_name = TERMS.by_uri[col.propertyUrl.uri].references
-                if (component is None and not ref_name) or \
-                        (component is not None and ref_name != table_type):
-                    continue
-                if any(fkey.columnReference == [col.name]
-                       for fkey in table.tableSchema.foreignKeys):
-                    continue
-                if component is None:
-                    # Let's see whether we have the component this column references:
-                    try:
-                        ref = self[ref_name]
-                    except KeyError:
-                        continue
-                else:
-                    ref = component
-                idcol = ref.get_column(term_uri('id'))
-                table.add_foreign_key(
-                    col.name, ref.url.string, idcol.name if idcol is not None else 'ID')
-
-    #
-    # Add data
-    #
+    # Add data -------------------------------------------------------------------------------------
     def add_sources(self, *sources: Union[str, Source], **kw) -> None:
         """
         Add sources to the dataset.
@@ -821,9 +636,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
         """
         self.sources.add(*sources, **kw)
 
-    #
-    # Methods to read data
-    #
+    # Methods to read data -------------------------------------------------------------------------
     def iter_rows(self, table: TableType, *cols: str) -> Generator[RowType, None, None]:
         """
         Iterate rows in a table, resolving CLDF property names to local column names.
@@ -916,9 +729,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
             self.objects(table, cls=cls)
         return self._objects[table][id_] if not pk else self._objects_by_pk[table][id_]
 
-    #
-    # Methods for writing (meta)data to files:
-    #
+    # Methods for writing (meta)data to files: -----------------------------------------------------
     def write_metadata(self, fname: Optional[PathType] = None) -> pathlib.Path:
         """
         Write the CLDF metadata to a JSON file.
@@ -983,55 +794,13 @@ class Dataset:  # pylint: disable=too-many-public-methods
             ...     if 'with_examples' in ds.directory.name:
             ...         ds.copy('some_directory', mdname='md.json')
         """
-        from pycldf.media import MediaTable  # pylint: disable=import-outside-toplevel
+        return copy_dataset(self, dest, mdname)
 
-        dest = pathlib.Path(dest)
-        if not dest.exists():
-            dest.mkdir(parents=True)
-
-        from_url = is_url(self.tablegroup.base)
-        ds = Dataset.from_metadata(
-            self.tablegroup.base if from_url else self.tablegroup._fname)  # pylint: disable=W0212
-
-        _getter = urllib.request.urlretrieve if from_url else shutil.copy
-        try:
-            _getter(self.bibpath, dest / self.bibname)
-            ds.properties['dc:source'] = self.bibname
-        except:  # pragma: no cover # noqa  pylint: disable=W0702
-            # Sources are optional
-            pass
-
-        for table in ds.tables:
-            fname = table.url.resolve(table.base)
-            name = pathlib.Path(urllib.parse.urlparse(fname).path).name if from_url else fname.name
-            _getter(fname, dest / name)
-            table.url = Link(name)
-
-            for fk in table.tableSchema.foreignKeys:
-                fk.reference.resource = Link(pathlib.Path(fk.reference.resource.string).name)
-        mdpath = dest.joinpath(
-            mdname or  # noqa: W504
-            (self.tablegroup.base.split('/')[-1] if from_url
-             else self.tablegroup._fname.name))  # pylint: disable=W0212
-        if 'MediaTable' in self:
-            for f in MediaTable(self):
-                if f.scheme == 'file':
-                    if f.local_path().exists():
-                        target = dest / urllib.parse.unquote(f.relpath)
-                        target.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.copy(f.local_path(), target)
-        if from_url:
-            del ds.tablegroup.at_props['base']  # pragma: no cover
-        ds.write_metadata(fname=mdpath)
-        return mdpath
-
-    #
-    # Reporting
-    #
+    # Reporting ------------------------------------------------------------------------------------
     def validate(
             self,
             log: logging.Logger = None,
-            validators: list[tuple[Optional[str], str, RowValidatorType]] = None,
+            validators: list[tuple[Optional[str], str, validation.RowValidatorType]] = None,
             ontology_path: Optional[PathType] = None,
     ) -> bool:
         """
@@ -1047,71 +816,20 @@ class Dataset:  # pylint: disable=too-many-public-methods
         :raises ValueError: if a validation error is encountered (and `log` is `None`).
         :return: Flag signaling whether schema and data are valid.
         """
-        # We must import components with custom validation to make sure they can be detected as
-        # subclasses of ComponentWithValidation.
-        from pycldf.media import MediaTable  # pylint: disable=import-outside-toplevel
-        from pycldf.trees import TreeTable  # pylint: disable=import-outside-toplevel
-
-        assert MediaTable and TreeTable
-
-        validator = DatasetValidator(
+        return validation.validate(
             dataset=self,
-            success=True,
             terms=Terms(ontology_path) or TERMS,
             log=log,
             row_validators=validators or [],
         )
 
-        default_tg = TableGroup.from_file(pkg_path('modules', f'{self.module}{MD_SUFFIX}'))
-        # Make sure, all required tables and columns are present and consistent.
-        for default_table in default_tg.tables:
-            validator.validate_default_objects(default_table)
-
-        for table in self.tables:
-            validator.validate_table_schema(table)
-            validator.validate_columns(table)
-
-            fname = pathlib.Path(table.url.resolve(table._parent.base))  # pylint: disable=W0212
-            fexists = fname.exists()
-            if (not fexists) and fname.parent.joinpath(f'{fname.name}.zip').exists():
-                if log:
-                    log.info(f'Reading data from zipped table: {fname}.zip')
-                fexists = True  # csvw already handles this case, no need to adapt paths.
-            if is_url(table.url.resolve(table._parent.base)) or fexists:  # pylint: disable=W0212
-                validator.validate_rows(table)
-                if not table.check_primary_key(log=log):
-                    validator.fail('Primary key check failed.')
-            else:
-                validator.fail(f'{fname} does not exist')
-
-        if not self.tablegroup.check_referential_integrity(log=log):
-            validator.fail('Referential integrity check failed')
-
-        for cls in ComponentWithValidation.__subclasses__():
-            if cls.__name__ in self:
-                validator.success = cls(self).validate(validator.success, log=validator.log)
-
-        return validator.success
-
     def stats(self, exact: bool = False) -> list[tuple[str, str, int]]:
         """
         Compute summary statistics for the dataset.
 
-        :return: List of triples (table, type, rowcount).
+        :return: List of triples (filename, component, rowcount).
         """
-        res = []
-        for table in self.tables:
-            dctype = table.common_props.get('dc:conformsTo')
-            if dctype and '#' in dctype and dctype.split('#')[1] in TERMS:
-                dctype = TERMS[dctype.split('#')[1]].csvw_prop('name')
-            res.append((
-                table.url.string,
-                dctype,
-                sum(1 for _ in table) if (exact or 'dc:extent' not in table.common_props)
-                else int(table.common_props.get('dc:extent'))))
-        if self.sources:
-            res.append((self.bibname, 'Sources', len(self.sources)))
-        return res
+        return get_table_stats(self, exact)
 
 
 class Generic(Dataset):
@@ -1251,48 +969,6 @@ class TextCorpus(Dataset):
         if ('ExampleTable', 'position') in self:
             return sorted(res, key=lambda o: o.cldf.position)
         return res  # pragma: no cover
-
-
-class ComponentWithValidation:  # pylint: disable=too-few-public-methods
-    """
-    A virtual base class for custom, component-centered validation.
-    """
-    def __init__(self, ds: Dataset):
-        self.ds = ds
-        self.component = self.__class__.__name__
-        self.table = ds[self.component]
-
-    def validate(self, success: bool = True, log: Optional[logging.Logger] = None) -> bool:
-        """Validate the component taking previous validation result into account."""
-        assert log or 1  # pragma: no cover  pylint: disable=condition-evals-to-constant
-        return success  # pragma: no cover
-
-
-def sniff(p: pathlib.Path) -> bool:
-    """
-    Determine whether a file contains CLDF metadata.
-
-    :param p: `pathlib.Path` object for an existing file.
-    :return: `True` if the file contains CLDF metadata, `False` otherwise.
-    """
-    if not p.is_file():  # pragma: no cover
-        return False
-    try:
-        with p.open('rb') as fp:
-            c = fp.read(10)
-            try:
-                c = c.decode('utf8').strip()
-            except UnicodeDecodeError:
-                return False
-            if not c.startswith('{'):
-                return False
-    except (FileNotFoundError, OSError):  # pragma: no cover
-        return False
-    try:
-        d = jsonlib.load(p)
-    except json.decoder.JSONDecodeError:
-        return False
-    return d.get('dc:conformsTo', '').startswith(TERMS_URL)
 
 
 def iter_datasets(d: PathType) -> Generator[Dataset, None, None]:

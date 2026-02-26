@@ -1,6 +1,9 @@
 import pytest
 
 from pycldf.util import *
+from pycldf.fileutil import *
+from pycldf.urlutil import *
+from pycldf.markdown import metadata2markdown
 
 
 @pytest.mark.parametrize("sliceable,slices,expected", [

@@ -17,7 +17,8 @@ import clldutils
 from clldutils.markup import MarkdownLink
 
 from .discovery import get_dataset
-from pycldf.util import pkg_path, url_without_fragment
+from pycldf.util import pkg_path
+from pycldf.urlutil import url_without_fragment
 from pycldf.dataset import MD_SUFFIX
 from pycldf.sources import Source
 from pycldf import Dataset

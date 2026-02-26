@@ -46,7 +46,7 @@ Limitations:
   * ~35secs iterating over ``pycldf.Dataset.objects('ValueTable')``
 """
 import types
-import typing
+from typing import TYPE_CHECKING, Union, Optional, Any
 import decimal
 import functools
 import collections
@@ -58,12 +58,14 @@ from pycldf.terms import TERMS, term_uri
 from pycldf.util import DictTuple
 from pycldf.sources import Reference
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from pycldf import Dataset  # pragma: no cover
+    from pycldf.dataset import RowType  # pragma: no cover
     from pycldf.media import File  # pragma: no cover
 
 
-def to_json(s):
+def to_json(s: Any) -> Union[str, float, None, list, dict]:
+    """Converts `s` to an object that can be serialized as JSON."""
     if isinstance(s, (list, tuple)):
         return [to_json(ss) for ss in s]
     if isinstance(s, dict):
@@ -77,7 +79,7 @@ def to_json(s):
     return str(s)
 
 
-class Object:
+class Object:  # pylint: disable=too-many-instance-attributes
     """
     Represents a row of a CLDF component table.
 
@@ -95,7 +97,7 @@ class Object:
     # specified here:
     __component__ = None
 
-    def __init__(self, dataset: 'Dataset', row: dict):
+    def __init__(self, dataset: 'Dataset', row: 'RowType'):
         # Get a mapping of column names to pairs (CLDF property name, list-valued) for columns
         # present in the component specified by class name.
         cldf_cols = {
@@ -103,29 +105,29 @@ class Object:
             for k, v in vars(getattr(dataset.readonly_column_names, self.component)).items()
             if v}
         self._listvalued = set(v[0] for v in cldf_cols.values() if v[1])
-        self.cldf = {}
-        self.data = collections.OrderedDict()
+        cldf_ = {}
+        self.data: collections.OrderedDict[str, Any] = collections.OrderedDict()
         for k, v in row.items():
             # We go through the items of the row and slot them into the appropriate bags:
             self.data[k] = v
             if k in cldf_cols:
-                self.cldf[cldf_cols[k][0]] = v
+                cldf_[cldf_cols[k][0]] = v
         # Make cldf properties accessible as attributes:
-        self.cldf = types.SimpleNamespace(**self.cldf)
-        self.dataset = dataset
-        self.id = self.cldf.id
-        self.pk = None
+        self.cldf = types.SimpleNamespace(**cldf_)
+        self.dataset: 'Dataset' = dataset
+        self.id: str = self.cldf.id
+        self.pk: Optional[str] = None
         t = dataset[self.component_name()]
         if t.tableSchema.primaryKey and len(t.tableSchema.primaryKey) == 1:
             self.pk = self.data[dataset[self.component_name()].tableSchema.primaryKey[0]]
-        self.name = getattr(self.cldf, 'name', None)
-        self.description = getattr(self.cldf, 'description', None)
+        self.name: str = getattr(self.cldf, 'name', None)
+        self.description: str = getattr(self.cldf, 'description', None)
 
     def __repr__(self):
-        return '<{}.{} id="{}">'.format(self.__class__.__module__, self.__class__.__name__, self.id)
+        return f'<{self.__class__.__module__}.{self.__class__.__name__} id="{self.id}">'
 
     @classmethod
-    def component_name(cls) -> str:
+    def component_name(cls) -> str:  # pylint: disable=C0116
         return cls.__component__ or (cls.__name__ + 'Table')
 
     @property
@@ -137,7 +139,8 @@ class Object:
         return self.__class__.component_name()
 
     @property
-    def key(self) -> typing.Tuple[int, str, str]:
+    def key(self) -> tuple[int, str, str]:
+        """A key that is also unique across different Dataset instances."""
         return id(self.dataset), self.__class__.__name__, self.id
 
     def __hash__(self):
@@ -154,31 +157,32 @@ class Object:
         row as context. Thus, expansion is available as method on this row object.
         """
         col = self.dataset[self.component, col]
-        variables = {k: v for k, v in vars(self.cldf).items()}
+        variables = dict(vars(self.cldf).items())
         variables.update(self.data)
         if getattr(col, attr, None):
             return getattr(col, attr).expand(**variables)
+        return None  # pragma: no cover
 
-    def aboutUrl(self, col='id') -> typing.Union[str, None]:
+    def aboutUrl(self, col: str = 'id') -> Union[str, None]:  # pylint: disable=invalid-name
         """
         The table's `aboutUrl` property, expanded with the object's row as context.
         """
         return self._expand_uritemplate('aboutUrl', col)
 
-    def valueUrl(self, col='id') -> typing.Union[str, None]:
+    def valueUrl(self, col: str = 'id') -> Union[str, None]:  # pylint: disable=invalid-name
         """
         The table's `valueUrl` property, expanded with the object's row as context.
         """
         return self._expand_uritemplate('valueUrl', col)
 
-    def propertyUrl(self, col='id') -> typing.Union[str, None]:
+    def propertyUrl(self, col: str = 'id') -> Union[str, None]:  # pylint: disable=invalid-name
         """
         The table's `propertyUrl` property, expanded with the object's row as context.
         """
         return self._expand_uritemplate('propertyUrl', col)
 
     @functools.cached_property
-    def references(self) -> typing.Tuple[Reference]:
+    def references(self) -> tuple[Reference, ...]:
         """
         `pycldf.Reference` instances associated with the object.
 
@@ -192,7 +196,7 @@ class Object:
             multi=True,
         )
 
-    def related(self, relation: str) -> typing.Union[None, 'Object']:
+    def related(self, relation: str) -> Optional['Object']:
         """
         The CLDF ontology specifies several "reference properties". This method returns the first
         related object specified by such a property.
@@ -202,7 +206,7 @@ class Object:
         """
         if relation in self._listvalued:
             raise ValueError(
-                '{} is list-valued, use `all_related` to retrieve related objects'.format(relation))
+                f'{relation} is list-valued, use `all_related` to retrieve related objects')
         fk = getattr(self.cldf, relation, None)
         if fk:
             ref = self.dataset.get_foreign_key_reference(self.component_name(), relation)
@@ -213,8 +217,9 @@ class Object:
                     return self.dataset.get_object(TERMS[relation].references, fk, pk=True)
                 raise NotImplementedError('pycldf does not support foreign key constraints '
                                           'referencing columns other than CLDF id or primary key.')
+        return None  # pragma: no cover
 
-    def all_related(self, relation: str) -> typing.Union[DictTuple, list]:
+    def all_related(self, relation: str) -> Union[DictTuple, list]:
         """
         CLDF reference properties can be list-valued. This method returns all related objects for
         such a property.
@@ -229,57 +234,58 @@ class Object:
 
 class _WithLanguageMixin:
     @property
-    def language(self):
+    def language(self) -> Object:  # pylint: disable=C0116
         return self.related('languageReference')
 
     @property
-    def languages(self):
+    def languages(self) -> Union[DictTuple, list]:  # pylint: disable=C0116
         return self.all_related('languageReference')
 
 
 class _WithParameterMixin:
     @functools.cached_property
-    def parameter(self):
+    def parameter(self) -> Object:  # pylint: disable=C0116
         return self.related('parameterReference')
 
     @property
-    def parameters(self):
+    def parameters(self) -> Union[DictTuple, list]:  # pylint: disable=C0116
         return self.all_related('parameterReference')
 
 
-class Borrowing(Object):
+class Borrowing(Object):  # pylint: disable=C0115
     @property
-    def targetForm(self):
+    def targetForm(self) -> Object:  # pylint: disable=C0116,C0103
         return self.related('targetFormReference')
 
     @property
-    def sourceForm(self):
+    def sourceForm(self) -> Object:  # pylint: disable=C0116,C0103
         return self.related('sourceFormReference')
 
 
-class Code(Object, _WithParameterMixin):
+class Code(Object, _WithParameterMixin):  # pylint: disable=C0115
     pass
 
 
-class Cognateset(Object):
+class Cognateset(Object):  # pylint: disable=C0115
     @property
-    def cognates(self):
+    def cognates(self):  # pylint: disable=C0116
         return DictTuple(v for v in self.dataset.objects('CognateTable') if v.cognateset == self)
 
 
-class Cognate(Object):
+class Cognate(Object):  # pylint: disable=C0115
     @property
-    def form(self):
+    def form(self):  # pylint: disable=C0116
         return self.related('formReference')
 
     @property
-    def cognateset(self):
+    def cognateset(self):  # pylint: disable=C0116
         return self.related('cognatesetReference')
 
 
-class Contribution(Object):
+class Contribution(Object):  # pylint: disable=C0115
     @property
     def sentences(self):
+        """Returns the ordered sentences of a text in a TextCorpus."""
         res = []
         if self.dataset.module == 'TextCorpus':
             # Return the list of lines, ordered by position.
@@ -293,35 +299,38 @@ class Contribution(Object):
         return res
 
 
-class Entry(Object, _WithLanguageMixin):
+class Entry(Object, _WithLanguageMixin):  # pylint: disable=C0115
     @property
-    def senses(self):
+    def senses(self):  # pylint: disable=C0116
         return DictTuple(v for v in self.dataset.objects('SenseTable') if self in v.entries)
 
 
-class Example(Object, _WithLanguageMixin):
+class Example(Object, _WithLanguageMixin):  # pylint: disable=C0115
     @property
-    def metaLanguage(self):
+    def metaLanguage(self):  # pylint: disable=C0116,C0103
         return self.related('metaLanguageReference')
 
     @property
-    def igt(self):
-        return '{0}\n{1}\n{2}'.format(
-            self.cldf.primaryText,
-            tabulate([self.cldf.gloss], self.cldf.analyzedWord, tablefmt='plain'),
-            self.cldf.translatedText,
-        )
+    def igt(self) -> str:
+        """The example in a plain text interlinear glossed representation."""
+        aligned = tabulate([self.cldf.gloss], self.cldf.analyzedWord, tablefmt='plain')
+        return f'{self.cldf.primaryText}\n{aligned}\n{self.cldf.translatedText}'
 
     @property
     def text(self):
         """
-        Examples in a TextCorpus are interpreted as lines of text.
+        Examples in a TextCorpus are interpreted as lines of a text, which in turn is the
+        module-specific interpretation of a CLDF contribution.
         """
         if self.dataset.module == 'TextCorpus' and hasattr(self.cldf, 'contributionReference'):
             return self.related('contributionReference')
+        return None  # pragma: no cover
 
     @property
-    def alternative_translations(self):
+    def alternative_translations(self) -> list['Example']:
+        """
+        Returns alternative translations for the Example.
+        """
         res = []
         if hasattr(self.cldf, 'exampleReference'):
             # There's a self-referential foreign key. We assume this to link together full examples
@@ -332,17 +341,17 @@ class Example(Object, _WithLanguageMixin):
         return res
 
 
-class Form(Object, _WithLanguageMixin, _WithParameterMixin):
+class Form(Object, _WithLanguageMixin, _WithParameterMixin):  # pylint: disable=C0115
     pass
 
 
-class FunctionalEquivalentset(Object):
+class FunctionalEquivalentset(Object):  # pylint: disable=C0115
     pass
 
 
-class FunctionalEquivalent(Object):
+class FunctionalEquivalent(Object):  # pylint: disable=C0115
     @property
-    def form(self):  # pragma: no cover
+    def form(self):  # pragma: no cover  # pylint: disable=C0116
         return self.related('formReference')
 
 
@@ -362,15 +371,16 @@ class Language(Object):
         'MultiPolygon'
     """
     @property
-    def lonlat(self) -> typing.Union[None, typing.Tuple[decimal.Decimal]]:
+    def lonlat(self) -> Optional[tuple[decimal.Decimal, decimal.Decimal]]:
         """
         :return: (longitude, latitude) pair if coordinates are defined, else `None`.
         """
         if hasattr(self.cldf, 'latitude'):
             return (self.cldf.longitude, self.cldf.latitude)
+        return None  # pragma: no cover
 
     @property
-    def as_geojson_feature(self) -> typing.Union[None, typing.Dict[str, typing.Any]]:
+    def as_geojson_feature(self) -> Union[None, dict[str, Any]]:
         """
         `dict` suitable for serialization as GeoJSON Feature object, with the point coordinate as
         geographic data.
@@ -383,19 +393,21 @@ class Language(Object):
                 "geometry": {"type": "Point", "coordinates": self.lonlat},
                 "properties": vars(self.cldf),
             })
+        return None  # pragma: no cover
 
     @functools.cached_property
-    def speaker_area(self) -> typing.Union[None, 'File']:
+    def speaker_area(self) -> Optional['File']:
         """
         A `pycldf.media.File` object containing information about the speaker area of the language.
         """
-        from pycldf.media import File
+        from pycldf.media import File  # pylint: disable=C0415
 
         if getattr(self.cldf, 'speakerArea', None):
             return File.from_dataset(self.dataset, self.related('speakerArea'))
+        return None  # pragma: no cover
 
     @functools.cached_property
-    def speaker_area_as_geojson_feature(self) -> typing.Union[None, typing.Dict[str, typing.Any]]:
+    def speaker_area_as_geojson_feature(self) -> Optional[dict[str, Any]]:
         """
         `dict` suitable for serialization as GeoJSON Feature object, with a speaker area Polygon
         or MultiPolygon as geographic data.
@@ -411,13 +423,14 @@ class Language(Object):
             else:
                 assert res['type'] == 'Feature'
                 return res
+        return None  # pragma: no cover
 
     @property
-    def values(self):
+    def values(self) -> DictTuple:  # pylint: disable=C0116
         return DictTuple(v for v in self.dataset.objects('ValueTable') if self in v.languages)
 
     @property
-    def forms(self):
+    def forms(self):  # pylint: disable=C0116
         return DictTuple(v for v in self.dataset.objects('FormTable') if self in v.languages)
 
     def glottolog_languoid(self, glottolog_api):
@@ -433,42 +446,50 @@ class Language(Object):
         return glottolog_api.languoid(self.cldf.glottocode)
 
 
-class Media(Object):
+class Media(Object):  # pylint: disable=C0115
     @property
-    def downloadUrl(self):
+    def downloadUrl(self):  # pylint: disable=C0116,C0103
         if hasattr(self.cldf, 'downloadUrl'):
             return self.cldf.downloadUrl
         return self.valueUrl()
 
 
-class ParameterNetworkEdge(Object):
+class ParameterNetworkEdge(Object):  # pylint: disable=C0115
     __component__ = 'ParameterNetwork'
 
 
 class Parameter(Object):
+    """
+    The Parameter class provides support for interpreting a parameter's string values as typed
+    data and reading it accordingly. See `Value` below.
+    """
     @functools.cached_property
-    def columnSpec(self):
-        columnSpec = getattr(self.cldf, 'columnSpec', None)
+    def columnSpec(self) -> Optional[csvw.metadata.Column]:  # pylint: disable=C0103
+        """Turns a JSON column specification in a column value into a Column object."""
+        columnSpec = getattr(self.cldf, 'columnSpec', None)  # pylint: disable=C0103
         if columnSpec:
             return csvw.metadata.Column.fromvalue(columnSpec)
+        return None
 
     @functools.cached_property
-    def datatype(self):
+    def datatype(self) -> Optional[csvw.metadata.Datatype]:
+        """Turns a JSON datatype description in a column value into a Datatype object."""
         if 'datatype' in self.data \
                 and self.dataset['ParameterTable', 'datatype'].datatype.base == 'json':
             if self.data['datatype']:
                 return csvw.metadata.Datatype.fromvalue(self.data['datatype'])
+        return None
 
     @property
-    def codes(self):
+    def codes(self):  # pylint: disable=C0116
         return DictTuple(v for v in self.dataset.objects('CodeTable') if v.parameter == self)
 
     @property
-    def values(self):
+    def values(self):  # pylint: disable=C0116
         return DictTuple(v for v in self.dataset.objects('ValueTable') if self in v.parameters)
 
     @property
-    def forms(self):
+    def forms(self):  # pylint: disable=C0116
         return DictTuple(v for v in self.dataset.objects('FormTable') if self in v.parameters)
 
     def concepticon_conceptset(self, concepticon_api):
@@ -484,17 +505,17 @@ class Parameter(Object):
         return concepticon_api.conceptsets.get(self.cldf.concepticonReference)
 
 
-class Sense(Object):
+class Sense(Object):  # pylint: disable=C0115
     @property
-    def entry(self):
+    def entry(self):  # pylint: disable=C0116
         return self.related('entryReference')
 
     @property
-    def entries(self):
+    def entries(self):  # pylint: disable=C0116
         return self.all_related('entryReference')
 
 
-class Tree(Object):
+class Tree(Object):  # pylint: disable=C0115
     pass
 
 
@@ -530,6 +551,10 @@ class Value(Object, _WithLanguageMixin, _WithParameterMixin):
     """
     @property
     def typed_value(self):
+        """
+        If a parameter includes information about the datatype of its values, this information is
+        used here to convert the value accordingly.
+        """
         if self.parameter.columnSpec:
             return self.parameter.columnSpec.read(self.cldf.value)
         if self.parameter.datatype:
@@ -537,9 +562,9 @@ class Value(Object, _WithLanguageMixin, _WithParameterMixin):
         return self.cldf.value
 
     @property
-    def code(self):
+    def code(self):  # pylint: disable=C0116
         return self.related('codeReference')
 
     @property
-    def examples(self):
+    def examples(self):  # pylint: disable=C0116
         return self.all_related('exampleReference')

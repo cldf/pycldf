@@ -2,6 +2,7 @@ import logging
 
 from pycldf import Generic
 from pycldf.trees import *
+from pycldf.validators import DatasetValidator
 
 
 def test_Trees(dataset_with_trees):
@@ -10,7 +11,7 @@ def test_Trees(dataset_with_trees):
     assert len(t) == 2
     assert set(n.name for n in t[0].newick().walk() if n.is_leaf) == {'l1', 'l2', 'l3', 'l4'}
     assert set(n.name for n in t[1].newick().walk() if n.is_leaf) == {'l1', 'l2', 'l4'}
-    assert trees.validate()
+    assert trees.validate(DatasetValidator(dataset_with_trees)) is None
 
 
 def test_Trees_from_dataurl(dataset_with_trees2):
@@ -40,7 +41,7 @@ def test_Trees_validate(tmp_path, caplog):
     tmp_path.joinpath('test.nwk').write_text('(l1,l2);', encoding='utf8')
     tmp_path.joinpath('test.nex').write_text(
         '#NEXUS\n\nbegin trees;\ntree x = [&U](l1,l2);\nend;', encoding='utf8')
-    TreeTable(ds).validate(log=logging.getLogger('test'))
+    TreeTable(ds).validate(DatasetValidator(ds, log=logging.getLogger('test')))
     assert len(caplog.records) == 3
     assert caplog.records[0].message.startswith('No newick')
     assert caplog.records[1].message.startswith('Newick node label')
