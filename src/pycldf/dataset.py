@@ -23,7 +23,8 @@ from clldutils.path import walk
 from pycldf.module import get_module_impl
 from pycldf.sources import Sources, Source
 from pycldf.util import (
-    pkg_path, resolve_slices, DictTuple, iter_uritemplates, MD_SUFFIX, GitRepository, copy_dataset)
+    pkg_path, DictTuple, iter_uritemplates, MD_SUFFIX, GitRepository, copy_dataset)
+from pycldf.sliceutil import multislice_with_split
 from pycldf.fileutil import PathType
 from pycldf.schemautil import ColSpecType, make_column, make_table, TableType, ColType
 from pycldf.constraints import add_foreign_key, add_auto_constraints
@@ -38,7 +39,7 @@ __all__ = [
 
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
 TableSpecType = Union[str, Link, Table]
-SchemaObjectType = Union[TableSpecType, tuple[TableSpecType, ColSpecType]]
+SchemaObjectType = Union[TableSpecType, tuple[TableSpecType, ColType]]
 ODict = collections.OrderedDict
 RowType = ODict[str, Any]
 
@@ -332,7 +333,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
 
         raise SchemaError(f'Dataset has no column "{column}" in table "{t.url}"')
 
-    def _get_table(self, table: Union[str, Table]) -> Table:
+    def _get_table(self, table: TableType) -> Table:
         if not isinstance(table, Table):
             uri = term_uri(table, terms=TERMS.by_uri)
             for t in self.tables:
@@ -869,13 +870,11 @@ class Wordlist(Dataset):
 
         :param cognate: A `dict` holding the data of a row from a `CognateTable`.
         """
-        return resolve_slices(
-            cognate,
-            self,
-            ('CognateTable', "http://cldf.clld.org/v1.0/terms.rdf#segmentSlice"),
-            ('FormTable', "http://cldf.clld.org/v1.0/terms.rdf#segments"),
-            'Form_ID',
-            target_row=form)
+        target_row = form or self.get_row('FormTable', cognate['Form_ID'])
+        return multislice_with_split(
+            target_row[self['FormTable', "http://cldf.clld.org/v1.0/terms.rdf#segments"].name],
+            cognate[self['CognateTable', "http://cldf.clld.org/v1.0/terms.rdf#segmentSlice"].name],
+        )
 
 
 class ParallelText(Dataset):
@@ -886,14 +885,12 @@ class ParallelText(Dataset):
 
     def get_equivalent(self, functional_equivalent, form=None):
         """Get the forms fulfilling an equivalent function in the texts."""
-        return resolve_slices(
-            functional_equivalent,
-            self,
-            ('FunctionalEquivalentTable',
-             "http://cldf.clld.org/v1.0/terms.rdf#segmentSlice"),
-            ('FormTable', "http://cldf.clld.org/v1.0/terms.rdf#segments"),
-            'Form_ID',
-            target_row=form)
+        slice_col_name = self[
+            'FunctionalEquivalentTable', "http://cldf.clld.org/v1.0/terms.rdf#segmentSlice"].name
+        sequence_col_name = self['FormTable', "http://cldf.clld.org/v1.0/terms.rdf#segments"].name
+        target_row = form or self.get_row('FormTable', functional_equivalent['Form_ID'])
+        return multislice_with_split(
+            target_row[sequence_col_name], functional_equivalent[slice_col_name])
 
 
 class Dictionary(Dataset):

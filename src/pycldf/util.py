@@ -1,12 +1,15 @@
+"""
+The mixed bag of utility functions and classes of the pycldf package ...
+"""
 import shutil
-from typing import Optional, TYPE_CHECKING, Any
+from typing import Optional, TYPE_CHECKING, Any, Union
 import pathlib
-import itertools
 import collections
 import urllib.parse
 import urllib.request
+from collections.abc import Generator
 
-from csvw.metadata import is_url, Link
+from csvw.metadata import is_url, Link, Column, Table, Schema, URITemplate
 from clldutils.path import git_describe
 
 from pycldf.fileutil import PathType
@@ -16,8 +19,7 @@ if TYPE_CHECKING:
     from pycldf import Dataset  # pragma: no cover
 
 __all__ = [
-    'pkg_path', 'multislice', 'resolve_slices', 'DictTuple', 'qname2url',
-    'iter_uritemplates', 'MD_SUFFIX', 'GitRepository']
+    'pkg_path', 'DictTuple', 'qname2url', 'iter_uritemplates', 'MD_SUFFIX', 'GitRepository']
 
 MD_SUFFIX = '-metadata.json'
 
@@ -51,7 +53,14 @@ class GitRepository:  # pylint: disable=too-few-public-methods
         return res
 
 
-def iter_uritemplates(table):
+def iter_uritemplates(
+        table: Table) -> Generator[tuple[Union[Table, Schema, Column], str, URITemplate]]:
+    """
+    Generator of URITemplates specified in a table.
+
+    Since URITemplates use column names as template variables, it is important to keep these in
+    sync with the table schema, e.g. in case of renaming columns.
+    """
     props = ['aboutUrl', 'valueUrl']
     for obj in [table, table.tableSchema] + table.tableSchema.columns:
         for prop in props:
@@ -60,35 +69,9 @@ def iter_uritemplates(table):
                 yield obj, prop, tmpl
 
 
-def pkg_path(*comps):
+def pkg_path(*comps: str) -> pathlib.Path:
+    """Returns a path within the pycldf package."""
     return pathlib.Path(__file__).resolve().parent.joinpath(*comps)
-
-
-def multislice(sliceable, *slices):
-    res = type(sliceable)()
-    for sl in slices:
-        if isinstance(sl, str):
-            if ':' in sl:
-                sl = [int(s) - (1 if i == 0 else 0) for i, s in enumerate(sl.split(':'))]
-            else:
-                sl = [int(sl) - 1, int(sl)]
-        res += sliceable[slice(*sl)]
-    return res
-
-
-def resolve_slices(row, ds, slice_spec, target_spec, fk, target_row=None):
-    # 1. Determine the slice column:
-    slices = ds[slice_spec]
-
-    # 2. Determine the to-be-sliced column:
-    morphemes = ds[target_spec]
-
-    # 3. Retrieve the matching row in the target table:
-    target_row = target_row or ds.get_row(target_spec[0], row[fk])
-
-    # 4. Slice the segments
-    return list(itertools.chain(*[
-        s.split() for s in multislice(target_row[morphemes.name], *row[slices.name])]))
 
 
 class DictTuple(tuple):
@@ -120,7 +103,10 @@ class DictTuple(tuple):
         return super().__getitem__(item)
 
 
-def qname2url(qname):
+def qname2url(qname: str) -> Optional[str]:
+    """
+    Turns a qname of the form <prefix>:<localname> into a full HTTP URL if the prefix is known.
+    """
     for prefix, uri in {
         'csvw': 'http://www.w3.org/ns/csvw#',
         'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
@@ -132,6 +118,7 @@ def qname2url(qname):
     }.items():
         if qname.startswith(prefix + ':'):
             return qname.replace(prefix + ':', uri)
+    return None
 
 
 def copy_dataset(ds: 'Dataset', dest: PathType, mdname: str = None) -> pathlib.Path:

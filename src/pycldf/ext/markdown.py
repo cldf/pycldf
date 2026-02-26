@@ -4,10 +4,11 @@ This module provides tools to build a CLDF Markdown renderer.
 For an example, see :class:`FilenameToComponent`.
 """
 import re
-import typing
+from typing import Optional, Union, Any
 import pathlib
 import warnings
-import collections.abc
+import collections
+from collections.abc import Mapping
 
 import yaml
 import jmespath
@@ -16,13 +17,12 @@ import frontmatter
 import clldutils
 from clldutils.markup import MarkdownLink
 
-from .discovery import get_dataset
-from pycldf.util import pkg_path
+from pycldf.util import pkg_path, MD_SUFFIX
 from pycldf.urlutil import url_without_fragment
-from pycldf.dataset import MD_SUFFIX
 from pycldf.sources import Source
 from pycldf import Dataset
 from pycldf import orm
+from .discovery import get_dataset
 
 __all__ = ['CLDFMarkdownLink', 'CLDFMarkdownText', 'FilenameToComponent']
 
@@ -32,7 +32,7 @@ SOURCE_COMPONENT = 'Source'
 METADATA_COMPONENT = 'Metadata'
 
 
-class DatasetMapping(collections.abc.Mapping):
+class DatasetMapping(Mapping):
     """
     A read-only mapping of prefixes to datasets.
     """
@@ -47,8 +47,8 @@ class DatasetMapping(collections.abc.Mapping):
     def __init__(self,
                  m1,
                  m2=None,
-                 doc_path: typing.Optional[pathlib.Path] = None,
-                 download_dir: typing.Optional[pathlib.Path] = None):
+                 doc_path: Optional[pathlib.Path] = None,
+                 download_dir: Optional[pathlib.Path] = None):
         """
         :param m1: Mapping of prefixes to datasets (locators).
         :param m2: Mapping of prefixes to datasets (locators) to update `m1`.
@@ -65,7 +65,7 @@ class DatasetMapping(collections.abc.Mapping):
             if not isinstance(self.m[k], Dataset):
                 self.m[k] = get_dataset(self.m[k], download_dir, doc_path)
 
-    def __getitem__(self, prefix: typing.Union[str, None]) -> Dataset:
+    def __getitem__(self, prefix: Union[str, None]) -> Dataset:
         """
         Get a `Dataset` mapped to a prefix.
         """
@@ -89,18 +89,20 @@ class CLDFMarkdownLink(MarkdownLink):
     fragment_pattern = re.compile(r'cldf(-(?P<prefix>[a-zA-Z0-9_]+))?:')
 
     @property
-    def url_without_fragment(self):
+    def url_without_fragment(self) -> str:
+        """Return the HREF value of the link without the fragment."""
         return url_without_fragment(self.parsed_url)
 
     @staticmethod
-    def format_url(path, objid, prefix=None):
-        return '{}#cldf{}:{}'.format(path, '-' + prefix if prefix else '', objid)
+    def format_url(path, objid, prefix=None) -> str:
+        """Format the HREF value for a CLDF Markdown link."""
+        prefix = '-' + prefix if prefix else ''
+        return f'{path}#cldf{prefix}:{objid}'
 
     @classmethod
     def from_component(cls, comp, objid='__all__', label=None, prefix=None) -> 'CLDFMarkdownLink':
-        return cls(
-            label=label or '{}:{}'.format(comp, objid),
-            url=cls.format_url(comp, objid, prefix=prefix))
+        """Create a CLDF Markdown link for an object in a component."""
+        return cls(label=label or f'{comp}:{objid}', url=cls.format_url(comp, objid, prefix=prefix))
 
     @property
     def is_cldf_link(self) -> bool:
@@ -110,25 +112,27 @@ class CLDFMarkdownLink(MarkdownLink):
         return bool(self.fragment_pattern.match(self.parsed_url.fragment))
 
     @property
-    def prefix(self) -> typing.Union[None, str]:
+    def prefix(self) -> Optional[str]:
         """
         The dataset prefix associated with a CLDF Markdown link.
         """
         if self.is_cldf_link:
             return self.fragment_pattern.match(self.parsed_url.fragment).group('prefix')
+        return None  # pragma: no cover
 
     @property
-    def table_or_fname(self) -> typing.Union[None, str]:
+    def table_or_fname(self) -> Optional[str]:
         """
         The last path component of the URL of a CLDF Markdown link.
         """
         if self.is_cldf_link:
             return self.parsed_url.path.split('/')[-1]
+        return None  # pragma: no cover
 
-    def component(self,
-                  cldf: typing.Optional[
-                      typing.Union[Dataset, typing.Dict[str, Dataset], DatasetMapping]] = None,
-                  ) -> typing.Union[str, None]:
+    def component(
+            self,
+            cldf: Optional[Union[Dataset, dict[str, Dataset], DatasetMapping]] = None,
+    ) -> Union[str, None]:
         """
         :param cldf: `pycldf.Dataset` instance to which the link refers.
         :return: Name of the CLDF component the link pertains to or `None`.
@@ -144,9 +148,9 @@ class CLDFMarkdownLink(MarkdownLink):
         if isinstance(cldf, (dict, DatasetMapping)):
             cldf = cldf[self.prefix]
 
-        if name == cldf.bibname or name == SOURCE_COMPONENT:
+        if name in (cldf.bibname, SOURCE_COMPONENT):
             return SOURCE_COMPONENT
-        if name == cldf.filename or name == METADATA_COMPONENT:
+        if name in (cldf.filename, METADATA_COMPONENT):
             return METADATA_COMPONENT
         try:
             return cldf.get_tabletype(cldf[name])
@@ -154,12 +158,13 @@ class CLDFMarkdownLink(MarkdownLink):
             return None
 
     @property
-    def objid(self) -> typing.Union[None, str]:
+    def objid(self) -> Optional[str]:
         """
         The identifier of the object referenced by a CLDF Markdown link.
         """
         if self.is_cldf_link:
             return self.parsed_url.fragment.split(':', maxsplit=1)[-1]
+        return None  # pragma: no cover
 
     @property
     def all(self) -> bool:
@@ -168,7 +173,7 @@ class CLDFMarkdownLink(MarkdownLink):
         """
         return self.objid == '__all__'
 
-    def get_row(self, cldf: typing.Union[Dataset, DatasetMapping]) -> dict:
+    def get_row(self, cldf: Union[Dataset, DatasetMapping]) -> dict:
         """
         Resolve the reference in a CLDF Markdown link to a row (`dict`) in the CLDF `Dataset`.
         """
@@ -176,7 +181,7 @@ class CLDFMarkdownLink(MarkdownLink):
         ds = DatasetMapping(cldf)[self.prefix]
         return ds.get_row(self.component(cldf=ds), self.objid)
 
-    def get_object(self, cldf: typing.Union[Dataset, DatasetMapping]) -> orm.Object:
+    def get_object(self, cldf: Union[Dataset, DatasetMapping]) -> orm.Object:
         """
         Resolve the reference in a CLDF Markdown link to an ORM object in the CLDF `Dataset`.
         """
@@ -214,9 +219,9 @@ class CLDFMarkdownText:
     :cvar metadata_component: Name of the special "Metadata" component.
     """
     def __init__(self,
-                 text: typing.Union[pathlib.Path, str],
-                 dataset_mapping: typing.Optional[typing.Union[str, Dataset, dict]] = None,
-                 download_dir: typing.Optional[pathlib.Path] = None):
+                 text: Union[pathlib.Path, str],
+                 dataset_mapping: Optional[Union[str, Dataset, dict]] = None,
+                 download_dir: Optional[pathlib.Path] = None):
         """
         :param text: CLDF Markdown text either to be read from a path or specified as `str`.
         :param dataset_mapping: Mapping of dataset prefixes to `Dataset` instances. May override \
@@ -224,14 +229,14 @@ class CLDFMarkdownText:
         :download_dir: Optional path to a directory to download data for remote datasets.
         """
         p = frontmatter.loads(text) if isinstance(text, str) else frontmatter.load(str(text))
-        self.metadata = p.metadata
-        self.dataset_mapping = DatasetMapping(
+        self.metadata: dict[str, Any] = p.metadata
+        self.dataset_mapping: Mapping[Union[str, None], Dataset] = DatasetMapping(
             p.get(DATASETS_MAPPING),
             dataset_mapping,
             text.parent if isinstance(text, pathlib.Path) else None,
             download_dir,
         )
-        self.text = p.content
+        self.text: str = p.content
         self._datadict = collections.defaultdict(dict)
         for prefix, ds in self.dataset_mapping.items():
             self._datadict[prefix][SOURCE_COMPONENT] = {src.id: src for src in ds.sources}
@@ -242,9 +247,9 @@ class CLDFMarkdownText:
         """
         The markdown documents metadata formatted as YAML frontmatter.
         """
-        return '---\n{}---'.format(yaml.dump(self.metadata))
+        return f'---\n{yaml.dump(self.metadata)}---'
 
-    def get_object(self, ml: CLDFMarkdownLink) -> typing.Union[list, orm.Object, Source, dict]:
+    def get_object(self, ml: CLDFMarkdownLink) -> Union[list, orm.Object, Source, dict]:
         """
         Resolve the reference in a CLDF Markdown link to the matching object from a mapped dataset.
 
@@ -274,20 +279,23 @@ class CLDFMarkdownText:
         return list(self._datadict[ml.prefix][key].values()) if ml.all \
             else self._datadict[ml.prefix][key][ml.objid]
 
-    def _render_link(self, link):
+    def _render_link(self, link: CLDFMarkdownLink) -> Union[str, CLDFMarkdownLink]:
+        """Dispatches to custom rendering in case of CLDF links."""
         if link.is_cldf_link:
             return self.render_link(link)
         return link
 
-    def render_link(self, cldf_link: CLDFMarkdownLink) -> typing.Union[str, CLDFMarkdownLink]:
+    def render_link(self, cldf_link: CLDFMarkdownLink) -> Union[str, CLDFMarkdownLink]:
         """
         CLDF Markdown renderers must implement this method.
         """
         raise NotImplementedError()  # pragma: no cover
 
-    def render(self,
-               simple_link_detection: bool = True,
-               markdown_kw: typing.Optional[dict] = None) -> str:
+    def render(
+            self,
+            simple_link_detection: bool = True,
+            markdown_kw: Optional[dict[str, Any]] = None,
+    ) -> str:
         """
         A markdown string with CLDF Markdown links replaced.
         """
@@ -298,7 +306,7 @@ class CLDFMarkdownText:
                     category=UserWarning)
             kw = {}
         else:
-            kw = dict(simple=simple_link_detection, markdown_kw=markdown_kw)
+            kw = {'simple': simple_link_detection, 'markdown_kw': markdown_kw}
         return CLDFMarkdownLink.replace(self.text, self._render_link, **kw)
 
 
@@ -306,7 +314,7 @@ class FilenameToComponent(CLDFMarkdownText):
     """
     Renderer to replace filenames in CLDF Markdown links with CLDF component names.
     """
-    def render_link(self, cldf_link):
+    def render_link(self, cldf_link: CLDFMarkdownLink) -> CLDFMarkdownLink:
         """
         Rewrites to URL of CLDF Markdown links, using the component name as path component.
         """

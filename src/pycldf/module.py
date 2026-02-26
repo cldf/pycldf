@@ -1,4 +1,7 @@
-from typing import Union
+"""
+Functionality to manage modules, i.e. `Dataset` subclasses implementing particular CLDF modules.
+"""
+from typing import Union, Optional, Type
 
 import attr
 from csvw.metadata import TableGroup
@@ -38,11 +41,15 @@ class Module:
 _modules = []
 
 
-def get_module_impl(base_class, spec: Union[TableGroup, str]):
+def get_module_impl(base_class, spec: Union[TableGroup, str]) -> Optional[Type]:
+    """
+    Returns an implementation (aka Dataset subclass) for a particular CLDF module.
+    """
     implementations = {cls.__name__: cls for cls in base_class.__subclasses__()}
     for mod in get_modules():
         if mod.match(spec):
             return implementations[mod.id]
+    return None  # pragma: no cover
 
 
 def get_modules() -> list[Module]:

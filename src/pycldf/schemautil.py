@@ -1,3 +1,6 @@
+"""
+Functionality to create schema objects.
+"""
 from typing import Union
 
 from csvw.metadata import Column, Table
@@ -39,6 +42,7 @@ def make_column(spec: ColSpecType) -> Column:
 
 
 def make_table(spec: TableSpecType) -> Table:
+    """Create a `Table` instance from `spec`."""
     if isinstance(spec, str):
         return Table.fromvalue(jsonlib.load(pkg_path('components', f'{spec}{MD_SUFFIX}')))
     if isinstance(spec, dict):
