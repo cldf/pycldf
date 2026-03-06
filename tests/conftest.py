@@ -23,18 +23,16 @@ def csvw3():
 
 @pytest.fixture
 def urlopen(mocker, data, csvw3):
-    import requests_mock
+    from csvw.utils import GetResponse
 
-    def _urlopen(url):
+    def _urlopen(url, **_):
         return io.BytesIO(data.joinpath(urllib.parse.urlparse(url).path[1:]).read_bytes())
 
+    def csvw_request_get(url, **_):
+        return GetResponse(content=data.joinpath(urllib.parse.urlparse(url).path[1:]).read_bytes())
+
+    mocker.patch('csvw.utils.request_get', csvw_request_get)
     mocker.patch('pycldf.sources.urlopen', _urlopen)
-    if not csvw3:  # pragma: no cover
-        mocker.patch('csvw.metadata.urlopen', _urlopen)
-    else:
-        mock = requests_mock.Mocker()
-        mock.__enter__()
-        mock.get(requests_mock.ANY, content=lambda req, _: _urlopen(req.url).read())
 
 
 @pytest.fixture(scope='module')

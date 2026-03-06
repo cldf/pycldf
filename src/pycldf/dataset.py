@@ -13,14 +13,13 @@ from collections.abc import Generator, Iterable
 import urllib.parse
 import urllib.request
 
-import attr
 import csvw
 from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url, URITemplate
 from csvw import datatypes
 from csvw.dsv import iterrows
 from clldutils.path import walk
 
-from pycldf.module import get_module_impl
+from pycldf.module import get_module_impl, get_modules
 from pycldf.sources import Sources, Source
 from pycldf.util import (
     pkg_path, DictTuple, iter_uritemplates, MD_SUFFIX, GitRepository, copy_dataset)
@@ -32,6 +31,8 @@ from pycldf.terms import term_uri, Terms, TERMS, get_column_names, sniff
 from pycldf import validators as validation
 from pycldf.stats import get_table_stats
 from pycldf import orm
+
+assert get_modules  # For backwards compatibility with cldfbench.
 
 __all__ = [
     'Dataset', 'Generic', 'Wordlist', 'ParallelText', 'Dictionary', 'StructureDataset',
@@ -461,8 +462,10 @@ class Dataset:  # pylint: disable=too-many-public-methods
         """
         t = self.add_component({"url": url, "tableSchema": {"columns": []}}, *cols)
         if 'primaryKey' in kw:
-            t.tableSchema.primaryKey = attr.fields_dict(Schema)['primaryKey'].converter(
-                kw.pop('primaryKey'))
+            pk = kw.pop('primaryKey')
+            if pk is not None and not isinstance(pk, list):
+                pk = [pk]
+            t.tableSchema.primaryKey = pk
         if kw.get('description'):
             t.common_props['dc:description'] = kw.pop('description')
         t.common_props.update(kw)
