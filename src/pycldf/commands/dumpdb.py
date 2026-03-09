@@ -7,7 +7,7 @@ compatibility via the dataset metadata kept outside.
 from pycldf.cli_util import add_database, get_database, PathType
 
 
-def register(parser):
+def register(parser):  # pylint: disable=C0116
     add_database(parser)
     parser.add_argument(
         '--metadata-path',
@@ -16,7 +16,7 @@ def register(parser):
     )
 
 
-def run(args):
+def run(args):  # pylint: disable=C0116
     db = get_database(args)
-    mdpath = args.metadata_path or db.dataset.tablegroup._fname
-    args.log.info('dumped db to {0}'.format(db.to_cldf(mdpath.parent, mdname=mdpath.name)))
+    mdpath = args.metadata_path or db.dataset.tablegroup._fname  # pylint: disable=W0212
+    args.log.info('dumped db to %s', db.to_cldf(mdpath.parent, mdname=mdpath.name))

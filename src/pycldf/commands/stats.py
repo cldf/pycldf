@@ -8,7 +8,7 @@ from clldutils.clilib import Table, add_format
 from pycldf.cli_util import add_dataset, get_dataset
 
 
-def register(parser):
+def register(parser):  # pylint: disable=C0116
     add_dataset(parser)
     add_format(parser, default=None)
     parser.add_argument(
@@ -19,7 +19,7 @@ def register(parser):
     )
 
 
-def run(args):
+def run(args):  # pylint: disable=C0116
     ds = get_dataset(args)
     print(ds)
     with Table('key', 'value') as md:

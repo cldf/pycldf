@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 
 import csvw
-from csvw.metadata import TableGroup, Table, Column, Link, Schema, is_url, URITemplate
+from csvw.metadata import TableGroup, Table, Column, Link, is_url, URITemplate
 from csvw import datatypes
 from csvw.dsv import iterrows
 from clldutils.path import walk

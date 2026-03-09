@@ -7,7 +7,7 @@ from pycldf.markdown import metadata2markdown
 from pycldf.cli_util import add_dataset, get_dataset
 
 
-def register(parser):
+def register(parser):  # pylint: disable=C0116
     add_dataset(parser)
     parser.add_argument(
         '--rel-path',
@@ -19,7 +19,7 @@ def register(parser):
         default=None)
 
 
-def run(args):
+def run(args):  # pylint: disable=C0116
     ds = get_dataset(args)
     res = metadata2markdown(ds, args.dataset, rel_path=args.rel_path)
     if args.out:

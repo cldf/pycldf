@@ -9,7 +9,7 @@ from pycldf.cli_util import add_dataset, get_dataset
 from pycldf.media import MediaTable
 
 
-def register(parser):
+def register(parser):  # pylint: disable=C0116
     add_dataset(parser)
     parser.add_argument(
         '--use-form-id',
@@ -27,7 +27,7 @@ def register(parser):
         default=[])
 
 
-def run(args):
+def run(args):  # pylint: disable=C0116
     filters = []
     for s in args.filters:
         col, _, substring = s.partition('=')

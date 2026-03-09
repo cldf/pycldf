@@ -12,6 +12,10 @@ Releasing pycldf
   ```shell
   flake8 src
   ```
+- Make sure pylint passes with a score of 10:
+  ```shell
+  pylint src
+  ```
 
 - Make sure the docs render:
   ```shell

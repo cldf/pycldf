@@ -39,7 +39,7 @@ class DatasetMapping(Mapping):
     key_pattern = re.compile('[a-zA-Z0-9_]+')
 
     @staticmethod
-    def to_dict(o):
+    def to_dict(o):  # pylint: disable=C0116
         if isinstance(o, DatasetMapping):
             return o.m
         return {} if not o else ({None: o} if isinstance(o, (str, Dataset)) else o)
