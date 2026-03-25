@@ -2,6 +2,13 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+
+## [1.43.1] - 2026-03-25
+
+Pin dependencies `csvw` and `clldutils`, since these will get incompatible new major versions.
+This is the last release in the 1.* branch.
+
+
 ## [1.43.0] - 2025-08-04
 
 - Switch from `pybtex` to `simplepybtex`.
