@@ -54,7 +54,7 @@ def test_stats(tmp_path):
         main(['stats', str(tmp_path / 'new')])
 
 
-def est_check(data, glottolog_repos, concepticon_repos, caplog, tmp_path):
+def test_check(data, glottolog_repos, concepticon_repos, caplog, tmp_path):
     res = main(
             [
                 'check',

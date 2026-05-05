@@ -98,7 +98,7 @@ def test_examples(structuredataset_with_examples):
     assert v.parameter and v.language
     assert len(v.examples) == 2
     ex = v.examples['e1']
-    assert 'der inhalt' in ex.igt
+    assert ex.igt == 'der inhalt\nder\tin\thalt\ni\tdont\tknow\nno idea'
     assert ex.language != ex.metaLanguage
     assert v.code.name == 'Yes' and v.cldf.value == 'ja'
     assert isinstance(v.language.as_geojson_feature, dict)
@@ -114,7 +114,7 @@ def test_dictionary(dictionary):
     assert len(dictionary.get_object('EntryTable', '2').senses) == 2
 
 
-def est_catalogs(wordlist_with_cognates, glottolog_repos, concepticon_repos):
+def test_catalogs(wordlist_with_cognates, glottolog_repos, concepticon_repos):
     from pyglottolog import Glottolog
     from pyconcepticon import Concepticon
 

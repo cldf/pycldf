@@ -3,6 +3,12 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## unreleased
+
+- Remove dependency on `tabulate`.
+- Make sure compatible versions of catalog packages are required.
+
+
 ## [2.0.0] - 2026-05-05
 
 - Remove dependency on `attrs`.

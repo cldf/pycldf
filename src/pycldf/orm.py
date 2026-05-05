@@ -52,7 +52,6 @@ import functools
 import collections
 
 import csvw.metadata
-from tabulate import tabulate
 
 from pycldf.terms import TERMS, term_uri
 from pycldf.util import DictTuple
@@ -313,7 +312,7 @@ class Example(Object, _WithLanguageMixin):  # pylint: disable=C0115
     @property
     def igt(self) -> str:
         """The example in a plain text interlinear glossed representation."""
-        aligned = tabulate([self.cldf.gloss], self.cldf.analyzedWord, tablefmt='plain')
+        aligned = '\n'.join(['\t'.join(self.cldf.analyzedWord), '\t'.join(self.cldf.gloss)])
         return f'{self.cldf.primaryText}\n{aligned}\n{self.cldf.translatedText}'
 
     @property
