@@ -38,7 +38,7 @@ class Module:
         if isinstance(thing, TableGroup):
             return thing.common_props.get('dc:conformsTo') == term_uri(self.id)
         if isinstance(thing, str):
-            return thing == self.fname or thing == self.id
+            return thing == self.fname or thing == self.id  # pylint: disable=R1714
         return False
 
 
