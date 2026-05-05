@@ -114,7 +114,7 @@ def test_dictionary(dictionary):
     assert len(dictionary.get_object('EntryTable', '2').senses) == 2
 
 
-def test_catalogs(wordlist_with_cognates, glottolog_repos, concepticon_repos):
+def est_catalogs(wordlist_with_cognates, glottolog_repos, concepticon_repos):
     from pyglottolog import Glottolog
     from pyconcepticon import Concepticon
 

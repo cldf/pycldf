@@ -1,9 +1,9 @@
 """
 Functionality to manage modules, i.e. `Dataset` subclasses implementing particular CLDF modules.
 """
+import dataclasses
 from typing import Union, Optional, Type
 
-import attr
 from csvw.metadata import TableGroup
 
 from pycldf.terms import TERMS, term_uri
@@ -12,15 +12,19 @@ from pycldf.util import pkg_path, MD_SUFFIX
 __all__ = ['get_module_impl']
 
 
-@attr.s
+@dataclasses.dataclass
 class Module:
     """
     Class representing a CLDF Module.
 
     .. seealso:: https://github.com/cldf/cldf/blob/master/README.md#cldf-modules
     """
-    uri = attr.ib(validator=attr.validators.in_([t.uri for t in TERMS.classes.values()]))
-    fname = attr.ib()
+    uri: str
+    fname: str
+
+    def __post_init__(self):
+        if self.uri not in {t.uri for t in TERMS.classes.values()}:
+            raise ValueError(self.uri)  # pragma: no cover
 
     @property
     def id(self) -> str:

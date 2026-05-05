@@ -2,6 +2,14 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## unreleased
+
+- Remove dependency on `attrs`.
+
+Note: Until versions of `pyglottolog` and `pyconcepticon` are released, which are compatible with
+`clldutils` 4.x, catalog integration in `pycldf` is limited.
+
+
 ## [1.43.0] - 2025-08-04
 
 - Switch from `pybtex` to `simplepybtex`.

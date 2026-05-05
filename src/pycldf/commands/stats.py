@@ -22,9 +22,9 @@ def register(parser):  # pylint: disable=C0116
 def run(args):  # pylint: disable=C0116
     ds = get_dataset(args)
     print(ds)
-    with Table('key', 'value') as md:
+    with Table(args, 'key', 'value') as md:
         md.extend(ds.properties.items())
     print()
-    with Table('Path', 'Type', 'Rows') as t:
+    with Table(args, 'Path', 'Type', 'Rows') as t:
         for p, type_, r in ds.stats(args.exact):
             t.append([p, type_, r])

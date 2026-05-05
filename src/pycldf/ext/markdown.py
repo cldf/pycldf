@@ -9,10 +9,10 @@ import pathlib
 import warnings
 import collections
 from collections.abc import Mapping
+import dataclasses
 
 import yaml
 import jmespath
-import attr
 import frontmatter
 import clldutils
 from clldutils.markup import MarkdownLink
@@ -78,7 +78,7 @@ class DatasetMapping(Mapping):
         return len(self.m)
 
 
-@attr.s
+@dataclasses.dataclass
 class CLDFMarkdownLink(MarkdownLink):
     """
     CLDF Markdown links are specified using URLs of a particular format.

@@ -8,11 +8,10 @@ import pathlib
 import warnings
 import dataclasses
 import urllib.parse
-from typing import Optional, Union, Callable, Any, TYPE_CHECKING
+from typing import Optional, Union, Callable, Any, TYPE_CHECKING, Literal, get_args
 from collections.abc import Container
 from xml.etree import ElementTree
 
-import attr
 from csvw.metadata import Column
 from clldutils import jsonlib
 
@@ -29,6 +28,9 @@ RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 RDFS = 'http://www.w3.org/2000/01/rdf-schema#'
 CSVW = 'http://www.w3.org/ns/csvw#'
 DC = 'http://purl.org/dc/terms/'
+
+TermType = Literal['Class', 'Property']
+CardinalityType = Literal['singlevalued', 'multivalued']
 
 
 def qname(ns: str, lname: str) -> str:
@@ -67,18 +69,23 @@ def _get(
     return res
 
 
-@attr.s
+@dataclasses.dataclass
 class Term:
     """A Term is an object described in the CLDF Ontology."""
-    name: str = attr.ib()
-    type: str = attr.ib(validator=attr.validators.in_(['Class', 'Property']))
-    element: ElementTree.Element = attr.ib()
-    references = attr.ib(default=None)
-    subtype = attr.ib(default=None)
-    version = attr.ib(default=None, validator=attr.validators.matches_re(r'v[0-9]+(\.[0-9]+)+'))
-    cardinality = attr.ib(
-        default=None,
-        validator=attr.validators.optional(attr.validators.in_(['singlevalued', 'multivalued'])))
+    name: str
+    type: TermType
+    element: ElementTree.Element
+    references: Optional[str] = None
+    subtype: Optional[str] = None
+    version: Optional[str] = None
+    cardinality: Optional[CardinalityType] = None
+
+    def __post_init__(self):
+        assert self.type in get_args(TermType)
+        if self.version:
+            assert re.fullmatch(r'v[0-9]+(\.[0-9]+)+', self.version)
+        if self.cardinality:
+            assert self.cardinality in get_args(CardinalityType)
 
     @property
     def uri(self) -> str:
