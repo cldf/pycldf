@@ -2,12 +2,19 @@
 
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+
 ## unreleased
 
 - Remove dependency on `attrs`.
 
 Note: Until versions of `pyglottolog` and `pyconcepticon` are released, which are compatible with
 `clldutils` 4.x, catalog integration in `pycldf` is limited.
+
+
+## [1.43.1] - 2026-03-25
+
+Pin dependencies `csvw` and `clldutils`, since these will get incompatible new major versions.
+This is the last release in the 1.* branch.
 
 
 ## [1.43.0] - 2025-08-04
