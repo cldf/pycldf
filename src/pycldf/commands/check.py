@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover
     Catalog, Glottolog, Concepticon = None, None, None
 
 
-def register(parser):
+def register(parser):  # pylint: disable=C0116
     add_dataset(parser)
     add_catalog_spec(parser, 'glottolog')
     add_catalog_spec(parser, 'concepticon')
@@ -32,7 +32,7 @@ def register(parser):
     )
 
 
-def run(args):
+def run(args):  # pylint: disable=C0116
     if not Catalog:  # pragma: no cover
         print('\nThis command only works with catalogs installed.\n'
               'Run "pip install pycldf[catalogs]" to do so.\n')
@@ -53,31 +53,37 @@ def run(args):
             stack.enter_context(Catalog(args.concepticon, tag=args.concepticon_version))
 
         for table, checkers in COLUMN_CHECKERS.items():
-            table = ds.get(table)
-            if table:
-                idcol = ds.get((table, 'id'))
-                active_checkers = {}
-                for col, checker in checkers.items():
-                    col = ds.get((table, col))
-                    if col:
-                        # Register an initialized check:
-                        active_checkers[col.name] = checker(args)
-                if active_checkers:
-                    for row in table:
-                        rowid = row[idcol.name] if idcol else str(row)
-                        for colname, check in active_checkers.items():
-                            check(row[colname], rowid, warn)
+            _check_table(ds, table, checkers, args, warn)
 
         for table in ds.tables:
             for _ in table:
                 break
             else:
-                warn('Empty table {0}'.format(table.url))
+                warn(f'Empty table {table.url}')
 
     return 2 if warnings else 0
 
 
-class Check:
+def _check_table(ds, table, checkers, args, warn):
+    table = ds.get(table)
+    if not table:
+        return
+    idcol = ds.get((table, 'id'))
+    active_checkers = {}
+    for col, checker in checkers.items():
+        col = ds.get((table, col))
+        if col:
+            # Register an initialized check:
+            active_checkers[col.name] = checker(args)
+    if active_checkers:
+        for row in table:
+            rowid = row[idcol.name] if idcol else str(row)
+            for colname, check in active_checkers.items():
+                check(row[colname], rowid, warn)
+
+
+class Check:  # pylint: disable=R0903
+    """A base class for checks. Initialize with __init__ then run __call__ on each row."""
     def __init__(self, args):
         self.args = args
 
@@ -85,7 +91,7 @@ class Check:
         raise NotImplementedError()  # pragma: no cover
 
 
-class Macroarea(Check):
+class Macroarea(Check):  # pylint: disable=R0903
     """Is the macroarea valid according to Glottolog? (requires "--glottolog")"""
     def __init__(self, args):
         super().__init__(args)
@@ -96,10 +102,10 @@ class Macroarea(Check):
 
     def __call__(self, ma, rowid, warn):
         if self.macroareas and ma and (ma not in self.macroareas):
-            warn('Language {0} assigned to invalid macroarea {1}'.format(rowid, ma))
+            warn(f'Language {rowid} assigned to invalid macroarea {ma}')
 
 
-class Glottocode(Check):
+class Glottocode(Check):  # pylint: disable=R0903
     """Is the Glottocode valid - is it in Bookkeeping? (requires "--glottolog")"""
     def __init__(self, args):
         super().__init__(args)
@@ -116,12 +122,12 @@ class Glottocode(Check):
     def __call__(self, gc, rowid, warn):
         if self.gcs and gc:
             if gc in self.bookkeeping:
-                warn('Language {0} mapped to Bookkeeping languoid {1}'.format(rowid, gc))
+                warn(f'Language {rowid} mapped to Bookkeeping languoid {gc}')
             if gc not in self.gcs:
-                warn('Language {0} mapped to invalid Glottocode {1}'.format(rowid, gc))
+                warn(f'Language {rowid} mapped to invalid Glottocode {gc}')
 
 
-class ISOCode(Check):
+class ISOCode(Check):  # pylint: disable=R0903
     """Is the ISO code valid? (requires "--iso-codes")"""
     def __init__(self, args):
         super().__init__(args)
@@ -139,24 +145,24 @@ class ISOCode(Check):
 
     def __call__(self, iso, rowid, warn):
         if self.iso_codes and iso and (iso not in self.iso_codes):
-            warn('Language {0} mapped to invalid ISO 639-3 code {1}'.format(rowid, iso))
+            warn(f'Language {rowid} mapped to invalid ISO 639-3 code {iso}')
 
 
-class Latitude(Check):
+class Latitude(Check):  # pylint: disable=R0903
     """Is the latitude between -90 and 90?"""
     def __call__(self, lat, rowid, warn):
-        if lat and not (-90 <= lat <= 90):
-            warn('Language {0} has invalid latitude {1}'.format(rowid, lat))
+        if lat and not -90 <= lat <= 90:
+            warn(f'Language {rowid} has invalid latitude {lat}')
 
 
-class Longitude(Check):
+class Longitude(Check):  # pylint: disable=R0903
     """Is the longitude between -180 and 180?"""
-    def __call__(self, lat, rowid, warn):
-        if lat and not (-180 <= lat <= 180):
-            warn('Language {0} has invalid longitude {1}'.format(rowid, lat))
+    def __call__(self, lon, rowid, warn):
+        if lon and not -180 <= lon <= 180:
+            warn(f'Language {rowid} has invalid longitude {lon}')
 
 
-class ConcepticonID(Check):
+class ConcepticonID(Check):  # pylint: disable=R0903
     """Is the concept set ID valid? (requires "--concepticon")"""
     def __init__(self, args):
         super().__init__(args)
@@ -168,7 +174,7 @@ class ConcepticonID(Check):
 
     def __call__(self, cid, rowid, warn):
         if self.ids and cid and (cid not in self.ids):
-            warn('Parameter {0} mapped to invalid conceptset ID {1}'.format(rowid, cid))
+            warn(f'Parameter {rowid} mapped to invalid conceptset ID {cid}')
 
 
 COLUMN_CHECKERS = {
@@ -184,6 +190,6 @@ COLUMN_CHECKERS = {
     }
 }
 for t, checks in COLUMN_CHECKERS.items():
-    __doc__ += '\n- {0}\n'.format(t)
+    __doc__ += f'\n- {t}\n'
     for c, cls in checks.items():
-        __doc__ += '  - {0}: {1}\n'.format(c, cls.__doc__.strip() or '')
+        __doc__ += f'  - {c}: {cls.__doc__.strip()}\n'

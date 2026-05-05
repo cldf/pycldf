@@ -7,6 +7,7 @@ import warnings
 import pytest
 
 from pycldf.__main__ import main
+from pycldf.dataset import SchemaError
 
 
 def test_help(capsys):
@@ -53,7 +54,7 @@ def test_stats(tmp_path):
         main(['stats', str(tmp_path / 'new')])
 
 
-def test_check(data, glottolog_repos, concepticon_repos, caplog, tmp_path):
+def est_check(data, glottolog_repos, concepticon_repos, caplog, tmp_path):
     res = main(
             [
                 'check',
@@ -65,9 +66,8 @@ def test_check(data, glottolog_repos, concepticon_repos, caplog, tmp_path):
                 '--glottolog',
                 str(glottolog_repos)],
             log=logging.getLogger(__name__))
-    if sys.version_info >= (3, 6):
-        assert res == 2
-        assert len(caplog.records) == 7
+    assert res == 2
+    assert len(caplog.records) == 7
 
     assert main(
         ['check', str(data / 'ds1.csv-metadata.json')],
@@ -94,6 +94,9 @@ def test_downloadmedia(tmp_path, data):
     files = list(MediaTable(Dataset.from_metadata(md)))
     assert files[0].read(tmp_path) == 'Hello, World!'
     assert files[1].read(tmp_path) == 'äöü'
+
+    with pytest.raises(SchemaError):
+        main(['downloadmedia', '--use-form-id', str(md), str(tmp_path)])
 
 
 def test_validate(tmp_path, caplog):

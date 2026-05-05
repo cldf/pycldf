@@ -9,7 +9,7 @@ from pycldf.cli_util import add_dataset, get_dataset
 from pycldf.media import MediaTable
 
 
-def register(parser):
+def register(parser):  # pylint: disable=C0116
     add_dataset(parser)
     parser.add_argument(
         '--use-form-id',
@@ -27,11 +27,15 @@ def register(parser):
         default=[])
 
 
-def run(args):
+def run(args):  # pylint: disable=C0116
     filters = []
     for s in args.filters:
         col, _, substring = s.partition('=')
         filters.append((col, substring))
-    for item in MediaTable(get_dataset(args), args.use_form_id):
+    media_table = MediaTable(get_dataset(args))
+    if args.use_form_id:
+        media_table.filename_col = media_table.ds[
+            media_table.component, 'http://cldf.clld.org/v1.0/terms.rdf#formReference']
+    for item in media_table:
         if all(substring in item[col] for col, substring in filters):
             item.save(args.output)

@@ -12,7 +12,8 @@ from csvw.metadata import TableGroup, ForeignKey, URITemplate, Column, Table, Li
 from pycldf.terms import term_uri, TERMS
 from pycldf.dataset import (
     Generic, Wordlist, StructureDataset, Dictionary, ParallelText, Dataset, TextCorpus,
-    GitRepository, make_column, get_modules, iter_datasets, SchemaError)
+    GitRepository, make_column, iter_datasets, SchemaError)
+from pycldf.module import get_modules
 from pycldf.sources import Sources
 from pycldf.media import MediaTable
 
@@ -842,14 +843,14 @@ def test_validators(tmp_path, data, caplog):
 
     log = logging.getLogger(__name__)
     ds.validate(log=log)
-    assert len(caplog.records) == 2
+    assert len(caplog.records) == 3
 
     for col in ds.tablegroup.tables[0].tableSchema.columns:
         if col.name == 'Language_ID':
             col.propertyUrl.uri = 'http://cldf.clld.org/v1.0/terms.rdf#glottocode'
 
     ds.validate(log=log)
-    assert len(caplog.records) == 6
+    assert len(caplog.records) == 8
 
 
 def test_get_modules():

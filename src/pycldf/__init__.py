@@ -1,3 +1,8 @@
+"""
+The `pycldf` package provides the reference implementation for the CLDF standard.
+
+https://cldf.cldf.org
+"""
 from pycldf.dataset import *
 from pycldf.db import *
 from pycldf.sources import *

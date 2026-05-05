@@ -39,20 +39,24 @@ while a list-valued foreign key to a custom table may result in something like t
     FOREIGN KEY(`custom.csv_id`) REFERENCES `custom.csv`(`id`) ON DELETE CASCADE
   );
 """
-import typing
+from typing import Optional, Any, Callable, Protocol, TYPE_CHECKING
 import inspect
 import pathlib
 import sqlite3
 import functools
 import collections
+import dataclasses
 
-import attr
 import csvw
 import csvw.db
+from csvw.db import ColSpec, TableSpec
+from csvw.metadata import Table as CSVWTable
 
 from pycldf.terms import TERMS
 from pycldf.sources import Reference, Sources, Source
-from pycldf import Dataset
+
+if TYPE_CHECKING:
+    from pycldf import Dataset  # pragma: no cover
 
 __all__ = ['Database', 'query']
 
@@ -87,16 +91,19 @@ BIBTEX_FIELDS = [
 ]
 
 
-@attr.s
-class TableTranslation(object):
+@dataclasses.dataclass
+class TableTranslation:
     """
     Specifies column name translations for a table.
     """
-    name = attr.ib(default=None)
-    columns = attr.ib(default=attr.Factory(dict))
+    name: str = None
+    columns: dict[str, str] = dataclasses.field(default_factory=dict)
 
 
-def translate(d: typing.Dict[str, TableTranslation], table: str, col=None) -> str:
+TranslationDict = dict[str, TableTranslation]
+
+
+def translate(d: TranslationDict, table: str, col: str = None) -> str:
     """
     Translate a db object name.
 
@@ -124,7 +131,7 @@ def translate(d: typing.Dict[str, TableTranslation], table: str, col=None) -> st
     # 2. Since regular table names may contain underscores as well, we try to find the longest
     # concatenation of _-separated name parts which appears in the translation dict.
     # 3. We repeat step 2 until all name parts have been consumed.
-    def t(n):
+    def t_(n):
         if n in d:
             return d[n].name or n
         tables, comps = [], n.split('_')
@@ -142,10 +149,10 @@ def translate(d: typing.Dict[str, TableTranslation], table: str, col=None) -> st
             tables.append(d[comps[0]].name or comps[0] if comps[0] in d else comps[0])
         return '_'.join(tables)
 
-    return t(table)
+    return t_(table)
 
 
-def clean_bibtex_key(s):
+def clean_bibtex_key(s: str) -> str:  # pylint: disable=C0116
     return s.replace('-', '_').lower()
 
 
@@ -158,23 +165,74 @@ class Database(csvw.db.Database):
     """
     source_table_name = 'SourceTable'
 
-    def __init__(self, dataset: Dataset, **kw):
+    def __init__(self, dataset: 'Dataset', **kw):
         """
         :param dataset: The :class:`Dataset` instance from which to derive the database schema.
         """
-        self.dataset = dataset
+        self.dataset: 'Dataset' = dataset
         self._retranslate = collections.defaultdict(dict)
         self._source_cols = ['id', 'genre'] + BIBTEX_FIELDS
         # Source items can be referenced with case insensitive keys. So we store a mapping from
         # lowercase keys to the ones actually used in the source BibTeX.
         self._source_map = {}
 
-        infer_primary_keys = kw.pop('infer_primary_keys', False)
-
         # We create a derived TableGroup, adding a table for the sources.
         tg = csvw.TableGroup.fromvalue(dataset.metadata_dict)
 
         # Assemble the translation function:
+        translations: TranslationDict = self._get_translations(dataset)
+
+        # Add source table:
+        for src in self.dataset.sources:
+            for key in src:
+                key = clean_bibtex_key(key)
+                if key not in self._source_cols:
+                    self._source_cols.append(key)
+
+        tg.tables.append(csvw.Table.fromvalue({
+            'url': self.source_table_name,
+            'tableSchema': {'columns': [{'name': n} for n in self._source_cols], 'primaryKey': 'id'}
+        }))
+        tg.tables[-1]._parent = tg
+
+        # Add foreign keys to source table:
+        infer_primary_keys = kw.pop('infer_primary_keys', False)
+        for table in tg.tables[:-1]:
+            self._add_fk_to_sources(table, infer_primary_keys, translations)
+
+        # Make sure `base` directory can be resolved:
+        tg._fname = dataset.tablegroup._fname
+        csvw.db.Database.__init__(
+            self, tg, translate=functools.partial(translate, translations), **kw)
+
+    def _add_fk_to_sources(
+            self,
+            table: CSVWTable,
+            infer_primary_keys: bool,
+            translations: TranslationDict,
+    ):
+        if not table.tableSchema.primaryKey and infer_primary_keys:
+            for col in table.tableSchema.columns:
+                if col.name.lower() in PRIMARY_KEY_NAMES:
+                    table.tableSchema.primaryKey = [col.name]
+                    break
+        for col in table.tableSchema.columns:
+            if col.propertyUrl and col.propertyUrl.uri == TERMS['source'].uri:
+                table.tableSchema.foreignKeys.append(csvw.ForeignKey.fromdict({
+                    'columnReference': [col.header],
+                    'reference': {'resource': self.source_table_name, 'columnReference': 'id'}
+                }))
+                if translations[table.local_name].name:
+                    tl = translations[table.local_name]
+                    translations[f'{table.local_name}_{self.source_table_name}'] = \
+                        TableTranslation(
+                            name=f'{tl.name}_{self.source_table_name}',
+                            columns={
+                                f'{table.local_name}_{table.tableSchema.primaryKey[0]}':
+                                f'{tl.name}_{tl.columns[table.tableSchema.primaryKey[0]]}'})
+                break
+
+    def _get_translations(self, dataset: 'Dataset') -> TranslationDict:
         translations = {}
         for table in dataset.tables:
             translations[table.local_name] = TableTranslation()
@@ -191,7 +249,7 @@ class Database(csvw.db.Database):
                 if col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri:
                     # Translate local column names to local names of CLDF Ontology terms, prefixed
                     # with `cldf_`:
-                    col_name = 'cldf_{0.name}'.format(TERMS.by_uri[col.propertyUrl.uri])
+                    col_name = f'cldf_{TERMS.by_uri[col.propertyUrl.uri].name}'
                     new_col_names.append(col_name.lower())
                     translations[table.local_name].columns[col.header] = col_name
                     self._retranslate[table.local_name][col_name] = col.header
@@ -200,60 +258,12 @@ class Database(csvw.db.Database):
                 if not (col.propertyUrl and col.propertyUrl.uri in TERMS.by_uri):
                     if col.header.lower() in new_col_names:
                         # A name clash! We translate the old column name!
-                        col_name = '_{}'.format(col.header)
+                        col_name = f'_{col.header}'
                         translations[table.local_name].columns[col.header] = col_name
                         self._retranslate[table.local_name][col_name] = col.header
+        return translations
 
-        # Add source table:
-        for src in self.dataset.sources:
-            for key in src:
-                key = clean_bibtex_key(key)
-                if key not in self._source_cols:
-                    self._source_cols.append(key)
-
-        tg.tables.append(csvw.Table.fromvalue({
-            'url': self.source_table_name,
-            'tableSchema': {
-                'columns': [dict(name=n) for n in self._source_cols],
-                'primaryKey': 'id'
-            }
-        }))
-        tg.tables[-1]._parent = tg
-
-        # Add foreign keys to source table:
-        for table in tg.tables[:-1]:
-            if not table.tableSchema.primaryKey and infer_primary_keys:
-                for col in table.tableSchema.columns:
-                    if col.name.lower() in PRIMARY_KEY_NAMES:
-                        table.tableSchema.primaryKey = [col.name]
-                        break
-            for col in table.tableSchema.columns:
-                if col.propertyUrl and col.propertyUrl.uri == TERMS['source'].uri:
-                    table.tableSchema.foreignKeys.append(csvw.ForeignKey.fromdict({
-                        'columnReference': [col.header],
-                        'reference': {
-                            'resource': self.source_table_name,
-                            'columnReference': 'id'
-                        }
-                    }))
-                    if translations[table.local_name].name:
-                        tl = translations[table.local_name]
-                        translations['{0}_{1}'.format(table.local_name, self.source_table_name)] = \
-                            TableTranslation(
-                                name='{0}_{1}'.format(tl.name, self.source_table_name),
-                                columns={'{0}_{1}'.format(
-                                    table.local_name, table.tableSchema.primaryKey[0],
-                                ): '{0}_{1}'.format(
-                                    tl.name, tl.columns[table.tableSchema.primaryKey[0]],
-                                )})
-                    break
-
-        # Make sure `base` directory can be resolved:
-        tg._fname = dataset.tablegroup._fname
-        csvw.db.Database.__init__(
-            self, tg, translate=functools.partial(translate, translations), **kw)
-
-    def association_table_context(self, table, column, fkey):
+    def association_table_context(self, table: TableSpec, column: ColSpec, fkey: str):
         if self.translate(table.name, column) == 'cldf_source':
             # We decompose references into the source ID and optional pages. Pages are stored as
             # `context` of the association table and composed again in `select_many_to_many`.
@@ -275,13 +285,13 @@ class Database(csvw.db.Database):
         return csvw.db.Database.association_table_context(
             self, table, column, fkey)  # pragma: no cover
 
-    def select_many_to_many(self, db, table, context):
+    def select_many_to_many(self, db, table: TableSpec, context):
         if table.name.endswith('_' + self.source_table_name):
             atable = table.name.partition('_' + self.source_table_name)[0]
             if self.translate(atable, context) == 'cldf_source':
                 # Compose references:
                 res = csvw.db.Database.select_many_to_many(self, db, table, None)
-                return {k: ['{0}'.format(Reference(*vv)) for vv in v] for k, v in res.items()}
+                return {k: [f'{Reference(*vv)}' for vv in v] for k, v in res.items()}
         return csvw.db.Database.select_many_to_many(self, db, table, context)  # pragma: no cover
 
     def write(self, _force=False, _exists_ok=False, **items):
@@ -293,7 +303,8 @@ class Database(csvw.db.Database):
         return csvw.db.Database.write(
             self, _force=False, _exists_ok=False, _skip_extra=True, **items)
 
-    def write_from_tg(self, _force: bool = False, _exists_ok: bool = False):
+    def write_from_tg(  # pylint: disable=W0221
+            self, _force: bool = False, _exists_ok: bool = False):
         """
         Write the data from `self.dataset` to the database.
         """
@@ -309,7 +320,7 @@ class Database(csvw.db.Database):
             self._source_map[src.id.lower()] = src.id
         return self.write(_force=_force, _exists_ok=_exists_ok, **items)
 
-    def query(self, sql: str, params=None) -> list:
+    def query(self, sql: str, params=None) -> list[Any]:
         """
         Run `sql` on the database, returning the list of results.
         """
@@ -317,7 +328,7 @@ class Database(csvw.db.Database):
             cu = conn.execute(sql, params or ())
             return list(cu.fetchall())
 
-    def retranslate(self, table, item):
+    def retranslate(self, table: CSVWTable, item):  # pylint: disable=C0116
         return {self._retranslate.get(table.local_name, {}).get(k, k): v for k, v in item.items()}
 
     @staticmethod
@@ -373,21 +384,22 @@ class Database(csvw.db.Database):
         return self.dataset.write_metadata(dest / mdname)
 
 
-class AggregateClass(typing.Protocol):  # pragma: no cover
-    def step(self, value):
+class AggregateClass(Protocol):  # pragma: no cover   # pylint: disable=C0115
+    def step(self, value):  # pylint: disable=C0116
         ...
 
-    def finalize(self):
+    def finalize(self):  # pylint: disable=C0116
         ...
 
 
-def query(conn: sqlite3.Connection,
-          sql: str,
-          params=None,
-          functions: typing.Optional[typing.List[typing.Callable]] = None,
-          aggregates: typing.Optional[typing.List[AggregateClass]] = None,
-          collations: typing.Optional[typing.List[typing.Callable]] = None) \
-        -> typing.Generator[typing.Any, None, None]:
+def query(  # pylint: disable=R0913,R0917
+        conn: sqlite3.Connection,
+        sql: str,
+        params=None,
+        functions: Optional[list[Callable]] = None,
+        aggregates: Optional[list[AggregateClass]] = None,
+        collations: Optional[list[Callable]] = None,
+) -> list[Any]:
     """
     Note: Passing lambdas or functools.partial objects as function requires passing an explicit name
     as well.

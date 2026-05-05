@@ -1,12 +1,16 @@
+"""
+Functionality to handle BibTeX source data of Datasets.
+"""
 import re
 import types
-import typing
+from typing import Optional, Union, Literal
 import pathlib
 import zipfile
 import tempfile
 import collections
 from urllib.error import HTTPError
 from urllib.request import urlopen, urlretrieve
+from collections.abc import Generator, Iterable, KeysView
 
 from csvw.metadata import is_url
 from simplepybtex import database
@@ -14,7 +18,8 @@ from simplepybtex.database.output.bibtex import Writer as BaseWriter
 from clldutils.source import Source as BaseSource
 from clldutils.source import ID_PATTERN
 
-from pycldf.util import update_url
+from pycldf.urlutil import update_url
+from pycldf.fileutil import PathType
 
 __all__ = ['Source', 'Sources', 'Reference']
 
@@ -22,13 +27,14 @@ GLOTTOLOG_ID_PATTERN = re.compile('^[1-9][0-9]*$')
 
 
 class Writer(BaseWriter):
+    """We overwrite pybtex's writer to ensure data is wrapped in curly braces."""
     def quote(self, s):
         self.check_braces(s)
         return '{%s}' % s
 
     def _encode(self, text):
         #
-        # FIXME: We overwrite a private method here!
+        # FIXME: We overwrite a private method here!  pylint: disable=fixme
         #
         return text
 
@@ -38,7 +44,8 @@ class Source(BaseSource):
     A bibliograhical record, specifying a source for some data in a CLDF dataset.
     """
     @property
-    def entry(self):
+    def entry(self) -> database.Entry:
+        """Converts Source to a pybtex Entry."""
         persons = collections.OrderedDict([
             ('author', list(self.persons(self.get('author', '')))),
             ('editor', list(self.persons(self.get('editor', '')))),
@@ -53,10 +60,10 @@ class Source(BaseSource):
         return self.text()
 
     def __repr__(self):
-        return '<%s %s>' % (self.__class__.__name__, self.id)
+        return f'<{self.__class__.__name__} {self.id}>'
 
     @classmethod
-    def from_entry(cls, key, entry, **_kw):
+    def from_entry(cls, key: str, entry: database.Entry, **_kw):
         """
         Create a `cls` instance from a `simplepybtex` entry object.
 
@@ -65,15 +72,16 @@ class Source(BaseSource):
         :param _kw: Non-bib-metadata keywords to be passed for `cls` instantiation
         :return: `cls` instance
         """
-        _kw.update({k: v for k, v in entry.fields.items()})
+        _kw.update(entry.fields.items())
         _kw.setdefault('_check_id', False)
         for role in entry.persons:
             if entry.persons[role]:
-                _kw[role] = ' and '.join('%s' % p for p in entry.persons[role])
+                _kw[role] = ' and '.join(f'{p}' for p in entry.persons[role])
         return cls(entry.type, key, **_kw)
 
     @staticmethod
-    def persons(s):
+    def persons(s: str) -> Generator[database.Person, None, None]:
+        """Yields persons encoded in an author names string."""
         for name in re.split(r'\s+&\s+|\s+and\s+', s.strip()):
             if name:
                 parts = name.split(',')
@@ -83,26 +91,31 @@ class Source(BaseSource):
                 else:
                     yield database.Person(name)
 
-    def refkey(self, year_brackets='round'):
-        brackets = {None: ('', ''), 'round': ('(', ')'), 'square': ('[', ']'), 'curly': ('{', '}')}
+    def refkey(self, year_brackets: Union[None, Literal["round", "square", "curly"]] = 'round'):
+        """Compute an author-year type reference key for the item."""
+        brackets = {
+            None: ('', ''),
+            'round': ('(', ')'),
+            'square': ('[', ']'),
+            'curly': ('{', '}')}.get(year_brackets)
         persons = self.entry.persons.get('author') or self.entry.persons.get('editor', [])
-        s = ' '.join(persons[0].prelast_names + persons[0].last_names) if persons else 'n.a.'
+        names = ' '.join(persons[0].prelast_names + persons[0].last_names) if persons else 'n.a.'
         if len(persons) == 2:
-            s += ' and {}'.format(' '.join(persons[1].last_names))
+            names += f" and {' '.join(persons[1].last_names)}"
         elif len(persons) > 2:
-            s += ' et al.'
-        return s.replace('{', '').replace('}', '') + ' {}{}{}'.format(
-            brackets[year_brackets][0], self.get('year', 'n.d.'), brackets[year_brackets][1])
+            names += ' et al.'
+        names = names.replace('{', '').replace('}', '')
+        return f"{names} {brackets[0]}{self.get('year', 'n.d.')}{brackets[1]}"
 
 
-class Reference(object):
+class Reference:
     """
     A reference connects a piece of data with a `Source`, typically adding some citation context \
     often page numbers, or similar.
     """
-    def __init__(self, source: Source, desc: typing.Union[str, None]):
+    def __init__(self, source: Source, desc: Optional[str]):
         if desc and ('[' in desc or ']' in desc or ';' in desc):
-            raise ValueError('invalid ref description: %s' % desc)
+            raise ValueError(f'invalid ref description: {desc}')
         self.source = source
         self.fields = types.SimpleNamespace(**self.source) if isinstance(self.source, dict) else {}
         self.description = desc
@@ -115,14 +128,14 @@ class Reference(object):
         """
         res = self.source.id if hasattr(self.source, 'id') else self.source
         if self.description:
-            res += '[%s]' % self.description
+            res += f'[{self.description}]'
         return res
 
     def __repr__(self):
-        return '<%s %s>' % (self.__class__.__name__, self)
+        return f'<{self.__class__.__name__} {self}>'
 
 
-class Sources(object):
+class Sources:
     """
     A `dict` like container for all sources linked to data in a CLDF dataset.
     """
@@ -130,16 +143,17 @@ class Sources(object):
         self._bibdata = database.BibliographyData()
 
     @classmethod
-    def from_file(cls, fname):
+    def from_file(cls, fname: PathType) -> 'Sources':
+        """Instantiate an instance from the data in a BibTeX file."""
         zipped = False
         res = cls()
-        if not is_url(fname):
+        if not is_url(str(fname)):
             fname = pathlib.Path(fname)
             if not fname.exists():
-                fname = fname.parent / '{}.zip'.format(fname.name)
+                fname = fname.parent / f'{fname.name}.zip'
                 zipped = True
             if fname.exists():
-                assert fname.is_file(), 'Bibfile {} must be a file!'.format(fname)
+                assert fname.is_file(), f'Bibfile {fname} must be a file!'
                 res.read(fname, zipped=zipped)
         else:
             res.read(fname)
@@ -150,34 +164,34 @@ class Sources(object):
 
     __nonzero__ = __bool__
 
-    def keys(self):
+    def keys(self) -> KeysView[str]:  # pylint: disable=C0116
         return self._bibdata.entries.keys()
 
-    def items(self):
+    def items(self) -> Generator[Source, None, None]:  # pylint: disable=C0116
         for key, entry in self._bibdata.entries.items():
             yield Source.from_entry(key, entry)
 
     def __iter__(self):
         return self.items()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._bibdata.entries)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Optional[Source]:
         try:
             return Source.from_entry(item, self._bibdata.entries[item])
-        except KeyError:
-            raise ValueError('missing citekey: %s' % item)
+        except KeyError as e:
+            raise ValueError(f'missing citekey: {item}') from e
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         return item in self._bibdata.entries
 
     @staticmethod
-    def format_refs(*refs):
-        return ['%s' % ref for ref in refs]
+    def format_refs(*refs) -> list[str]:  # pylint: disable=C0116
+        return [f'{ref}' for ref in refs]
 
     @staticmethod
-    def parse(ref: str) -> typing.Tuple[str, str]:
+    def parse(ref: str) -> tuple[str, str]:
         """
         Parse the string representation of a reference into source ID and context.
 
@@ -191,14 +205,15 @@ class Sources(object):
             pages = pages[:-1].strip()
         return sid, pages
 
-    def validate(self, refs):
+    def validate(self, refs: Union[str, list[str]]) -> None:
+        """Make sure refs are valid. If not, raises Exceptions."""
         if not isinstance(refs, str) and any(r is None for r in refs):
             raise ValueError('empty reference in ref list (possibly caused by trailing separator)')
         for sid, _ in map(self.parse, [refs] if isinstance(refs, str) else refs):
             if sid not in self.keys():
-                raise ValueError('missing source key: {0}'.format(sid))
+                raise ValueError(f'missing source key: {sid}')
 
-    def expand_refs(self, refs: typing.Iterable[str], **kw) -> typing.Iterable[Reference]:
+    def expand_refs(self, refs: Iterable[str], **kw) -> Iterable[Reference]:
         """
         Turn a list of string references into proper :class:`Reference` instances, looking up \
         sources in `self`.
@@ -217,7 +232,7 @@ class Sources(object):
                 self._add_entries(Source('misc', sid, glottolog_id=sid), **kw)
             yield Reference(self[sid], pages)
 
-    def _add_entries(self, data, **kw):
+    def _add_entries(self, data: Union[Source, database.BibliographyData], **kw) -> None:
         if isinstance(data, Source):
             entries = [(data.id, data.entry)]
         elif hasattr(data, 'entries'):
@@ -232,17 +247,20 @@ class Sources(object):
 
         for key, entry in entries:
             if kw.get('_check_id', False) and not ID_PATTERN.match(key):
-                raise ValueError('invalid source ID: %s' % key)
+                raise ValueError(f'invalid source ID: {key}')
             if key not in self._bibdata.entries:
                 try:
                     self._bibdata.add_entry(key, entry)
                 except database.BibliographyDataError as e:  # pragma: no cover
-                    raise ValueError('%s' % e)
+                    raise ValueError(f'{e}') from e
 
-    def read(self, fname, zipped=False, **kw):
-        if is_url(fname):
+    def read(self, fname: PathType, zipped=False, **kw):
+        """Read sources from a BibTex file (possibly specified via URL)."""
+        if is_url(str(fname)):
+            fname = str(fname)
             try:
-                content = urlopen(fname).read().decode('utf-8')
+                with urlopen(fname) as f:
+                    content = f.read().decode('utf-8')
             except HTTPError as e:
                 if '404' in str(e):
                     fname = update_url(
@@ -254,14 +272,15 @@ class Sources(object):
                             content = zf.read(zf.namelist()[0]).decode('utf8')
         else:
             if zipped:
-                with zipfile.ZipFile(fname, 'r') as zf:
+                with zipfile.ZipFile(str(fname), 'r') as zf:
                     content = zf.read(zf.namelist()[0]).decode('utf8')
             else:
                 content = pathlib.Path(fname).read_text(encoding='utf-8')
         self._add_entries(
             database.parse_string(content, bib_format='bibtex'), **kw)
 
-    def write(self, fname, ids=None, zipped=False, **kw):
+    def write(self, fname: PathType, ids=None, zipped=False, **_) -> Optional[pathlib.Path]:
+        """Write sources to a file (if there are any)."""
         if ids:
             bibdata = database.BibliographyData()
             for key, entry in self._bibdata.entries.items():
@@ -269,19 +288,21 @@ class Sources(object):
                     bibdata.add_entry(key, entry)
         else:
             bibdata = self._bibdata
+        fname = pathlib.Path(fname)
         if bibdata.entries:
-            with pathlib.Path(fname).open('w', encoding='utf8') as fp:
+            with fname.open('w', encoding='utf8') as fp:
                 Writer().write_stream(bibdata, fp)
             if zipped:
                 with zipfile.ZipFile(
-                        fname.parent / '{}.zip'.format(fname.name),
+                        fname.parent / f'{fname.name}.zip',
                         'w',
                         compression=zipfile.ZIP_DEFLATED) as zf:
                     zf.write(fname, fname.name)
                 fname.unlink()
             return fname
+        return None
 
-    def add(self, *entries: typing.Union[str, Source], **kw):
+    def add(self, *entries: Union[str, Source], **kw) -> None:
         """
         Add a source, either specified as BibTeX string or as :class:`Source`.
         """

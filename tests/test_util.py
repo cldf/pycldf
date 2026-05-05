@@ -1,15 +1,34 @@
 import pytest
 
 from pycldf.util import *
+from pycldf.fileutil import *
+from pycldf.urlutil import *
+from pycldf.sliceutil import *
+from pycldf.markdown import metadata2markdown
 
 
 @pytest.mark.parametrize("sliceable,slices,expected", [
+    ('abcdefg', [slice(1, 3)], 'bc'),
+    ('abcdefg', ['2', '4'], 'bd'),
+    ('abcdefg', [2, 4], 'ce'),
+    ('abcdefg', ['2:8:2'], 'bdf'),
     ('abcdefg', ['2:5', (1, 4)], 'bcdebcd'),
     ([1, 2, 3, 4], ['1:6:2'], [1, 3]),
     ((1, 2, 3, 4), ['1:6:2'], (1, 3))
 ])
 def test_multislice(sliceable, slices, expected):
     assert multislice(sliceable, *slices) == expected
+
+
+@pytest.mark.parametrize(
+    'qname,expected',
+    [
+        ('rdf:ID', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#ID'),
+        ('xyz:thing', None),
+    ]
+)
+def test_qname2url(qname, expected):
+    assert qname2url(qname) == expected
 
 
 def test_DictTuple():
