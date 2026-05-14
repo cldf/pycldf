@@ -100,7 +100,7 @@ def _colrow(col, fks, pk, ds, rel_path):
                 dt += '<br>Valid choices:<br>'
                 dt += ''.join(f' `{w}`' for w in col.datatype.format.split('|'))
             elif col.datatype.base == 'string':
-                dt += f'<br>Regex: `{col.datatype.format}`'
+                dt += f'<br>Regex: `{col.datatype.format.replace("|", "\\|")}`'
         if col.datatype.minimum:
             dt += f'<br>&ge; {col.datatype.minimum}'
         if col.datatype.maximum:

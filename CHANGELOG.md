@@ -3,6 +3,12 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## unreleased
+
+- Fix bug whereby pipes in regular expression patterns would screw up table
+  formatting when inserted in markdown.
+
+
 ## [2.0.1] - 2026-05-05
 
 - Remove dependency on `tabulate`.
