@@ -139,12 +139,19 @@ class File:  # pylint: disable=too-many-instance-attributes
 
     def local_path(self, d: pathlib.Path = None) -> Optional[pathlib.Path]:
         """
-        :return: The expected path of the file in the directory `d`.
+        :return: The expected path of the file in the directory `d` in the case of files \
+        downloaded using the `downloadmedia` command. If `d` is a file it is accepted as full \
+        local path if it has the same name as the filename in the URL.
         """
         if d is None:
             if self.scheme == 'file':
                 return self._dsdir / urllib.parse.unquote(self.relpath)
             return None
+        if d.is_file() and self.parsed_url:
+            if d.name == pathlib.Path(self.parsed_url.path).name:
+                # Support the use case of files in zip archives, where the archives are available
+                # locally, e.g. as download of a separate media file deposit from Zenodo.
+                return d
         zip_ext = '.zip' if self.path_in_zip else (self.mimetype.extension or '')
         return d.joinpath(f'{self.id}{zip_ext}')
 
@@ -155,14 +162,14 @@ class File:  # pylint: disable=too-many-instance-attributes
 
     def read(self, d: Optional[pathlib.Path] = None) -> Optional[StrOrBytes]:
         """
-        :param d: A local directory where the file has been saved before. If `None`, the content \
-        will be read from the file's URL.
+        :param d: A local path where the file has been saved before - as expected by `local_path`. \
+        If `None`, the content will be read from the file's URL.
         """
         if self.path_in_zip:
             zipcontent = None
             if d:
                 zipcontent = self.local_path(d).read_bytes()
-            if self.url:
+            if zipcontent is None and self.url:
                 zipcontent = self.url_reader[self.scheme](
                     self.parsed_url, Mimetype('application/zip'))
             if zipcontent:

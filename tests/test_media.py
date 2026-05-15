@@ -194,6 +194,14 @@ def test_Media(tmp_path, ds_factory):
     assert list(MediaTable(ds))[0].read() == 'äöü'
     assert list(MediaTable(ds))[0].read(d=tmp_path) == 'äöü'
 
+    ds = ds_factory(dict(
+        ID='x',
+        Download_URL="http://example.com/path/123.zip",
+        Media_Type='text/plain',
+        Path_In_Zip='arc/name',
+    ))
+    assert list(MediaTable(ds))[0].read(d=tmp_path / '123.zip') == 'äöü'
+
 
 def test_save_read_zipped_media(dataset_with_trees, tmp_path):
     zipped = None
