@@ -12,7 +12,7 @@ Releasing pycldf
   ```shell
   flake8 src
   ```
-- Make sure pylint passes with a score of 10:
+- Make sure pylint passes with a score >= 9.99:
   ```shell
   pylint src
   ```

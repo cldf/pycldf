@@ -3,7 +3,7 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
-## Unreleased
+## [2.1.0] - 2026-07-17 
 
 - Added support for reading media file data from locally downloaded zip archives. This helps with the
   use case of datasets linking to media in separate Zenodo deposits.
