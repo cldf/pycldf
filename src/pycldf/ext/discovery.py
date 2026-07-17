@@ -157,13 +157,16 @@ def get_resolvers() -> list[type]:
 def _get_dataset(
         locator: DatasetLocator,
         location: Union[None, Dataset, pathlib.Path],
-) -> Optional[Dataset]:
+        get_all: bool = False,
+) -> Optional[Union[Dataset, list[Dataset]]]:
     """Determine whether locator matches location and if so, resolve to a Dataset instance."""
     if isinstance(location, Dataset):
         if locator.match(location):
             return location
         return None
     if location.is_dir():
+        if get_all:
+            return [ds for ds in iter_datasets(location) if locator.match(ds)]
         for ds in iter_datasets(location):
             if locator.match(ds):
                 return ds
@@ -176,7 +179,8 @@ def _get_dataset(
 
 def get_dataset(locator: str,
                 download_dir: pathlib.Path,
-                base: Optional[pathlib.Path] = None) -> Dataset:
+                base: Optional[pathlib.Path] = None,
+                get_all: bool = False) -> Union[Dataset, list[Dataset]]:
     """
     :param locator: Dataset locator as specified in "Dataset discovery".
     :param download_dir: Directory to which to download remote data if necessary.
@@ -191,7 +195,7 @@ def get_dataset(locator: str,
         else:
             res = resolver(locator.url_without_fragment, download_dir)
         if res:
-            res = _get_dataset(locator, res)
+            res = _get_dataset(locator, res, get_all=get_all)
             if res:
                 return res
     raise ValueError(f'Could not resolve dataset locator {locator}')

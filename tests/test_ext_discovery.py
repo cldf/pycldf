@@ -10,6 +10,8 @@ from pycldf.ext.discovery import *
 
 def test_get_dataset_local(data, tmp_path):
     assert get_dataset('structuredataset_with_examples', tmp_path, base=data)
+    res = get_dataset('structuredataset_with_examples', tmp_path, base=data, get_all=True)
+    assert isinstance(res, list) and isinstance(res[0], Dataset)
 
 
 def test_get_dataset_github(data, tmp_path, mocker):
