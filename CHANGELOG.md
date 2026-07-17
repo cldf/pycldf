@@ -3,6 +3,11 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## [2.1.1] - 2026-07-17 
+
+Fixed incomplete requirements.
+
+
 ## [2.1.0] - 2026-07-17 
 
 - Added support for reading media file data from locally downloaded zip archives. This helps with the
