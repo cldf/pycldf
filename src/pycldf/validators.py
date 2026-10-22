@@ -220,6 +220,12 @@ def valid_igt(_, table, column, row):  # pylint: disable=C0103,C0116
         raise ValueError('number of words and word glosses does not match')
 
 
+def valid_igt_tokens(_dataset, _table, column, row):
+    """Reject missing list members while allowing an entirely absent optional field."""
+    if row[column.name] and any(token is None for token in row[column.name]):
+        raise ValueError('empty word/gloss token: use an ellipsis for unglossed words')
+
+
 def valid_grammaticalityJudgement(dataset, _, column, row):  # pylint: disable=C0103,C0116
     lid_name = dataset.readonly_column_names.ExampleTable.languageReference[0]
     gc_name = dataset.readonly_column_names.LanguageTable.glottocode[0]
@@ -250,6 +256,14 @@ VALIDATORS: list[tuple[None, str, RowValidatorType]] = [
         None,
         'http://cldf.clld.org/v1.0/terms.rdf#gloss',
         valid_igt),
+    (
+        None,
+        'http://cldf.clld.org/v1.0/terms.rdf#gloss',
+        valid_igt_tokens),
+    (
+        None,
+        'http://cldf.clld.org/v1.0/terms.rdf#analyzedWord',
+        valid_igt_tokens),
     (
         None,
         'http://cldf.clld.org/v1.0/terms.rdf#source',
