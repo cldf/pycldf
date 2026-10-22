@@ -43,6 +43,11 @@ class Tree:
     """
     Represents a tree object as specified in a row of `TreeTable`.
     """
+    description: Optional[str]
+    tree_type: Optional[str]
+    tree_is_rooted: Optional[bool]
+    tree_branch_length_unit: Optional[str]
+
     def __init__(self, trees: 'TreeTable', row: 'RowType', file: File):
         self.row: 'RowType' = row
         self.id: str = row[trees.cols['id'].name]

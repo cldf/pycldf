@@ -239,7 +239,7 @@ class Sources:
             entries = data.entries.items()
         else:
             msg = (
-                'expected `clldutils.source.Source`,'
+                'expected `pycldf.sources.Source`,'
                 ' `pybtex.database.BibliographyData`,'
                 ' or `simplepybtex.database.BibliographyData`;'
                 f' got {type(data)}')
