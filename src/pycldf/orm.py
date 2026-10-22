@@ -227,7 +227,16 @@ class Object:  # pylint: disable=too-many-instance-attributes
         if fks and not isinstance(fks, list):
             fks = [fks]
         if fks:
-            return DictTuple(self.dataset.get_object(TERMS[relation].references, fk) for fk in fks)
+            pk = False
+            ref = self.dataset.get_foreign_key_reference(self.component_name(), relation)
+            if ref and str(ref[1].propertyUrl) != term_uri('id'):
+                if [ref[1].name] != self.dataset[TERMS[relation].references].tableSchema.primaryKey:
+                    raise NotImplementedError(
+                        'pycldf does not support foreign key constraints '
+                        'referencing columns other than CLDF id or primary key.')
+                pk = True
+            return DictTuple(
+                self.dataset.get_object(TERMS[relation].references, fk, pk=pk) for fk in fks)
         return []
 
 
