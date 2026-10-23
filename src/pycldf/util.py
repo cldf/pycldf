@@ -136,8 +136,17 @@ def copy_dataset(ds: 'Dataset', dest: PathType, mdname: str = None) -> pathlib.P
         ds.tablegroup.base if from_url else ds.tablegroup._fname)  # pylint: disable=W0212
 
     _getter = urllib.request.urlretrieve if from_url else shutil.copy
+
+    def copy_file(source, target):
+        if not from_url and not source.exists():
+            _getter(source.with_name(source.name + '.zip'), target.with_name(target.name + '.zip'))
+            if target.exists():
+                target.unlink()  # The plain file would take precedence over the archive.
+        else:
+            _getter(source, target)
+
     try:
-        _getter(ds.bibpath, dest / ds.bibname)
+        copy_file(ds.bibpath, dest / ds.bibname)
         ds.properties['dc:source'] = ds.bibname
     except:  # pragma: no cover # noqa  pylint: disable=W0702
         # Sources are optional
@@ -146,7 +155,7 @@ def copy_dataset(ds: 'Dataset', dest: PathType, mdname: str = None) -> pathlib.P
     for table in ds.tables:
         fname = table.url.resolve(table.base)
         name = pathlib.Path(urllib.parse.urlparse(fname).path).name if from_url else fname.name
-        _getter(fname, dest / name)
+        copy_file(fname, dest / name)
         table.url = Link(name)
 
         for fk in table.tableSchema.foreignKeys:
