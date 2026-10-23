@@ -143,6 +143,15 @@ def copy_dataset(ds: 'Dataset', dest: PathType, mdname: str = None) -> pathlib.P
         # Sources are optional
         pass
 
+    # Read media while table URLs still refer to their original locations.
+    if 'MediaTable' in ds:
+        for f in MediaTable(ds):
+            if f.scheme == 'file':
+                if f.local_path().exists():
+                    target = dest / urllib.parse.unquote(f.relpath)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(f.local_path(), target)
+
     for table in ds.tables:
         fname = table.url.resolve(table.base)
         name = pathlib.Path(urllib.parse.urlparse(fname).path).name if from_url else fname.name
@@ -155,13 +164,6 @@ def copy_dataset(ds: 'Dataset', dest: PathType, mdname: str = None) -> pathlib.P
         mdname or  # noqa: W504
         (ds.tablegroup.base.split('/')[-1] if from_url
          else ds.tablegroup._fname.name))  # pylint: disable=W0212
-    if 'MediaTable' in ds:
-        for f in MediaTable(ds):
-            if f.scheme == 'file':
-                if f.local_path().exists():
-                    target = dest / urllib.parse.unquote(f.relpath)
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(f.local_path(), target)
     if from_url:
         del ds.tablegroup.at_props['base']  # pragma: no cover
     ds.write_metadata(fname=mdpath)
