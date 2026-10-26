@@ -908,7 +908,12 @@ def test_Dataset_get_foreign_key_target(tmp_path):
     assert ds.get_foreign_key_reference('values.csv', 'Value') is None
 
 
-def test_Dataset_copy(tmp_path):
+@pytest.mark.parametrize('zipped', [
+    [], ['ValueTable'], ['Source'], ['data/sets.csv'],
+    ['ValueTable', 'Source', 'data/sets.csv'],
+])
+@pytest.mark.parametrize('existing', [False, True])
+def test_Dataset_copy(tmp_path, zipped, existing):
     tmp_path.joinpath('data').mkdir()
     ds = StructureDataset.in_dir(tmp_path)
     ds.add_table('data/sets.csv', 'ID', 'Name')
@@ -918,6 +923,7 @@ def test_Dataset_copy(tmp_path):
     ds.add_sources('@book{src1,\ntitle="the Book"}')
     ds.write(
         fname=tmp_path / 'meta.js',
+        zipped=zipped,
         ValueTable=[dict(
             ID='1', Value='x', Language_ID='l', Parameter_ID='p', Source=['src1'], Set_ID='s')],
         **{'data/sets.csv': [dict(ID='s', Name='the set')]}
@@ -926,9 +932,27 @@ def test_Dataset_copy(tmp_path):
     assert ds.validate()
 
     dest = tmp_path / 'new' / 'location'
+    if existing:
+        dest.mkdir(parents=True)
+        for name in ['values.csv', 'sets.csv', 's.bib']:
+            (dest / name).write_text('stale content')
+        (dest / 'unrelated.txt').write_text('keep this')
     ds.copy(dest, mdname='md.json')
+    if existing:
+        assert (dest / 'unrelated.txt').read_text() == 'keep this'
     copy = Dataset.from_metadata(dest / 'md.json')
     assert copy.validate()
+    assert 'src1' in copy.sources
+    assert list(copy['ValueTable']) == list(ds['ValueTable'])
+    for table in ds.tables:
+        original = table.url.resolve(table.base)
+        if not original.exists():
+            original = original.with_name(original.name + '.zip')
+        assert (dest / original.name).read_bytes() == original.read_bytes()
+    bibpath = ds.bibpath
+    if not bibpath.exists():
+        bibpath = bibpath.with_name(bibpath.name + '.zip')
+    assert (dest / bibpath.name).read_bytes() == bibpath.read_bytes()
 
     # Make sure all file references are relative:
     shutil.copytree(dest, tmp_path / 'moved')
