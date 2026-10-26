@@ -968,6 +968,29 @@ def test_Dataset_copy_with_media(tmp_path, dataset_with_media):
     assert i > 1
 
 
+@pytest.mark.parametrize('nested', [False, True])
+def test_Dataset_copy_nested_media(tmp_path, dataset_with_media, nested):
+    original = tmp_path / 'original'
+    shutil.copytree(dataset_with_media.directory, original)
+    ds = Dataset.from_metadata(original / 'metadata.json')
+    if nested:
+        (original / 'tables').mkdir()
+        media = ds['MediaTable']
+        source = media.url.resolve(media.base)
+        target = original / 'tables' / source.name
+        source.rename(target)
+        media.url = Link('tables/' + source.name)
+        ds.write_metadata()
+    expected = {f.id: f.read() for f in MediaTable(ds)}
+    source_url = str(ds['MediaTable'].url)
+    copied = ds.copy(tmp_path / 'copied')
+    shutil.move(copied.parent, tmp_path / 'relocated')
+    restored = Dataset.from_metadata(tmp_path / 'relocated' / copied.name)
+    assert {f.id: f.read() for f in MediaTable(restored)} == expected
+    assert str(ds['MediaTable'].url) == source_url
+    assert {f.id: f.read() for f in MediaTable(ds)} == expected
+
+
 def test_Dataset_rename_column(ds):
     lt = ds.add_component('LanguageTable')
     lt.aboutUrl = URITemplate('{#ID}.md')
