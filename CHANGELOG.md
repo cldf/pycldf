@@ -10,6 +10,7 @@ The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.
 - Fixed bug where explicit foreign key declaration was not honored when 
   resolving list-valued foreign keys (thanks @antonsoo).
 - Fixed documentation issue with confusing error message.
+- Enhanced support for copying datasets (thanks @antonsoo).
 
 
 ## [2.1.1] - 2026-07-17 
