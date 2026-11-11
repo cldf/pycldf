@@ -8,7 +8,7 @@ import pathlib
 import warnings
 import dataclasses
 import urllib.parse
-from typing import Optional, Union, Callable, Any, TYPE_CHECKING, Literal, get_args
+from typing import Optional, Callable, Any, TYPE_CHECKING, Literal, get_args
 from collections.abc import Container
 from xml.etree import ElementTree
 
@@ -197,7 +197,7 @@ class Terms(dict):
         return {k: v for k, v in self.items() if v.subtype == 'component'}
 
 
-def term_uri(name: Union[Term, str], terms: Container[str] = None, ns: str = URL) -> Optional[str]:
+def term_uri(name: Term | str, terms: Container[str] = None, ns: str = URL) -> Optional[str]:
     """
     Returns a full term URI associated with `name`.
 

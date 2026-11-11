@@ -1,18 +1,16 @@
 """
 Functionality to create schema objects.
 """
-from typing import Union
-
 from csvw.metadata import Column, Table
 from clldutils import jsonlib
 
 from pycldf.terms import TERMS
 from pycldf.util import MD_SUFFIX, pkg_path
 
-ColSpecType = Union[str, dict, Column]
-TableSpecType = Union[str, dict, Table]
-TableType = Union[str, Table]
-ColType = Union[str, Column]
+ColSpecType = str | dict | Column
+TableSpecType = str | dict | Table
+TableType = str | Table
+ColType = str | Column
 
 
 def make_column(spec: ColSpecType) -> Column:

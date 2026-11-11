@@ -5,14 +5,14 @@ In addition to Python's way of specifying slices as triples of integers (start, 
 allow specification as strings like '1' or '2:5', where the numbers are interpreted as **1-based**
 indices, specifying **inclusive** boundaries. I.e. '2:5' is equivalent to `slice(1:5).`
 """
-from typing import Union, TypeVar
+from typing import TypeVar
 import itertools
 from collections.abc import Sequence, Iterable
 
 __all__ = ['multislice', 'multislice_with_split']
 
 T = TypeVar('T')
-SliceType = Union[str, tuple[int], tuple[int, int], tuple[int, int, int], slice]
+SliceType = str | tuple[int] | tuple[int, int] | tuple[int, int, int] | slice
 
 
 def multislice(sliceable: Sequence[T], *slices: SliceType) -> Sequence[T]:

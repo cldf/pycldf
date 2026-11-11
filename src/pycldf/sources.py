@@ -3,7 +3,7 @@ Functionality to handle BibTeX source data of Datasets.
 """
 import re
 import types
-from typing import Optional, Union, Literal
+from typing import Optional, Literal
 import pathlib
 import zipfile
 import tempfile
@@ -91,7 +91,7 @@ class Source(BaseSource):
                 else:
                     yield database.Person(name)
 
-    def refkey(self, year_brackets: Union[None, Literal["round", "square", "curly"]] = 'round'):
+    def refkey(self, year_brackets: None | Literal["round", "square", "curly"] = 'round'):
         """Compute an author-year type reference key for the item."""
         brackets = {
             None: ('', ''),
@@ -205,7 +205,7 @@ class Sources:
             pages = pages[:-1].strip()
         return sid, pages
 
-    def validate(self, refs: Union[str, list[str]]) -> None:
+    def validate(self, refs: str | list[str]) -> None:
         """Make sure refs are valid. If not, raises Exceptions."""
         if not isinstance(refs, str) and any(r is None for r in refs):
             raise ValueError('empty reference in ref list (possibly caused by trailing separator)')
@@ -232,7 +232,7 @@ class Sources:
                 self._add_entries(Source('misc', sid, glottolog_id=sid), **kw)
             yield Reference(self[sid], pages)
 
-    def _add_entries(self, data: Union[Source, database.BibliographyData], **kw) -> None:
+    def _add_entries(self, data: Source | database.BibliographyData, **kw) -> None:
         if isinstance(data, Source):
             entries = [(data.id, data.entry)]
         elif hasattr(data, 'entries'):
@@ -302,7 +302,7 @@ class Sources:
             return fname
         return None
 
-    def add(self, *entries: Union[str, Source], **kw) -> None:
+    def add(self, *entries: str | Source, **kw) -> None:
         """
         Add a source, either specified as BibTeX string or as :class:`Source`.
         """

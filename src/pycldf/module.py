@@ -2,7 +2,7 @@
 Functionality to manage modules, i.e. `Dataset` subclasses implementing particular CLDF modules.
 """
 import dataclasses
-from typing import Union, Optional, Type
+from typing import Optional, Type
 
 from csvw.metadata import TableGroup
 
@@ -33,7 +33,7 @@ class Module:
         """
         return self.uri.split('#')[1]
 
-    def match(self, thing: Union[TableGroup, str]) -> bool:
+    def match(self, thing: TableGroup | str) -> bool:
         """Check if the module described here matches thing."""
         if isinstance(thing, TableGroup):
             return thing.common_props.get('dc:conformsTo') == term_uri(self.id)
@@ -45,7 +45,7 @@ class Module:
 _modules = []
 
 
-def get_module_impl(base_class, spec: Union[TableGroup, str]) -> Optional[Type]:
+def get_module_impl(base_class, spec: TableGroup | str) -> Optional[Type]:
     """
     Returns an implementation (aka Dataset subclass) for a particular CLDF module.
     """

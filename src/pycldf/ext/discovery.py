@@ -16,7 +16,7 @@ Additional resolvers:
   resolver for DOI URLs pointing to the Zenodo archive.
 """
 import re
-from typing import Optional, Union
+from typing import Optional
 import pathlib
 import zipfile
 import warnings
@@ -46,11 +46,7 @@ class DatasetResolver:  # pylint: disable=R0903
     """
     priority = 5
 
-    def __call__(
-            self,
-            loc: str,
-            download_dir: pathlib.Path,
-    ) -> Union[None, Dataset, pathlib.Path]:
+    def __call__(self, loc: str, download_dir: pathlib.Path) -> None | Dataset | pathlib.Path:
         """
         :param loc: URL pointing to a place where datasets are archived.
         :param download_dir: A directory to which resolvers can download data.
@@ -155,9 +151,9 @@ def get_resolvers() -> list[type]:
 
 def _get_dataset(
         locator: DatasetLocator,
-        location: Union[None, Dataset, pathlib.Path],
+        location: None | Dataset | pathlib.Path,
         get_all: bool = False,
-) -> Optional[Union[Dataset, list[Dataset]]]:
+) -> Optional[Dataset | list[Dataset]]:
     """Determine whether locator matches location and if so, resolve to a Dataset instance."""
     if isinstance(location, Dataset):
         if locator.match(location):
@@ -179,7 +175,7 @@ def _get_dataset(
 def get_dataset(locator: str,
                 download_dir: pathlib.Path,
                 base: Optional[pathlib.Path] = None,
-                get_all: bool = False) -> Union[Dataset, list[Dataset]]:
+                get_all: bool = False) -> Dataset | list[Dataset]:
     """
     :param locator: Dataset locator as specified in "Dataset discovery".
     :param download_dir: Directory to which to download remote data if necessary.

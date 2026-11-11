@@ -4,7 +4,7 @@ This module provides tools to build a CLDF Markdown renderer.
 For an example, see :class:`FilenameToComponent`.
 """
 import re
-from typing import Optional, Union, Any
+from typing import Optional, Any
 import pathlib
 import warnings
 import collections
@@ -65,7 +65,7 @@ class DatasetMapping(Mapping):
             if not isinstance(self.m[k], Dataset):
                 self.m[k] = get_dataset(self.m[k], download_dir, doc_path)
 
-    def __getitem__(self, prefix: Union[str, None]) -> Dataset:
+    def __getitem__(self, prefix: str | None) -> Dataset:
         """
         Get a `Dataset` mapped to a prefix.
         """
@@ -130,9 +130,7 @@ class CLDFMarkdownLink(MarkdownLink):
         return None  # pragma: no cover
 
     def component(
-            self,
-            cldf: Optional[Union[Dataset, dict[str, Dataset], DatasetMapping]] = None,
-    ) -> Union[str, None]:
+            self, cldf: None | Dataset | dict[str, Dataset] | DatasetMapping = None) -> str | None:
         """
         :param cldf: `pycldf.Dataset` instance to which the link refers.
         :return: Name of the CLDF component the link pertains to or `None`.
@@ -173,7 +171,7 @@ class CLDFMarkdownLink(MarkdownLink):
         """
         return self.objid == '__all__'
 
-    def get_row(self, cldf: Union[Dataset, DatasetMapping]) -> dict:
+    def get_row(self, cldf: Dataset | DatasetMapping) -> dict:
         """
         Resolve the reference in a CLDF Markdown link to a row (`dict`) in the CLDF `Dataset`.
         """
@@ -181,7 +179,7 @@ class CLDFMarkdownLink(MarkdownLink):
         ds = DatasetMapping(cldf)[self.prefix]
         return ds.get_row(self.component(cldf=ds), self.objid)
 
-    def get_object(self, cldf: Union[Dataset, DatasetMapping]) -> orm.Object:
+    def get_object(self, cldf: Dataset | DatasetMapping) -> orm.Object:
         """
         Resolve the reference in a CLDF Markdown link to an ORM object in the CLDF `Dataset`.
         """
@@ -219,8 +217,8 @@ class CLDFMarkdownText:
     :cvar metadata_component: Name of the special "Metadata" component.
     """
     def __init__(self,
-                 text: Union[pathlib.Path, str],
-                 dataset_mapping: Optional[Union[str, Dataset, dict]] = None,
+                 text: pathlib.Path | str,
+                 dataset_mapping: Optional[str | Dataset | dict] = None,
                  download_dir: Optional[pathlib.Path] = None):
         """
         :param text: CLDF Markdown text either to be read from a path or specified as `str`.
@@ -230,7 +228,7 @@ class CLDFMarkdownText:
         """
         p = frontmatter.loads(text) if isinstance(text, str) else frontmatter.load(str(text))
         self.metadata: dict[str, Any] = p.metadata
-        self.dataset_mapping: Mapping[Union[str, None], Dataset] = DatasetMapping(
+        self.dataset_mapping: Mapping[str | None, Dataset] = DatasetMapping(
             p.get(DATASETS_MAPPING),
             dataset_mapping,
             text.parent if isinstance(text, pathlib.Path) else None,
@@ -249,7 +247,7 @@ class CLDFMarkdownText:
         """
         return f'---\n{yaml.dump(self.metadata)}---'
 
-    def get_object(self, ml: CLDFMarkdownLink) -> Union[list, orm.Object, Source, dict]:
+    def get_object(self, ml: CLDFMarkdownLink) -> list | orm.Object | Source | dict:
         """
         Resolve the reference in a CLDF Markdown link to the matching object from a mapped dataset.
 
@@ -279,13 +277,13 @@ class CLDFMarkdownText:
         return list(self._datadict[ml.prefix][key].values()) if ml.all \
             else self._datadict[ml.prefix][key][ml.objid]
 
-    def _render_link(self, link: CLDFMarkdownLink) -> Union[str, CLDFMarkdownLink]:
+    def _render_link(self, link: CLDFMarkdownLink) -> str | CLDFMarkdownLink:
         """Dispatches to custom rendering in case of CLDF links."""
         if link.is_cldf_link:
             return self.render_link(link)
         return link
 
-    def render_link(self, cldf_link: CLDFMarkdownLink) -> Union[str, CLDFMarkdownLink]:
+    def render_link(self, cldf_link: CLDFMarkdownLink) -> str | CLDFMarkdownLink:
         """
         CLDF Markdown renderers must implement this method.
         """

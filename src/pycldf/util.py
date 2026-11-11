@@ -2,7 +2,7 @@
 The mixed bag of utility functions and classes of the pycldf package ...
 """
 import shutil
-from typing import Optional, TYPE_CHECKING, Any, Union
+from typing import Optional, TYPE_CHECKING, Any
 import pathlib
 import collections
 import urllib.parse
@@ -53,8 +53,7 @@ class GitRepository:  # pylint: disable=too-few-public-methods
         return res
 
 
-def iter_uritemplates(
-        table: Table) -> Generator[tuple[Union[Table, Schema, Column], str, URITemplate]]:
+def iter_uritemplates(table: Table) -> Generator[tuple[Table | Schema | Column, str, URITemplate]]:
     """
     Generator of URITemplates specified in a table.
 

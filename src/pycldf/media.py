@@ -24,7 +24,7 @@ or instantiate a :class:`.File` from a :class:`pycldf.orm.Object`:
 import io
 import json
 import base64
-from typing import Union, TYPE_CHECKING, Optional, Callable
+from typing import TYPE_CHECKING, Optional, Callable
 import pathlib
 import zipfile
 import functools
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 __all__ = ['Mimetype', 'MediaTable', 'File']
 
-StrOrBytes = Union[str, bytes]
+StrOrBytes = str | bytes
 
 
 class File:  # pylint: disable=too-many-instance-attributes
@@ -91,7 +91,7 @@ class File:  # pylint: disable=too-many-instance-attributes
 
     @classmethod
     def from_dataset(
-            cls, ds: 'Dataset', row_or_object: Union[dict, orm.Media]) -> 'File':
+            cls, ds: 'Dataset', row_or_object: dict | orm.Media) -> 'File':
         """
         Factory method to instantiate a `File` bypassing the `Media` wrapper.
         """
@@ -350,7 +350,7 @@ class Mimetype:
         return self.type == 'text'
 
     @property
-    def extension(self) -> Union[None, str]:
+    def extension(self) -> None | str:
         """Return a suitable filename extension for the mimetype."""
         return mimetypes.guess_extension(f'{self.type}/{self.subtype}')
 
@@ -360,7 +360,7 @@ class Mimetype:
             return data.decode(self.encoding)
         return data
 
-    def write(self, data: StrOrBytes, p: Optional[pathlib.Path] = None) -> Union[int, StrOrBytes]:
+    def write(self, data: StrOrBytes, p: Optional[pathlib.Path] = None) -> int | StrOrBytes:
         """The mimetype dictates how/if to encode data."""
         res = data.encode(self.encoding) if self.is_text else data
         return p.write_bytes(res) if p else res

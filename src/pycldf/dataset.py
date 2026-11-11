@@ -3,7 +3,7 @@ An implementation of a CLDF dataset object.
 """
 import re
 import types
-from typing import Union, Optional, Type, Any
+from typing import Optional, Type, Any
 import logging
 import pathlib
 import functools
@@ -39,8 +39,8 @@ __all__ = [
     'TextCorpus', 'iter_datasets', 'sniff', 'SchemaError']
 
 ORM_CLASSES = {cls.component_name(): cls for cls in orm.Object.__subclasses__()}
-TableSpecType = Union[str, Link, Table]
-SchemaObjectType = Union[TableSpecType, tuple[TableSpecType, ColType]]
+TableSpecType = str | Link | Table
+SchemaObjectType = TableSpecType | tuple[TableSpecType, ColType]
 ODict = collections.OrderedDict
 RowType = ODict[str, Any]
 
@@ -285,7 +285,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
                 pass
         return None
 
-    def __getitem__(self, item: SchemaObjectType) -> Union[csvw.Table, csvw.Column]:
+    def __getitem__(self, item: SchemaObjectType) -> csvw.Table | csvw.Column:
         """
         Access to tables and columns.
 
@@ -365,7 +365,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
         """
         return bool(self.get(item))
 
-    def get(self, item: SchemaObjectType, default=None) -> Union[csvw.Table, csvw.Column, None]:
+    def get(self, item: SchemaObjectType, default=None) -> csvw.Table | csvw.Column | None:
         """
         Acts like `dict.get`.
 
@@ -485,7 +485,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
         # Now remove the table:
         self.tablegroup.tables = [t for t in self.tablegroup.tables if t.url != table.url]
 
-    def add_component(self, component: Union[str, dict], *cols: ColSpecType, **kw) -> csvw.Table:
+    def add_component(self, component: str | dict, *cols: ColSpecType, **kw) -> csvw.Table:
         """
         Add a CLDF component to a dataset.
 
@@ -632,7 +632,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
         return add_auto_constraints(self, component)
 
     # Add data -------------------------------------------------------------------------------------
-    def add_sources(self, *sources: Union[str, Source], **kw) -> None:
+    def add_sources(self, *sources: str | Source, **kw) -> None:
         """
         Add sources to the dataset.
 
@@ -676,7 +676,7 @@ class Dataset:  # pylint: disable=too-many-public-methods
                 return row
         raise ValueError(id_)  # pragma: no cover
 
-    def get_row_url(self, table: TableType, row: Union[RowType, str]) -> Optional[str]:
+    def get_row_url(self, table: TableType, row: RowType | str) -> Optional[str]:
         """
         Get a URL associated with a row. Tables can specify associated row URLs by
 

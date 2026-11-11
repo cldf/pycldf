@@ -4,12 +4,12 @@ Functionality to access and manipulate files.
 import re
 import math
 import string
-from typing import Union, Optional
+from typing import Optional
 import pathlib
 import itertools
 
 
-PathType = Union[str, pathlib.Path]
+PathType = str | pathlib.Path
 
 
 def splitfile(p: PathType, chunksize: int, total: Optional[int] = None) -> list[pathlib.Path]:

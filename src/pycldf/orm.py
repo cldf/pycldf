@@ -46,7 +46,7 @@ Limitations:
   * ~35secs iterating over ``pycldf.Dataset.objects('ValueTable')``
 """
 import types
-from typing import TYPE_CHECKING, Union, Optional, Any
+from typing import TYPE_CHECKING, Optional, Any
 import decimal
 import functools
 import collections
@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from pycldf.media import File  # pragma: no cover
 
 
-def to_json(s: Any) -> Union[str, float, None, list, dict]:
+def to_json(s: Any) -> str | float | int | None | list | dict:
     """Converts `s` to an object that can be serialized as JSON."""
     if isinstance(s, (list, tuple)):
         return [to_json(ss) for ss in s]
@@ -162,19 +162,19 @@ class Object:  # pylint: disable=too-many-instance-attributes
             return getattr(col, attr).expand(**variables)
         return None  # pragma: no cover
 
-    def aboutUrl(self, col: str = 'id') -> Union[str, None]:  # pylint: disable=invalid-name
+    def aboutUrl(self, col: str = 'id') -> str | None:  # pylint: disable=invalid-name
         """
         The table's `aboutUrl` property, expanded with the object's row as context.
         """
         return self._expand_uritemplate('aboutUrl', col)
 
-    def valueUrl(self, col: str = 'id') -> Union[str, None]:  # pylint: disable=invalid-name
+    def valueUrl(self, col: str = 'id') -> str | None:  # pylint: disable=invalid-name
         """
         The table's `valueUrl` property, expanded with the object's row as context.
         """
         return self._expand_uritemplate('valueUrl', col)
 
-    def propertyUrl(self, col: str = 'id') -> Union[str, None]:  # pylint: disable=invalid-name
+    def propertyUrl(self, col: str = 'id') -> str | None:  # pylint: disable=invalid-name
         """
         The table's `propertyUrl` property, expanded with the object's row as context.
         """
@@ -218,7 +218,7 @@ class Object:  # pylint: disable=too-many-instance-attributes
                                           'referencing columns other than CLDF id or primary key.')
         return None  # pragma: no cover
 
-    def all_related(self, relation: str) -> Union[DictTuple, list]:
+    def all_related(self, relation: str) -> DictTuple | list:
         """
         CLDF reference properties can be list-valued. This method returns all related objects for
         such a property.
@@ -246,7 +246,7 @@ class _WithLanguageMixin:
         return self.related('languageReference')
 
     @property
-    def languages(self) -> Union[DictTuple, list]:  # pylint: disable=C0116
+    def languages(self) -> DictTuple | list:  # pylint: disable=C0116
         return self.all_related('languageReference')
 
 
@@ -256,7 +256,7 @@ class _WithParameterMixin:
         return self.related('parameterReference')
 
     @property
-    def parameters(self) -> Union[DictTuple, list]:  # pylint: disable=C0116
+    def parameters(self) -> DictTuple | list:  # pylint: disable=C0116
         return self.all_related('parameterReference')
 
 
@@ -388,7 +388,7 @@ class Language(Object):
         return None  # pragma: no cover
 
     @property
-    def as_geojson_feature(self) -> Union[None, dict[str, Any]]:
+    def as_geojson_feature(self) -> None | dict[str, Any]:
         """
         `dict` suitable for serialization as GeoJSON Feature object, with the point coordinate as
         geographic data.

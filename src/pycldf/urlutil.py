@@ -1,16 +1,16 @@
 """
 Functionality to manipulate URLs.
 """
-from typing import Callable, Union
+from typing import Callable
 import urllib.parse
 
 __all__ = ['update_url', 'sanitize_url', 'url_without_fragment']
 
 
 def update_url(
-        url: Union[str, urllib.parse.ParseResult],
+        url: str | urllib.parse.ParseResult,
         updater: Callable[[urllib.parse.ParseResult], tuple[str, str, str, str, str]],
-) -> Union[str, None]:
+) -> str | None:
     """Generic update function for URLs."""
     if url is None:
         return None
@@ -32,6 +32,6 @@ def sanitize_url(url: str) -> str:
     return update_url(url, fix)
 
 
-def url_without_fragment(url: Union[str, urllib.parse.ParseResult]) -> str:
+def url_without_fragment(url: str | urllib.parse.ParseResult) -> str:
     """Removes fragment from URL."""
     return update_url(url, lambda u: (u.scheme, u.hostname, u.path, u.query, ''))
