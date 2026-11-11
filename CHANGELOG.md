@@ -3,7 +3,7 @@
 The `pycldf` package adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
-## Unreleased
+## [2.2.0] - 2026-11-11
 
 - Fixed bug where missing words in glossed examples would lead to downstream
   issues (thanks @antonsoo).
