@@ -29,7 +29,6 @@ from csvw.utils import is_url
 
 from pycldf import Dataset, iter_datasets, sniff
 from pycldf.urlutil import url_without_fragment
-from pycldf._compat import entry_points_select
 
 __all__ = ['get_dataset', 'DatasetResolver']
 EP = 'pycldf_dataset_resolver'
@@ -145,7 +144,7 @@ class DatasetLocator(str):
 def get_resolvers() -> list[type]:
     """Register resolvers defined via entry points."""
     if not _resolvers:
-        for ep in set(entry_points_select(entry_points(), EP)):
+        for ep in set(entry_points().select(group=EP)):
             try:
                 _resolvers.append(ep.load()())
             except ImportError:  # pragma: no cover
